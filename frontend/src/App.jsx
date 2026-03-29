@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './pages/auth/Login'
 import Dashboard from './pages/admin/Dashboard'
 import Users from './pages/admin/Users'
+import Subjects from './pages/admin/Subjects'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth()
@@ -71,6 +72,11 @@ const AppRoutes = () => {
            <Users />
         </ProtectedRoute>
       } />
+      <Route path="/admin/subjects" element={
+  <ProtectedRoute allowedRoles={['ADMIN']}>
+    <Subjects />
+  </ProtectedRoute>
+} />
 
       <Route path="/instructor" element={
         <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
