@@ -1,41 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './pages/auth/Login'
-import Dashboard from './pages/admin/Dashboard'
+import AdminDashboard from './pages/admin/Dashboard'
 import Users from './pages/admin/Users'
 import Subjects from './pages/admin/Subjects'
 import Notices from './pages/admin/Notices'
+import InstructorDashboard from './pages/instructor/Dashboard'
+import InstructorSubjects from './pages/instructor/Subjects'
+import Attendance from './pages/instructor/Attendance'
+import Assignments from './pages/instructor/Assignments'
+import Marks from './pages/instructor/Marks'
+import InstructorNotices from './pages/instructor/Notices'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth()
-
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <p className="text-gray-500">Loading...</p>
     </div>
   )
-
   if (!user) return <Navigate to="/login" />
   if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/login" />
   return children
-}
-
-const InstructorDashboard = () => {
-  const { user, logout } = useAuth()
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Instructor Dashboard</h1>
-          <button onClick={logout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Logout</button>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <p className="text-gray-600">Welcome back, <span className="font-semibold text-green-600">{user?.name}</span>! 👋</p>
-          <p className="text-gray-500 text-sm mt-1">Role: {user?.role}</p>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 const StudentDashboard = () => {
@@ -49,7 +35,6 @@ const StudentDashboard = () => {
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm">
           <p className="text-gray-600">Welcome back, <span className="font-semibold text-purple-600">{user?.name}</span>! 👋</p>
-          <p className="text-gray-500 text-sm mt-1">Role: {user?.role}</p>
         </div>
       </div>
     </div>
@@ -58,57 +43,38 @@ const StudentDashboard = () => {
 
 const AppRoutes = () => {
   const { user } = useAuth()
-
   return (
     <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to={`/${user.role.toLowerCase()}`} />} />
 
-      <Route path="/admin" element={
-        <ProtectedRoute allowedRoles={['ADMIN']}>
-          <Dashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/admin/users" element={
-         <ProtectedRoute allowedRoles={['ADMIN']}>
-           <Users />
-        </ProtectedRoute>
-      } />
-      <Route path="/admin/subjects" element={
-  <ProtectedRoute allowedRoles={['ADMIN']}>
-    <Subjects />
-  </ProtectedRoute>
-} />
-<Route path="/admin/notices" element={
-  <ProtectedRoute allowedRoles={['ADMIN']}>
-    <Notices />
-  </ProtectedRoute>
-} />
+      {/* Admin Routes */}
+      <Route path="/admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><Users /></ProtectedRoute>} />
+      <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['ADMIN']}><Subjects /></ProtectedRoute>} />
+      <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={['ADMIN']}><Notices /></ProtectedRoute>} />
 
-      <Route path="/instructor" element={
-        <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
-          <InstructorDashboard />
-        </ProtectedRoute>
-      } />
+      {/* Instructor Routes */}
+      <Route path="/instructor" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorDashboard /></ProtectedRoute>} />
+      <Route path="/instructor/subjects" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorSubjects /></ProtectedRoute>} />
+      <Route path="/instructor/attendance" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><Attendance /></ProtectedRoute>} />
+      <Route path="/instructor/assignments" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><Assignments /></ProtectedRoute>} />
+      <Route path="/instructor/marks" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><Marks /></ProtectedRoute>} />
+      <Route path="/instructor/notices" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorNotices /></ProtectedRoute>} />
 
-      <Route path="/student" element={
-        <ProtectedRoute allowedRoles={['STUDENT']}>
-          <StudentDashboard />
-        </ProtectedRoute>
-      } />
+      {/* Student Routes */}
+      <Route path="/student" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentDashboard /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   )
 }
 
-const App = () => {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
-  )
-}
+const App = () => (
+  <BrowserRouter>
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  </BrowserRouter>
+)
 
 export default App
