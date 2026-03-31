@@ -6,16 +6,19 @@ const StudentAttendance = () => {
   const [attendance, setAttendance] = useState([])
   const [summary, setSummary] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => { fetchAttendance() }, [])
 
   const fetchAttendance = async () => {
     try {
+      setError('')
       const res = await api.get('/attendance/my')
       setAttendance(res.data.attendance)
       setSummary(res.data.summary)
     } catch (error) {
       console.error(error)
+      setError(error.response?.data?.message || 'Unable to load attendance')
     } finally {
       setLoading(false)
     }
@@ -28,6 +31,8 @@ const StudentAttendance = () => {
           <h1 className="text-2xl font-bold text-gray-800">My Attendance</h1>
           <p className="text-gray-500 text-sm mt-1">Track your attendance across all subjects</p>
         </div>
+
+        {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         {loading ? (
           <div className="text-center text-gray-500 py-8">Loading...</div>
@@ -61,6 +66,9 @@ const StudentAttendance = () => {
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
                     {item.present} present out of {item.total} classes
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {item.absent} absent • {item.late} late
                   </p>
                   {parseFloat(item.percentage) < 75 && (
                     <p className="text-xs text-red-500 mt-1">⚠️ Below 75% attendance!</p>

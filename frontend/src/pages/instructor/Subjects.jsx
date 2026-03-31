@@ -49,6 +49,7 @@ const InstructorSubjects = () => {
                 <div className="flex gap-4 text-xs text-gray-500 mb-3">
                   <span>📝 {subject._count?.assignments} assignments</span>
                   <span>👥 {subject._count?.attendances} records</span>
+                  <span>🎓 {subject._count?.enrollments || 0} students</span>
                 </div>
                 {subject.department && (
                   <span className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded">

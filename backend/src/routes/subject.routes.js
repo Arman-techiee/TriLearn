@@ -7,7 +7,9 @@ const {
   getSubjectById,
   updateSubject,
   deleteSubject,
-  assignInstructor
+  assignInstructor,
+  getSubjectEnrollments,
+  updateSubjectEnrollments
 } = require('../controllers/subject.controller')
 
 // All routes protected
@@ -18,6 +20,8 @@ router.post('/', allowRoles('ADMIN'), createSubject)
 router.put('/:id', allowRoles('ADMIN'), updateSubject)
 router.delete('/:id', allowRoles('ADMIN'), deleteSubject)
 router.patch('/:id/assign-instructor', allowRoles('ADMIN'), assignInstructor)
+router.get('/:id/enrollments', allowRoles('ADMIN', 'INSTRUCTOR'), getSubjectEnrollments)
+router.put('/:id/enrollments', allowRoles('ADMIN'), updateSubjectEnrollments)
 
 // Admin + Instructor + Student can view
 router.get('/', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getAllSubjects)

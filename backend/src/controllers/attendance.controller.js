@@ -1,6 +1,112 @@
 const prisma = require('../utils/prisma')
 const QRCode = require('qrcode')
 
+const ATTENDANCE_STATUSES = ['PRESENT', 'ABSENT', 'LATE']
+
+const getDayRange = (dateValue) => {
+  const baseDate = dateValue ? new Date(dateValue) : new Date()
+
+  if (Number.isNaN(baseDate.getTime())) {
+    return null
+  }
+
+  const start = new Date(baseDate)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(start)
+  end.setDate(end.getDate() + 1)
+
+  return { start, end }
+}
+
+const getInstructorProfile = (userId) => prisma.instructor.findUnique({
+  where: { userId }
+})
+
+const getStudentProfile = (userId) => prisma.student.findUnique({
+  where: { userId }
+})
+
+const getOwnedSubject = async (subjectId, user) => {
+  const subject = await prisma.subject.findUnique({
+    where: { id: subjectId },
+    include: {
+      instructor: {
+        include: {
+          user: { select: { name: true, email: true } }
+        }
+      }
+    }
+  })
+
+  if (!subject) {
+    return { error: { status: 404, message: 'Subject not found' } }
+  }
+
+  if (user.role === 'INSTRUCTOR') {
+    const instructor = await getInstructorProfile(user.id)
+
+    if (!instructor) {
+      return { error: { status: 403, message: 'Only instructors can manage attendance' } }
+    }
+
+    if (!subject.instructorId) {
+      return { error: { status: 403, message: 'Assign an instructor to this subject before managing attendance' } }
+    }
+
+    if (subject.instructorId !== instructor.id) {
+      return { error: { status: 403, message: 'You can only manage attendance for your assigned subjects' } }
+    }
+
+    return { subject, instructor }
+  }
+
+  return { subject }
+}
+
+const getSubjectStudents = async (subject) => {
+  const students = await prisma.student.findMany({
+    where: {
+      user: { isActive: true },
+      subjectEnrollments: {
+        some: {
+          subjectId: subject.id
+        }
+      }
+    },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+          isActive: true
+        }
+      }
+    },
+    orderBy: [
+      { rollNumber: 'asc' },
+      { enrolledAt: 'asc' }
+    ]
+  })
+
+  return students
+}
+
+const buildAttendanceSummary = (attendance) => {
+  const totals = attendance.reduce((acc, record) => {
+    acc.total += 1
+    acc[record.status] += 1
+    return acc
+  }, { total: 0, PRESENT: 0, ABSENT: 0, LATE: 0 })
+
+  return {
+    total: totals.total,
+    present: totals.PRESENT,
+    absent: totals.ABSENT,
+    late: totals.LATE
+  }
+}
+
 // ================================
 // GENERATE QR CODE (Instructor)
 // ================================
@@ -8,23 +114,12 @@ const generateQR = async (req, res) => {
   try {
     const { subjectId } = req.body
 
-    // Get instructor profile
-    const instructor = await prisma.instructor.findUnique({
-      where: { userId: req.user.id }
-    })
-
-    if (!instructor) {
-      return res.status(403).json({ message: 'Only instructors can generate QR codes' })
+    const access = await getOwnedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
     }
 
-    // Check subject exists
-    const subject = await prisma.subject.findUnique({
-      where: { id: subjectId }
-    })
-
-    if (!subject) {
-      return res.status(404).json({ message: 'Subject not found' })
-    }
+    const { instructor, subject } = access
 
     // Create QR data with timestamp (valid for 10 minutes)
     const qrData = JSON.stringify({
@@ -58,10 +153,7 @@ const markAttendanceQR = async (req, res) => {
   try {
     const { qrData } = req.body
 
-    // Get student profile
-    const student = await prisma.student.findUnique({
-      where: { userId: req.user.id }
-    })
+    const student = await getStudentProfile(req.user.id)
 
     if (!student) {
       return res.status(403).json({ message: 'Only students can mark attendance' })
@@ -81,18 +173,33 @@ const markAttendanceQR = async (req, res) => {
     }
 
     const { subjectId, instructorId } = parsedQR
+    const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found' })
+    }
+
+    const enrollment = await prisma.subjectEnrollment.findUnique({
+      where: {
+        subjectId_studentId: {
+          subjectId,
+          studentId: student.id
+        }
+      }
+    })
+
+    if (!enrollment) {
+      return res.status(403).json({ message: 'You are not eligible to mark attendance for this subject' })
+    }
 
     // Check if already marked today
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    const todayRange = getDayRange()
 
     const existingAttendance = await prisma.attendance.findFirst({
       where: {
         studentId: student.id,
         subjectId,
-        date: { gte: today, lt: tomorrow }
+        date: { gte: todayRange.start, lt: todayRange.end }
       }
     })
 
@@ -107,7 +214,8 @@ const markAttendanceQR = async (req, res) => {
         subjectId,
         instructorId,
         status: 'PRESENT',
-        qrCode: qrData
+        qrCode: qrData,
+        date: todayRange.start
       },
       include: {
         subject: { select: { name: true, code: true } },
@@ -137,38 +245,56 @@ const markAttendanceQR = async (req, res) => {
 // ================================
 const markAttendanceManual = async (req, res) => {
   try {
-    const { subjectId, attendanceList } = req.body
-    // attendanceList = [{ studentId, status }]
+    const { subjectId, attendanceDate, attendanceList } = req.body
 
-    const instructor = await prisma.instructor.findUnique({
-      where: { userId: req.user.id }
-    })
-
-    if (!instructor) {
-      return res.status(403).json({ message: 'Only instructors can mark attendance' })
+    const access = await getOwnedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
     }
 
-    // Check today's attendance already exists
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    if (!Array.isArray(attendanceList) || attendanceList.length === 0) {
+      return res.status(400).json({ message: 'Please provide at least one attendance entry' })
+    }
 
-    // Create all attendance records
-    const records = await Promise.all(
-      attendanceList.map(async ({ studentId, status }) => {
-        const existing = await prisma.attendance.findFirst({
-          where: {
-            studentId,
-            subjectId,
-            date: { gte: today, lt: tomorrow }
-          }
-        })
+    const dayRange = getDayRange(attendanceDate)
+    if (!dayRange) {
+      return res.status(400).json({ message: 'Please provide a valid attendance date' })
+    }
+
+    const subjectStudents = await getSubjectStudents(access.subject)
+    const allowedStudentIds = new Set(subjectStudents.map((student) => student.id))
+
+    const invalidEntry = attendanceList.find(({ studentId, status }) => (
+      !studentId || !allowedStudentIds.has(studentId) || !ATTENDANCE_STATUSES.includes(status)
+    ))
+
+    if (invalidEntry) {
+      return res.status(400).json({ message: 'Attendance list contains invalid student or status values' })
+    }
+
+    const existingRecords = await prisma.attendance.findMany({
+      where: {
+        subjectId,
+        studentId: { in: attendanceList.map(({ studentId }) => studentId) },
+        date: { gte: dayRange.start, lt: dayRange.end }
+      }
+    })
+
+    const existingMap = new Map(existingRecords.map((record) => [record.studentId, record]))
+
+    const records = await prisma.$transaction(
+      attendanceList.map(({ studentId, status }) => {
+        const existing = existingMap.get(studentId)
 
         if (existing) {
           return prisma.attendance.update({
             where: { id: existing.id },
-            data: { status }
+            data: {
+              status,
+              instructorId: access.instructor.id,
+              qrCode: null,
+              date: dayRange.start
+            }
           })
         }
 
@@ -176,8 +302,9 @@ const markAttendanceManual = async (req, res) => {
           data: {
             studentId,
             subjectId,
-            instructorId: instructor.id,
-            status
+            instructorId: access.instructor.id,
+            status,
+            date: dayRange.start
           }
         })
       })
@@ -186,7 +313,8 @@ const markAttendanceManual = async (req, res) => {
     res.status(201).json({
       message: 'Attendance marked successfully!',
       total: records.length,
-      records
+      records,
+      date: dayRange.start
     })
 
   } catch (error) {
@@ -203,14 +331,20 @@ const getAttendanceBySubject = async (req, res) => {
     const { subjectId } = req.params
     const { date } = req.query
 
-    const filters = { subjectId }
+    const access = await getOwnedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
+    }
 
-    if (date) {
-      const start = new Date(date)
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(date)
-      end.setHours(23, 59, 59, 999)
-      filters.date = { gte: start, lte: end }
+    const filters = { subjectId }
+    const dayRange = date ? getDayRange(date) : null
+
+    if (date && !dayRange) {
+      return res.status(400).json({ message: 'Please provide a valid date filter' })
+    }
+
+    if (dayRange) {
+      filters.date = { gte: dayRange.start, lt: dayRange.end }
     }
 
     const attendance = await prisma.attendance.findMany({
@@ -223,10 +357,18 @@ const getAttendanceBySubject = async (req, res) => {
         },
         subject: { select: { name: true, code: true } }
       },
-      orderBy: { date: 'desc' }
+      orderBy: [
+        { date: 'desc' },
+        { student: { rollNumber: 'asc' } }
+      ]
     })
 
-    res.json({ total: attendance.length, attendance })
+    res.json({
+      total: attendance.length,
+      attendance,
+      summary: buildAttendanceSummary(attendance),
+      subject: access.subject
+    })
 
   } catch (error) {
     console.error(error)
@@ -239,9 +381,7 @@ const getAttendanceBySubject = async (req, res) => {
 // ================================
 const getMyAttendance = async (req, res) => {
   try {
-    const student = await prisma.student.findUnique({
-      where: { userId: req.user.id }
-    })
+    const student = await getStudentProfile(req.user.id)
 
     if (!student) {
       return res.status(403).json({ message: 'Only students can view their attendance' })
@@ -258,12 +398,14 @@ const getMyAttendance = async (req, res) => {
     // Calculate percentage per subject
     const subjectMap = {}
     attendance.forEach(a => {
-      const key = a.subject.name
+      const key = a.subjectId
       if (!subjectMap[key]) {
-        subjectMap[key] = { total: 0, present: 0, subject: a.subject }
+        subjectMap[key] = { total: 0, present: 0, absent: 0, late: 0, subject: a.subject }
       }
       subjectMap[key].total++
       if (a.status === 'PRESENT') subjectMap[key].present++
+      if (a.status === 'ABSENT') subjectMap[key].absent++
+      if (a.status === 'LATE') subjectMap[key].late++
     })
 
     const summary = Object.values(subjectMap).map(s => ({
@@ -271,8 +413,10 @@ const getMyAttendance = async (req, res) => {
       code: s.subject.code,
       total: s.total,
       present: s.present,
+      absent: s.absent,
+      late: s.late,
       percentage: ((s.present / s.total) * 100).toFixed(1) + '%'
-    }))
+    })).sort((a, b) => a.code.localeCompare(b.code))
 
     res.json({ attendance, summary })
 
@@ -287,5 +431,55 @@ module.exports = {
   markAttendanceQR,
   markAttendanceManual,
   getAttendanceBySubject,
-  getMyAttendance
+  getMyAttendance,
+  getSubjectRoster: async (req, res) => {
+    try {
+      const { subjectId } = req.params
+      const { date } = req.query
+
+      const access = await getOwnedSubject(subjectId, req.user)
+      if (access.error) {
+        return res.status(access.error.status).json({ message: access.error.message })
+      }
+
+      const dayRange = getDayRange(date)
+      if (!dayRange) {
+        return res.status(400).json({ message: 'Please provide a valid date' })
+      }
+
+      const [students, attendance] = await Promise.all([
+        getSubjectStudents(access.subject),
+        prisma.attendance.findMany({
+          where: {
+            subjectId,
+            date: { gte: dayRange.start, lt: dayRange.end }
+          }
+        })
+      ])
+
+      const attendanceMap = new Map(attendance.map((record) => [record.studentId, record]))
+      const roster = students.map((student) => ({
+        id: student.id,
+        rollNumber: student.rollNumber,
+        semester: student.semester,
+        section: student.section,
+        department: student.department,
+        name: student.user.name,
+        email: student.user.email,
+        status: attendanceMap.get(student.id)?.status || 'PRESENT',
+        attendanceId: attendanceMap.get(student.id)?.id || null
+      }))
+
+      res.json({
+        subject: access.subject,
+        date: dayRange.start,
+        total: roster.length,
+        roster,
+        summary: buildAttendanceSummary(attendance)
+      })
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ message: 'Something went wrong', error: error.message })
+    }
+  }
 }

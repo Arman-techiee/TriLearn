@@ -8,6 +8,11 @@ const Subjects = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editSubject, setEditSubject] = useState(null)
+  const [enrollmentSubject, setEnrollmentSubject] = useState(null)
+  const [enrollmentStudents, setEnrollmentStudents] = useState([])
+  const [loadingEnrollments, setLoadingEnrollments] = useState(false)
+  const [savingEnrollments, setSavingEnrollments] = useState(false)
+  const [enrollmentSearch, setEnrollmentSearch] = useState('')
   const [form, setForm] = useState({
     name: '', code: '', description: '',
     semester: 1, department: '', instructorId: ''
@@ -95,6 +100,69 @@ const Subjects = () => {
     setShowModal(true)
   }
 
+  const openEnrollmentModal = async (subject) => {
+    try {
+      setLoadingEnrollments(true)
+      setEnrollmentSubject(subject)
+      setEnrollmentSearch('')
+      setError('')
+      const res = await api.get(`/subjects/${subject.id}/enrollments`)
+      setEnrollmentStudents(res.data.students)
+    } catch (err) {
+      setEnrollmentSubject(null)
+      setError(err.response?.data?.message || 'Unable to load subject enrollments')
+    } finally {
+      setLoadingEnrollments(false)
+    }
+  }
+
+  const toggleEnrollment = (studentId) => {
+    setEnrollmentStudents((current) => current.map((student) => (
+      student.id === studentId ? { ...student, enrolled: !student.enrolled } : student
+    )))
+  }
+
+  const applySuggestedEnrollments = () => {
+    setEnrollmentStudents((current) => current.map((student) => ({
+      ...student,
+      enrolled: student.suggested
+    })))
+  }
+
+  const saveEnrollments = async () => {
+    if (!enrollmentSubject) return
+
+    try {
+      setSavingEnrollments(true)
+      setError('')
+      await api.put(`/subjects/${enrollmentSubject.id}/enrollments`, {
+        studentIds: enrollmentStudents.filter((student) => student.enrolled).map((student) => student.id)
+      })
+      setSuccess('Subject enrollments updated successfully!')
+      setEnrollmentSubject(null)
+      setEnrollmentStudents([])
+      fetchSubjects()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to update enrollments')
+    } finally {
+      setSavingEnrollments(false)
+    }
+  }
+
+  const filteredEnrollmentStudents = enrollmentStudents.filter((student) => {
+    const keyword = enrollmentSearch.trim().toLowerCase()
+    if (!keyword) return true
+
+    return [
+      student.name,
+      student.email,
+      student.rollNumber,
+      student.department || '',
+      student.section || ''
+    ].some((value) => value.toLowerCase().includes(keyword))
+  })
+
   return (
     <AdminLayout>
       <div className="p-8">
@@ -163,6 +231,7 @@ const Subjects = () => {
                 <div className="flex gap-4 mb-4 text-xs text-gray-500">
                   <span>📝 {subject._count?.assignments} assignments</span>
                   <span>📋 {subject._count?.attendances} attendances</span>
+                  <span>👥 {subject._count?.enrollments || 0} students</span>
                 </div>
 
                 {/* Department */}
@@ -178,13 +247,19 @@ const Subjects = () => {
                 <div className="flex gap-2 pt-4 border-t">
                   <button
                     onClick={() => openEditModal(subject)}
-                    className="flex-1 text-xs bg-blue-50 text-blue-600 py-2 rounded-lg hover:bg-blue-100 transition font-medium"
+                    className="text-xs bg-blue-50 text-blue-600 py-2 rounded-lg hover:bg-blue-100 transition font-medium px-3"
                   >
                     Edit
                   </button>
                   <button
+                    onClick={() => openEnrollmentModal(subject)}
+                    className="flex-1 text-xs bg-indigo-50 text-indigo-600 py-2 rounded-lg hover:bg-indigo-100 transition font-medium"
+                  >
+                    Students
+                  </button>
+                  <button
                     onClick={() => handleDelete(subject.id)}
-                    className="flex-1 text-xs bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition font-medium"
+                    className="text-xs bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition font-medium px-3"
                   >
                     Delete
                   </button>
@@ -302,6 +377,102 @@ const Subjects = () => {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {enrollmentSubject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-4xl shadow-xl max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Manage Enrollments</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {enrollmentSubject.name} ({enrollmentSubject.code})
+                </p>
+              </div>
+              <button
+                onClick={() => setEnrollmentSubject(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-3 mb-4">
+              <input
+                type="text"
+                value={enrollmentSearch}
+                onChange={(e) => setEnrollmentSearch(e.target.value)}
+                placeholder="Search students by name, roll, email, section..."
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={applySuggestedEnrollments}
+                className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100"
+              >
+                Apply Suggested
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4">
+              Suggested students match the subject&apos;s semester and department. You can adjust the final class list manually.
+            </p>
+
+            {loadingEnrollments ? (
+              <div className="text-center text-gray-500 py-12">Loading students...</div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                {filteredEnrollmentStudents.map((student) => (
+                  <label key={student.id} className="flex items-start gap-3 border rounded-xl p-4 hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={student.enrolled}
+                      onChange={() => toggleEnrollment(student.id)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-gray-800">{student.name}</p>
+                          <p className="text-sm text-gray-500 mt-1">{student.rollNumber} • {student.email}</p>
+                        </div>
+                        {student.suggested && (
+                          <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">
+                            Suggested
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Semester {student.semester}{student.department ? ` • ${student.department}` : ''}{student.section ? ` • Section ${student.section}` : ''}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+                {filteredEnrollmentStudents.length === 0 && (
+                  <div className="text-center text-gray-400 py-12">No students matched your search.</div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-6 mt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setEnrollmentSubject(null)}
+                className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEnrollments}
+                disabled={savingEnrollments || loadingEnrollments}
+                className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingEnrollments ? 'Saving...' : 'Save Enrollments'}
+              </button>
+            </div>
           </div>
         </div>
       )}

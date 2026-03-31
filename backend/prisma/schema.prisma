@@ -71,6 +71,7 @@ model Student {
   attendances  Attendance[]
   submissions  Submission[]
   marks        Mark[]
+  subjectEnrollments SubjectEnrollment[]
 }
 
 // ================================
@@ -93,6 +94,18 @@ model Subject {
   materials    StudyMaterial[]
   marks        Mark[]
   routines     Routine[]
+  enrollments  SubjectEnrollment[]
+}
+
+model SubjectEnrollment {
+  id        String   @id @default(uuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([subjectId, studentId])
 }
 
 // ================================

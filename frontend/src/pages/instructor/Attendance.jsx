@@ -1,228 +1,375 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
 
+const DEFAULT_STATUS = 'PRESENT'
+const STATUSES = ['PRESENT', 'ABSENT', 'LATE']
+
+const getToday = () => new Date().toISOString().slice(0, 10)
+
+const statusClasses = {
+  PRESENT: 'bg-green-100 text-green-700 border-green-200',
+  ABSENT: 'bg-red-100 text-red-700 border-red-200',
+  LATE: 'bg-orange-100 text-orange-700 border-orange-200'
+}
+
 const Attendance = () => {
   const [subjects, setSubjects] = useState([])
-  const [students, setStudents] = useState([])
-  const [attendance, setAttendance] = useState([])
   const [selectedSubject, setSelectedSubject] = useState('')
+  const [selectedDate, setSelectedDate] = useState(getToday())
   const [qrCode, setQrCode] = useState(null)
+  const [qrExpiry, setQrExpiry] = useState('')
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
-  const [manualList, setManualList] = useState([])
-  const [showManual, setShowManual] = useState(false)
+  const [roster, setRoster] = useState([])
+  const [attendance, setAttendance] = useState([])
+  const [summary, setSummary] = useState({ total: 0, present: 0, absent: 0, late: 0 })
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     fetchSubjects()
-    fetchStudents()
   }, [])
 
   useEffect(() => {
-    if (selectedSubject) fetchAttendance()
-  }, [selectedSubject])
+    if (!selectedSubject) {
+      setRoster([])
+      setAttendance([])
+      setSummary({ total: 0, present: 0, absent: 0, late: 0 })
+      return
+    }
+
+    fetchAttendanceWorkspace()
+  }, [selectedSubject, selectedDate])
 
   const fetchSubjects = async () => {
     try {
       const res = await api.get('/subjects')
       setSubjects(res.data.subjects)
-    } catch (error) { console.error(error) }
+    } catch (fetchError) {
+      console.error(fetchError)
+      setError('Unable to load subjects')
+    }
   }
 
-  const fetchStudents = async () => {
-    try {
-      const res = await api.get('/admin/users?role=STUDENT')
-      setStudents(res.data.users)
-    } catch (error) { console.error(error) }
-  }
-
-  const fetchAttendance = async () => {
+  const fetchAttendanceWorkspace = async () => {
     try {
       setLoading(true)
-      const res = await api.get(`/attendance/subject/${selectedSubject}`)
-      setAttendance(res.data.attendance)
-    } catch (error) { console.error(error) }
-    finally { setLoading(false) }
+      setError('')
+
+      const [rosterRes, attendanceRes] = await Promise.all([
+        api.get(`/attendance/subject/${selectedSubject}/roster`, { params: { date: selectedDate } }),
+        api.get(`/attendance/subject/${selectedSubject}`, { params: { date: selectedDate } })
+      ])
+
+      setRoster(rosterRes.data.roster)
+      setAttendance(attendanceRes.data.attendance)
+      setSummary(attendanceRes.data.summary)
+    } catch (fetchError) {
+      console.error(fetchError)
+      setError(fetchError.response?.data?.message || 'Unable to load attendance data')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const generateQR = async () => {
-    if (!selectedSubject) return setError('Please select a subject first')
+    if (!selectedSubject) {
+      setError('Please select a subject first')
+      return
+    }
+
     try {
+      setError('')
       const res = await api.post('/attendance/generate-qr', { subjectId: selectedSubject })
       setQrCode(res.data.qrCode)
-      setSuccess('QR Code generated! Valid for 10 minutes')
-      setTimeout(() => { setQrCode(null); setSuccess('') }, 10 * 60 * 1000)
-    } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+      setQrExpiry(res.data.expiresIn)
+      setSuccess('QR code generated successfully')
+      setTimeout(() => {
+        setQrCode(null)
+        setQrExpiry('')
+        setSuccess('')
+      }, 10 * 60 * 1000)
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Unable to generate QR code')
     }
   }
 
-  const handleManualAttendance = async () => {
-    if (!selectedSubject || manualList.length === 0) return
+  const setStudentStatus = (studentId, status) => {
+    setRoster((currentRoster) => currentRoster.map((student) => (
+      student.id === studentId ? { ...student, status } : student
+    )))
+  }
+
+  const applyBulkStatus = (status) => {
+    setRoster((currentRoster) => currentRoster.map((student) => ({ ...student, status })))
+  }
+
+  const saveManualAttendance = async () => {
+    if (!selectedSubject) {
+      setError('Please select a subject first')
+      return
+    }
+
+    if (roster.length === 0) {
+      setError('No students are available for this subject')
+      return
+    }
+
     try {
+      setSaving(true)
+      setError('')
+
       await api.post('/attendance/manual', {
         subjectId: selectedSubject,
-        attendanceList: manualList
+        attendanceDate: selectedDate,
+        attendanceList: roster.map((student) => ({
+          studentId: student.id,
+          status: student.status || DEFAULT_STATUS
+        }))
       })
-      setSuccess('Attendance marked successfully!')
-      setShowManual(false)
-      setManualList([])
-      fetchAttendance()
+
+      setSuccess('Attendance saved successfully')
+      await fetchAttendanceWorkspace()
       setTimeout(() => setSuccess(''), 3000)
-    } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Unable to save attendance')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const toggleStudentStatus = (studentId, status) => {
-    setManualList(prev => {
-      const existing = prev.find(s => s.studentId === studentId)
-      if (existing) {
-        return prev.map(s => s.studentId === studentId ? { ...s, status } : s)
-      }
-      return [...prev, { studentId, status }]
-    })
-  }
+  const filteredRoster = roster.filter((student) => {
+    const keyword = search.trim().toLowerCase()
+    if (!keyword) return true
 
-  const getStudentStatus = (studentId) => {
-    return manualList.find(s => s.studentId === studentId)?.status || 'PRESENT'
-  }
+    return [
+      student.name,
+      student.rollNumber,
+      student.email,
+      student.section || '',
+      student.department || ''
+    ].some((value) => value.toLowerCase().includes(keyword))
+  })
 
   return (
     <InstructorLayout>
       <div className="p-8">
-
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Attendance</h1>
-          <p className="text-gray-500 text-sm mt-1">Generate QR codes and manage attendance</p>
+          <p className="text-gray-500 text-sm mt-1">Manage daily attendance with a proper subject roster, QR access, and date-wise records.</p>
         </div>
 
         {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
-        {/* Subject Select */}
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-          <select value={selectedSubject} onChange={(e) => { setSelectedSubject(e.target.value); setQrCode(null) }}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
-            <option value="">Select Subject</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} - {s.code}</option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-2">Subject</label>
+              <select
+                value={selectedSubject}
+                onChange={(e) => {
+                  setSelectedSubject(e.target.value)
+                  setQrCode(null)
+                  setError('')
+                }}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Select Subject</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name} - {subject.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-2">Attendance Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={fetchAttendanceWorkspace}
+                disabled={!selectedSubject}
+                className="w-full bg-gray-900 text-white py-2.5 rounded-lg hover:bg-black transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Refresh Attendance
+              </button>
+            </div>
+          </div>
         </div>
 
         {selectedSubject && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-            {/* QR Code */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">QR Attendance</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Generate a QR code for students to scan and mark their attendance automatically.
-              </p>
-              <button onClick={generateQR}
-                className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-medium mb-4">
-                🔲 Generate QR Code
-              </button>
-              {qrCode && (
-                <div className="text-center">
-                  <img src={qrCode} alt="QR Code" className="mx-auto rounded-xl border" style={{ width: 200 }} />
-                  <p className="text-xs text-orange-500 mt-2">⏱ Expires in 10 minutes</p>
-                </div>
-              )}
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <p className="text-sm text-gray-500">Students</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{roster.length}</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <p className="text-sm text-gray-500">Present</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{summary.present}</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <p className="text-sm text-gray-500">Absent</p>
+                <p className="text-2xl font-bold text-red-600 mt-1">{summary.absent}</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <p className="text-sm text-gray-500">Late</p>
+                <p className="text-2xl font-bold text-orange-500 mt-1">{summary.late}</p>
+              </div>
             </div>
 
-            {/* Manual Attendance */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Manual Attendance</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Manually mark attendance for each student.
-              </p>
-              <button onClick={() => setShowManual(!showManual)}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition font-medium mb-4">
-                📋 Mark Manually
-              </button>
-              {showManual && (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {students.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-700">{s.name}</span>
-                      <div className="flex gap-2">
-                        {['PRESENT', 'ABSENT', 'LATE'].map((status) => (
-                          <button key={status}
-                            onClick={() => toggleStudentStatus(s.student?.id, status)}
-                            className={`text-xs px-2 py-1 rounded-lg transition ${
-                              getStudentStatus(s.student?.id) === status
-                                ? status === 'PRESENT' ? 'bg-green-500 text-white'
-                                  : status === 'ABSENT' ? 'bg-red-500 text-white'
-                                  : 'bg-orange-500 text-white'
-                                : 'bg-gray-200 text-gray-600'}`}>
-                            {status[0]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={handleManualAttendance}
-                    className="w-full bg-green-600 text-white py-2 rounded-xl hover:bg-green-700 transition text-sm font-medium mt-2">
-                    Save Attendance
+            <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-6 mb-6">
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">QR Attendance</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Students can mark today&apos;s attendance by scanning the QR. Manual save can still adjust the final status list.
+                </p>
+                <button
+                  type="button"
+                  onClick={generateQR}
+                  className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-medium"
+                >
+                  Generate QR Code
+                </button>
+                {qrCode && (
+                  <div className="mt-5 text-center">
+                    <img src={qrCode} alt="QR Code" className="mx-auto rounded-xl border" style={{ width: 220 }} />
+                    <p className="text-xs text-orange-500 mt-3">Expires in {qrExpiry}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-800">Manual Attendance</h2>
+                    <p className="text-sm text-gray-500 mt-1">Mark the correct status for each student in the selected subject and date.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {STATUSES.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => applyBulkStatus(status)}
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold border ${statusClasses[status]}`}
+                      >
+                        Mark All {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-3 mb-4">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name, roll number, email, section..."
+                    className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveManualAttendance}
+                    disabled={saving || loading || roster.length === 0}
+                    className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? 'Saving...' : 'Save Attendance'}
                   </button>
                 </div>
+
+                {loading ? (
+                  <div className="py-10 text-center text-gray-500">Loading roster...</div>
+                ) : filteredRoster.length === 0 ? (
+                  <div className="py-10 text-center text-gray-400">No students matched this subject/date filter.</div>
+                ) : (
+                  <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
+                    {filteredRoster.map((student) => (
+                      <div key={student.id} className="border border-gray-200 rounded-xl p-4">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                          <div>
+                            <p className="font-semibold text-gray-800">{student.name}</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {student.rollNumber} • {student.email}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Semester {student.semester}{student.department ? ` • ${student.department}` : ''}{student.section ? ` • Section ${student.section}` : ''}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {STATUSES.map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() => setStudentStatus(student.id, status)}
+                                className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
+                                  student.status === status ? statusClasses[status] : 'bg-gray-50 text-gray-500 border-gray-200'
+                                }`}
+                              >
+                                {status}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b">
+                <h2 className="text-lg font-semibold text-gray-800">Saved Records</h2>
+                <p className="text-sm text-gray-500 mt-1">Showing records for {selectedDate}.</p>
+              </div>
+              {loading ? (
+                <div className="p-8 text-center text-gray-500">Loading...</div>
+              ) : attendance.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">No attendance records saved for this date yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr className="text-left text-sm text-gray-500">
+                        <th className="px-6 py-4">Student</th>
+                        <th className="px-6 py-4">Email</th>
+                        <th className="px-6 py-4">Date</th>
+                        <th className="px-6 py-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendance.map((record) => (
+                        <tr key={record.id} className="border-t hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <p className="font-medium text-gray-800">{record.student?.user?.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">{record.student?.rollNumber}</p>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{record.student?.user?.email}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{new Date(record.date).toLocaleDateString()}</td>
+                          <td className="px-6 py-4">
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusClasses[record.status]}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          </div>
+          </>
         )}
-
-        {/* Attendance Records */}
-        {selectedSubject && (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="p-6 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">Attendance Records</h2>
-            </div>
-            {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading...</div>
-            ) : (
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr className="text-left text-sm text-gray-500">
-                    <th className="px-6 py-4">Student</th>
-                    <th className="px-6 py-4">Date</th>
-                    <th className="px-6 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendance.map((record) => (
-                    <tr key={record.id} className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-800">
-                        {record.student?.user?.name}
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">
-                        {new Date(record.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium
-                          ${record.status === 'PRESENT' ? 'bg-green-100 text-green-700' :
-                            record.status === 'ABSENT' ? 'bg-red-100 text-red-700' :
-                            'bg-orange-100 text-orange-700'}`}>
-                          {record.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {attendance.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-gray-400">
-                        No attendance records yet
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
       </div>
     </InstructorLayout>
   )
