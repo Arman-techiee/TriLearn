@@ -7,7 +7,7 @@ const Users = () => {
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [modalType, setModalType] = useState('instructor') // 'instructor' or 'student'
+  const [modalType, setModalType] = useState('instructor')
   const [form, setForm] = useState({
     name: '', email: '', password: '',
     phone: '', department: '', semester: 1, section: ''
@@ -52,6 +52,8 @@ const Users = () => {
     try {
       const endpoint = modalType === 'instructor'
         ? '/admin/users/instructor'
+        : modalType === 'gatekeeper'
+          ? '/admin/users/gatekeeper'
         : '/admin/users/student'
       await api.post(endpoint, form)
       setSuccess(`${modalType} created successfully!`)
@@ -112,6 +114,12 @@ const Users = () => {
               + Add Instructor
             </button>
             <button
+              onClick={() => openModal('gatekeeper')}
+              className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition text-sm font-medium"
+            >
+              + Add Gate Account
+            </button>
+            <button
               onClick={() => openModal('student')}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
             >
@@ -134,7 +142,7 @@ const Users = () => {
 
         {/* Filter */}
         <div className="flex gap-3 mb-6">
-          {['', 'ADMIN', 'INSTRUCTOR', 'STUDENT'].map((role) => (
+          {['', 'ADMIN', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT'].map((role) => (
             <button
               key={role}
               onClick={() => setFilterRole(role)}
@@ -173,6 +181,7 @@ const Users = () => {
                     <td className="px-6 py-4">
                       <span className={`text-xs px-2 py-1 rounded-full font-medium
                         ${user.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
+                          user.role === 'GATEKEEPER' ? 'bg-amber-100 text-amber-700' :
                           user.role === 'INSTRUCTOR' ? 'bg-purple-100 text-purple-700' :
                           'bg-green-100 text-green-700'}`}>
                         {user.role}
@@ -181,6 +190,7 @@ const Users = () => {
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {user.student && `Sem ${user.student.semester} · ${user.student.rollNumber}`}
                       {user.instructor && `${user.instructor.department || 'No dept'}`}
+                      {user.role === 'GATEKEEPER' && 'Gate QR operator'}
                       {user.admin && 'Administrator'}
                     </td>
                     <td className="px-6 py-4">
@@ -225,7 +235,7 @@ const Users = () => {
 
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-800">
-                Add {modalType === 'instructor' ? 'Instructor' : 'Student'}
+                Add {modalType === 'instructor' ? 'Instructor' : modalType === 'gatekeeper' ? 'Gate Account' : 'Student'}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -273,18 +283,20 @@ const Users = () => {
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <select
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Department</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.name}>
-                    {department.name} ({department.code})
-                  </option>
-                ))}
-              </select>
+              {modalType !== 'gatekeeper' && (
+                <select
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.name}>
+                      {department.name} ({department.code})
+                    </option>
+                  ))}
+                </select>
+              )}
 
               {modalType === 'student' && (
                 <div className="flex gap-3">
@@ -319,7 +331,7 @@ const Users = () => {
                   type="submit"
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 font-medium"
                 >
-                  Create {modalType === 'instructor' ? 'Instructor' : 'Student'}
+                  Create {modalType === 'instructor' ? 'Instructor' : modalType === 'gatekeeper' ? 'Gate Account' : 'Student'}
                 </button>
               </div>
             </form>

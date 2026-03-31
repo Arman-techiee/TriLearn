@@ -1,5 +1,40 @@
 const prisma = require('../utils/prisma')
 
+const buildRoutineFilters = async (req) => {
+  const { dayOfWeek, semester } = req.query
+  const filters = {}
+
+  if (dayOfWeek) filters.dayOfWeek = dayOfWeek
+  if (semester) {
+    filters.subject = { semester: parseInt(semester, 10) }
+  }
+
+  if (req.user.role === 'INSTRUCTOR') {
+    const instructor = await prisma.instructor.findUnique({
+      where: { userId: req.user.id }
+    })
+
+    filters.instructorId = instructor?.id || '__no_routines__'
+  }
+
+  if (req.user.role === 'STUDENT') {
+    const student = await prisma.student.findUnique({
+      where: { userId: req.user.id }
+    })
+
+    filters.subject = {
+      ...(filters.subject || {}),
+      enrollments: {
+        some: {
+          studentId: student?.id || '__no_student__'
+        }
+      }
+    }
+  }
+
+  return filters
+}
+
 // ================================
 // CREATE ROUTINE (Admin)
 // ================================
@@ -51,13 +86,7 @@ const createRoutine = async (req, res) => {
 // ================================
 const getAllRoutines = async (req, res) => {
   try {
-    const { dayOfWeek, semester } = req.query
-
-    const filters = {}
-    if (dayOfWeek) filters.dayOfWeek = dayOfWeek
-    if (semester) {
-      filters.subject = { semester: parseInt(semester) }
-    }
+    const filters = await buildRoutineFilters(req)
 
     const routines = await prisma.routine.findMany({
       where: filters,

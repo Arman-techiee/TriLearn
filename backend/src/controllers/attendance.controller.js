@@ -2,6 +2,8 @@ const prisma = require('../utils/prisma')
 const QRCode = require('qrcode')
 
 const ATTENDANCE_STATUSES = ['PRESENT', 'ABSENT', 'LATE']
+const QR_VALIDITY_MINUTES = 15
+const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 
 const getDayRange = (dateValue) => {
   const baseDate = dateValue ? new Date(dateValue) : new Date()
@@ -107,6 +109,54 @@ const buildAttendanceSummary = (attendance) => {
   }
 }
 
+const getCurrentDayName = (date = new Date()) => DAYS[date.getDay()]
+
+const toMinutes = (timeValue) => {
+  const [hours, minutes] = timeValue.split(':').map((value) => parseInt(value, 10))
+  return (hours * 60) + minutes
+}
+
+const buildDateWithTime = (baseDate, timeValue) => {
+  const date = new Date(baseDate)
+  const [hours, minutes] = timeValue.split(':').map((value) => parseInt(value, 10))
+  date.setHours(hours, minutes, 0, 0)
+  return date
+}
+
+const getTodayGateWindow = async () => {
+  const dayRange = getDayRange()
+  const todayName = getCurrentDayName(dayRange.start)
+
+  const firstRoutine = await prisma.routine.findFirst({
+    where: { dayOfWeek: todayName },
+    orderBy: { startTime: 'asc' }
+  })
+
+  if (!firstRoutine) {
+    return null
+  }
+
+  const startAt = buildDateWithTime(dayRange.start, firstRoutine.startTime)
+  const cutoffAt = new Date(startAt)
+  cutoffAt.setMinutes(cutoffAt.getMinutes() + 30)
+
+  return {
+    dayRange,
+    dayOfWeek: todayName,
+    firstRoutine,
+    startAt,
+    cutoffAt
+  }
+}
+
+const parseQrPayload = (qrData) => {
+  try {
+    return JSON.parse(qrData)
+  } catch {
+    return null
+  }
+}
+
 // ================================
 // GENERATE QR CODE (Instructor)
 // ================================
@@ -159,11 +209,8 @@ const markAttendanceQR = async (req, res) => {
       return res.status(403).json({ message: 'Only students can mark attendance' })
     }
 
-    // Parse QR data
-    let parsedQR
-    try {
-      parsedQR = JSON.parse(qrData)
-    } catch {
+    const parsedQR = parseQrPayload(qrData)
+    if (!parsedQR) {
       return res.status(400).json({ message: 'Invalid QR code' })
     }
 
@@ -426,60 +473,222 @@ const getMyAttendance = async (req, res) => {
   }
 }
 
+const getSubjectRoster = async (req, res) => {
+  try {
+    const { subjectId } = req.params
+    const { date } = req.query
+
+    const access = await getOwnedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
+    }
+
+    const dayRange = getDayRange(date)
+    if (!dayRange) {
+      return res.status(400).json({ message: 'Please provide a valid date' })
+    }
+
+    const [students, attendance] = await Promise.all([
+      getSubjectStudents(access.subject),
+      prisma.attendance.findMany({
+        where: {
+          subjectId,
+          date: { gte: dayRange.start, lt: dayRange.end }
+        }
+      })
+    ])
+
+    const attendanceMap = new Map(attendance.map((record) => [record.studentId, record]))
+    const roster = students.map((student) => ({
+      id: student.id,
+      rollNumber: student.rollNumber,
+      semester: student.semester,
+      section: student.section,
+      department: student.department,
+      name: student.user.name,
+      email: student.user.email,
+      status: attendanceMap.get(student.id)?.status || 'PRESENT',
+      attendanceId: attendanceMap.get(student.id)?.id || null
+    }))
+
+    res.json({
+      subject: access.subject,
+      date: dayRange.start,
+      total: roster.length,
+      roster,
+      summary: buildAttendanceSummary(attendance)
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Something went wrong', error: error.message })
+  }
+}
+
+// ================================
+// MARK ATTENDANCE FOR TODAY'S ROUTINE (Student)
+// ================================
+const markDailyAttendanceQR = async (req, res) => {
+  try {
+    const { qrData } = req.body
+
+    const student = await getStudentProfile(req.user.id)
+    if (!student) {
+      return res.status(403).json({ message: 'Only students can mark attendance' })
+    }
+
+    const parsedQR = parseQrPayload(qrData)
+    if (!parsedQR || parsedQR.type !== 'DAILY_ATTENDANCE') {
+      return res.status(400).json({ message: 'Invalid daily attendance QR code' })
+    }
+
+    const gateWindow = await getTodayGateWindow()
+    if (!gateWindow) {
+      return res.status(400).json({ message: 'No routine is scheduled for today' })
+    }
+
+    if (parsedQR.dayOfWeek !== gateWindow.dayOfWeek) {
+      return res.status(400).json({ message: 'QR code is not valid for today' })
+    }
+
+    if (new Date() > new Date(parsedQR.expiresAt) || new Date() > gateWindow.cutoffAt) {
+      return res.status(400).json({ message: 'Gate QR scan time is over. Please contact your instructor for manual attendance.' })
+    }
+
+    const routines = await prisma.routine.findMany({
+      where: {
+        dayOfWeek: gateWindow.dayOfWeek,
+        subject: {
+          enrollments: {
+            some: {
+              studentId: student.id
+            }
+          }
+        }
+      },
+      include: {
+        subject: { select: { id: true, name: true, code: true } }
+      },
+      orderBy: { startTime: 'asc' }
+    })
+
+    if (routines.length === 0) {
+      return res.status(400).json({ message: 'No enrolled classes are scheduled for you today' })
+    }
+
+    const uniqueBySubject = new Map()
+    routines.forEach((routine) => {
+      if (!uniqueBySubject.has(routine.subjectId)) {
+        uniqueBySubject.set(routine.subjectId, routine)
+      }
+    })
+
+    const subjectIds = [...uniqueBySubject.keys()]
+    const existingAttendance = await prisma.attendance.findMany({
+      where: {
+        studentId: student.id,
+        subjectId: { in: subjectIds },
+        date: { gte: gateWindow.dayRange.start, lt: gateWindow.dayRange.end }
+      }
+    })
+
+    const existingMap = new Map(existingAttendance.map((record) => [record.subjectId, record]))
+    const routinesToMark = subjectIds.filter((subjectId) => !existingMap.has(subjectId))
+
+    if (routinesToMark.length === 0) {
+      return res.status(400).json({ message: "Attendance already marked for all of today's classes" })
+    }
+
+    await prisma.$transaction(
+      routinesToMark.map((subjectId) => {
+        const routine = uniqueBySubject.get(subjectId)
+        return prisma.attendance.create({
+          data: {
+            studentId: student.id,
+            subjectId,
+            instructorId: routine.instructorId,
+            status: 'PRESENT',
+            qrCode: qrData,
+            date: gateWindow.dayRange.start
+          }
+        })
+      })
+    )
+
+    const markedSubjects = routinesToMark.map((subjectId) => ({
+      id: subjectId,
+      name: uniqueBySubject.get(subjectId).subject.name,
+      code: uniqueBySubject.get(subjectId).subject.code,
+      startTime: uniqueBySubject.get(subjectId).startTime
+    }))
+
+    const skippedSubjects = subjectIds
+      .filter((subjectId) => existingMap.has(subjectId))
+      .map((subjectId) => ({
+        id: subjectId,
+        name: uniqueBySubject.get(subjectId).subject.name,
+        code: uniqueBySubject.get(subjectId).subject.code
+      }))
+
+    res.status(201).json({
+      message: `Attendance marked for ${markedSubjects.length} class${markedSubjects.length > 1 ? 'es' : ''}!`,
+      markedSubjects,
+      skippedSubjects,
+      date: gateWindow.dayRange.start,
+      cutoffAt: gateWindow.cutoffAt
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Something went wrong', error: error.message })
+  }
+}
+
+// ================================
+// GENERATE DAILY ENTRY QR (Admin/Instructor)
+// ================================
+const generateDailyAttendanceQR = async (req, res) => {
+  try {
+    const gateWindow = await getTodayGateWindow()
+    if (!gateWindow) {
+      return res.status(400).json({ message: 'No routine is scheduled for today, so no gate QR is needed.' })
+    }
+
+    const issuedAt = new Date()
+    const expiresAt = gateWindow.cutoffAt
+
+    const qrData = JSON.stringify({
+      type: 'DAILY_ATTENDANCE',
+      issuedBy: req.user.id,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      dayOfWeek: gateWindow.dayOfWeek,
+      firstClassStart: gateWindow.firstRoutine.startTime,
+      cutoffAt: gateWindow.cutoffAt.toISOString()
+    })
+
+    const qrCode = await QRCode.toDataURL(qrData)
+
+    res.json({
+      message: 'Daily attendance QR generated successfully!',
+      qrCode,
+      qrData,
+      expiresIn: `${gateWindow.firstRoutine.startTime} to ${gateWindow.cutoffAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      dayOfWeek: gateWindow.dayOfWeek,
+      firstClassStart: gateWindow.firstRoutine.startTime,
+      cutoffAt: gateWindow.cutoffAt
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Something went wrong', error: error.message })
+  }
+}
+
 module.exports = {
+  generateDailyAttendanceQR,
   generateQR,
   markAttendanceQR,
+  markDailyAttendanceQR,
   markAttendanceManual,
   getAttendanceBySubject,
   getMyAttendance,
-  getSubjectRoster: async (req, res) => {
-    try {
-      const { subjectId } = req.params
-      const { date } = req.query
-
-      const access = await getOwnedSubject(subjectId, req.user)
-      if (access.error) {
-        return res.status(access.error.status).json({ message: access.error.message })
-      }
-
-      const dayRange = getDayRange(date)
-      if (!dayRange) {
-        return res.status(400).json({ message: 'Please provide a valid date' })
-      }
-
-      const [students, attendance] = await Promise.all([
-        getSubjectStudents(access.subject),
-        prisma.attendance.findMany({
-          where: {
-            subjectId,
-            date: { gte: dayRange.start, lt: dayRange.end }
-          }
-        })
-      ])
-
-      const attendanceMap = new Map(attendance.map((record) => [record.studentId, record]))
-      const roster = students.map((student) => ({
-        id: student.id,
-        rollNumber: student.rollNumber,
-        semester: student.semester,
-        section: student.section,
-        department: student.department,
-        name: student.user.name,
-        email: student.user.email,
-        status: attendanceMap.get(student.id)?.status || 'PRESENT',
-        attendanceId: attendanceMap.get(student.id)?.id || null
-      }))
-
-      res.json({
-        subject: access.subject,
-        date: dayRange.start,
-        total: roster.length,
-        roster,
-        summary: buildAttendanceSummary(attendance)
-      })
-    } catch (error) {
-      console.error(error)
-      res.status(500).json({ message: 'Something went wrong', error: error.message })
-    }
-  }
+  getSubjectRoster
 }

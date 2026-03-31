@@ -9,6 +9,7 @@ import Departments from './pages/admin/Departments'
 import Subjects from './pages/admin/Subjects'
 import Notices from './pages/admin/Notices'
 import AdminRoutine from './pages/admin/Routine'
+import GateDashboard from './pages/gate/Dashboard'
 
 // Instructor pages
 import InstructorDashboard from './pages/instructor/Dashboard'
@@ -56,6 +57,10 @@ const AppRoutes = () => {
       <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['ADMIN']}><Subjects /></ProtectedRoute>} />
       <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={['ADMIN']}><Notices /></ProtectedRoute>} />
       <Route path="/admin/routine" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminRoutine /></ProtectedRoute>} />
+
+      {/* Gatekeeper Routes */}
+      <Route path="/gatekeeper" element={<ProtectedRoute allowedRoles={['GATEKEEPER']}><GateDashboard /></ProtectedRoute>} />
+      <Route path="/gate" element={<ProtectedRoute allowedRoles={['GATEKEEPER']}><GateDashboard /></ProtectedRoute>} />
 
       {/* Instructor Routes */}
       <Route path="/instructor" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorDashboard /></ProtectedRoute>} />

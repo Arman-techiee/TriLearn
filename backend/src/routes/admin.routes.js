@@ -4,6 +4,7 @@ const { protect, allowRoles } = require('../middleware/auth.middleware')
 const {
   getAllUsers,
   getUserById,
+  createGatekeeper,
   createInstructor,
   createStudent,
   updateUser,
@@ -17,6 +18,7 @@ router.use(allowRoles('ADMIN'))
 
 router.get('/users', getAllUsers)
 router.get('/users/:id', getUserById)
+router.post('/users/gatekeeper', createGatekeeper)
 router.post('/users/instructor', createInstructor)
 router.post('/users/student', createStudent)
 router.put('/users/:id', updateUser)

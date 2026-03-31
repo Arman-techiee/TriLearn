@@ -23,6 +23,7 @@ const Login = () => {
 
       // Redirect based on role
       if (user.role === 'ADMIN') navigate('/admin')
+      else if (user.role === 'GATEKEEPER') navigate('/gate')
       else if (user.role === 'INSTRUCTOR') navigate('/instructor')
       else navigate('/student')
 
@@ -93,6 +94,7 @@ const Login = () => {
         <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500">
           <p className="font-medium mb-1">Test accounts:</p>
           <p>Admin: arman@edunexus.com / arman123</p>
+          <p>Gate: create from admin users</p>
           <p>Instructor: ram@edunexus.com / ram123</p>
           <p>Student: sita@edunexus.com / sita123</p>
         </div>

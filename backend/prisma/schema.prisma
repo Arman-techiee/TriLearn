@@ -32,6 +32,7 @@ model User {
 
 enum Role {
   ADMIN
+  GATEKEEPER
   INSTRUCTOR
   STUDENT
 }

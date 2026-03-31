@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
 
@@ -7,8 +7,32 @@ const StudentAttendance = () => {
   const [summary, setSummary] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [manualQrData, setManualQrData] = useState('')
+  const [scannerSupported, setScannerSupported] = useState(false)
+  const [scannerStatus, setScannerStatus] = useState('Tap start scanner to use your phone camera.')
+  const [submittingScan, setSubmittingScan] = useState(false)
 
-  useEffect(() => { fetchAttendance() }, [])
+  const videoRef = useRef(null)
+  const streamRef = useRef(null)
+  const intervalRef = useRef(null)
+
+  useEffect(() => {
+    fetchAttendance()
+  }, [])
+
+  useEffect(() => {
+    setScannerSupported(
+      typeof window !== 'undefined' &&
+      'BarcodeDetector' in window &&
+      !!navigator.mediaDevices?.getUserMedia
+    )
+
+    return () => {
+      stopScanner()
+    }
+  }, [])
 
   const fetchAttendance = async () => {
     try {
@@ -16,11 +40,93 @@ const StudentAttendance = () => {
       const res = await api.get('/attendance/my')
       setAttendance(res.data.attendance)
       setSummary(res.data.summary)
-    } catch (error) {
-      console.error(error)
-      setError(error.response?.data?.message || 'Unable to load attendance')
+    } catch (fetchError) {
+      console.error(fetchError)
+      setError(fetchError.response?.data?.message || 'Unable to load attendance')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const stopScanner = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+  }
+
+  const submitDailyQr = async (qrData) => {
+    if (!qrData) return
+
+    try {
+      setSubmittingScan(true)
+      setError('')
+
+      const res = await api.post('/attendance/scan-daily-qr', { qrData })
+      const subjectList = res.data.markedSubjects.map((subject) => subject.code).join(', ')
+      setSuccess(subjectList ? `Attendance marked for ${subjectList}` : res.data.message)
+      setManualQrData('')
+      setScannerOpen(false)
+      stopScanner()
+      await fetchAttendance()
+      setTimeout(() => setSuccess(''), 4000)
+    } catch (requestError) {
+      console.error(requestError)
+      setError(requestError.response?.data?.message || 'Unable to mark attendance')
+    } finally {
+      setSubmittingScan(false)
+    }
+  }
+
+  const startScanner = async () => {
+    if (!scannerSupported) {
+      setScannerStatus('Live camera scanning is not supported on this device. Use the manual QR text box below.')
+      return
+    }
+
+    try {
+      setScannerOpen(true)
+      setScannerStatus('Opening camera...')
+      setError('')
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }
+      })
+
+      streamRef.current = stream
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+      setScannerStatus('Point your camera at the college QR.')
+
+      intervalRef.current = window.setInterval(async () => {
+        if (!videoRef.current || submittingScan) return
+
+        try {
+          const codes = await detector.detect(videoRef.current)
+          if (codes.length > 0 && codes[0].rawValue) {
+            stopScanner()
+            setScannerStatus('QR detected. Submitting attendance...')
+            await submitDailyQr(codes[0].rawValue)
+          }
+        } catch (detectError) {
+          console.error(detectError)
+        }
+      }, 800)
+    } catch (cameraError) {
+      console.error(cameraError)
+      setScannerStatus('Unable to access the camera. You can still paste the QR data manually.')
+      setError('Camera access was denied or unavailable')
+      stopScanner()
     }
   }
 
@@ -29,16 +135,75 @@ const StudentAttendance = () => {
       <div className="p-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800">My Attendance</h1>
-          <p className="text-gray-500 text-sm mt-1">Track your attendance across all subjects</p>
+          <p className="text-gray-500 text-sm mt-1">Track your attendance and scan the daily entry QR from your phone.</p>
         </div>
 
+        {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">Daily QR Attendance</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Scan the entrance QR and we&apos;ll mark attendance for all of your enrolled routine subjects scheduled today.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={startScanner}
+                disabled={submittingScan}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium disabled:opacity-50"
+              >
+                Start Scanner
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  stopScanner()
+                  setScannerOpen(false)
+                  setScannerStatus('Scanner stopped.')
+                }}
+                className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-4">{scannerStatus}</p>
+
+          {scannerOpen && (
+            <div className="mt-4 overflow-hidden rounded-2xl border bg-black">
+              <video ref={videoRef} className="w-full max-h-[360px] object-cover" muted playsInline />
+            </div>
+          )}
+
+          <div className="mt-5 pt-5 border-t">
+            <label className="block text-sm text-gray-600 mb-2">Manual QR Data</label>
+            <textarea
+              rows={4}
+              value={manualQrData}
+              onChange={(e) => setManualQrData(e.target.value)}
+              placeholder="If your phone browser cannot scan live, paste the QR payload here."
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <button
+              type="button"
+              onClick={() => submitDailyQr(manualQrData)}
+              disabled={!manualQrData.trim() || submittingScan}
+              className="mt-3 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-black transition text-sm font-medium disabled:opacity-50"
+            >
+              {submittingScan ? 'Submitting...' : 'Submit QR'}
+            </button>
+          </div>
+        </div>
 
         {loading ? (
           <div className="text-center text-gray-500 py-8">Loading...</div>
         ) : (
           <>
-            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {summary.map((item, index) => (
                 <div key={index} className="bg-white rounded-2xl shadow-sm p-6">
@@ -54,7 +219,6 @@ const StudentAttendance = () => {
                       {item.percentage}
                     </span>
                   </div>
-                  {/* Progress bar */}
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${
@@ -70,9 +234,6 @@ const StudentAttendance = () => {
                   <p className="text-xs text-gray-400 mt-1">
                     {item.absent} absent • {item.late} late
                   </p>
-                  {parseFloat(item.percentage) < 75 && (
-                    <p className="text-xs text-red-500 mt-1">⚠️ Below 75% attendance!</p>
-                  )}
                 </div>
               ))}
               {summary.length === 0 && (
@@ -82,7 +243,6 @@ const StudentAttendance = () => {
               )}
             </div>
 
-            {/* Detailed Records */}
             {attendance.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-6 border-b">

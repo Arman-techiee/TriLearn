@@ -23,6 +23,7 @@ const Dashboard = () => {
   })
   const [recentUsers, setRecentUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     fetchStats()
@@ -48,6 +49,7 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error(error)
+      setError('Unable to load dashboard data')
     } finally {
       setLoading(false)
     }
@@ -70,6 +72,8 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-1">Welcome to EduNexus Admin Panel</p>
         </div>
+
+        {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

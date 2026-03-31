@@ -8,7 +8,8 @@ const { enrollStudentInMatchingSubjects } = require('../utils/enrollment')
 // ================================
 const register = async (req, res) => {
   try {
-    const { name, email, password, role, phone, address } = req.body
+    const { name, email, password, phone, address } = req.body
+    const role = 'STUDENT'
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
