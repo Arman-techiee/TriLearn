@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import logger from '../../utils/logger'
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' }
@@ -22,6 +23,8 @@ const AdminRoutine = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editRoutine, setEditRoutine] = useState(null)
+  const [routineToDelete, setRoutineToDelete] = useState(null)
+  const [deletingRoutine, setDeletingRoutine] = useState(false)
   const [form, setForm] = useState({
     subjectId: '', instructorId: '', dayOfWeek: 'MONDAY',
     startTime: '08:00', endTime: '09:00', room: ''
@@ -82,15 +85,19 @@ const AdminRoutine = () => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this routine entry?')) return
+  const handleDelete = async () => {
+    if (!routineToDelete) return
     try {
-      await api.delete(`/routines/${id}`)
+      setDeletingRoutine(true)
+      await api.delete(`/routines/${routineToDelete.id}`)
+      setRoutineToDelete(null)
       setSuccess('Deleted!')
       fetchRoutines()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
+    } finally {
+      setDeletingRoutine(false)
     }
   }
 
@@ -167,7 +174,7 @@ const AdminRoutine = () => {
                         <p className="text-xs truncate">{r.startTime}–{r.endTime}</p>
                         {r.room && <p className="text-xs opacity-75">🚪 {r.room}</p>}
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(r.id) }}
+                          onClick={(e) => { e.stopPropagation(); setRoutineToDelete(r) }}
                           className="text-xs text-red-500 hover:text-red-700 mt-1"
                         >
                           ✕
@@ -215,7 +222,7 @@ const AdminRoutine = () => {
                             className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100">
                             Edit
                           </button>
-                          <button onClick={() => handleDelete(r.id)}
+                          <button onClick={() => setRoutineToDelete(r)}
                             className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100">
                             Delete
                           </button>
@@ -288,6 +295,15 @@ const AdminRoutine = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!routineToDelete}
+        title="Delete Routine Entry"
+        message={routineToDelete ? `Delete the ${routineToDelete.dayOfWeek} ${routineToDelete.startTime} class entry?` : ''}
+        confirmText="Delete Entry"
+        busy={deletingRoutine}
+        onClose={() => setRoutineToDelete(null)}
+        onConfirm={handleDelete}
+      />
     </AdminLayout>
   )
 }

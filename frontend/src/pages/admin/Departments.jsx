@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import Alert from '../../components/Alert'
+import ConfirmDialog from '../../components/ConfirmDialog'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import useApi from '../../hooks/useApi'
 import api from '../../utils/api'
+import { getFriendlyErrorMessage } from '../../utils/errors'
 
 const emptyForm = { name: '', code: '', description: '' }
 
 const Departments = () => {
   const [showModal, setShowModal] = useState(false)
   const [editingDepartment, setEditingDepartment] = useState(null)
+  const [departmentToDelete, setDepartmentToDelete] = useState(null)
+  const [deletingDepartment, setDeletingDepartment] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [success, setSuccess] = useState('')
   const {
@@ -73,20 +79,25 @@ const Departments = () => {
       fetchDepartments()
       setTimeout(() => setSuccess(''), 3000)
     } catch (submitError) {
-      setError(submitError.response?.data?.message || 'Something went wrong')
+      setError(getFriendlyErrorMessage(submitError, 'Unable to save the department right now.'))
     }
   }
 
-  const handleDelete = async (department) => {
-    if (!window.confirm(`Delete ${department.name}?`)) return
-
+  const handleDelete = async () => {
+    if (!departmentToDelete) return
     try {
-      await api.delete(`/departments/${department.id}`)
+      setDeletingDepartment(true)
+      const target = departmentToDelete
+      setDepartmentToDelete(null)
+      setDepartments((current) => current.filter((department) => department.id !== target.id))
+      await api.delete(`/departments/${target.id}`)
       setSuccess('Department deleted successfully!')
-      fetchDepartments()
       setTimeout(() => setSuccess(''), 3000)
     } catch (deleteError) {
-      setError(deleteError.response?.data?.message || 'Something went wrong')
+      await fetchDepartments()
+      setError(getFriendlyErrorMessage(deleteError, 'Unable to delete the department right now.'))
+    } finally {
+      setDeletingDepartment(false)
     }
   }
 
@@ -110,7 +121,7 @@ const Departments = () => {
         <Alert type="error" message={error} />
 
         {loading ? (
-          <LoadingSpinner text="Loading departments..." />
+          <LoadingSkeleton rows={6} itemClassName="h-44" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {departments.map((department) => (
@@ -142,7 +153,7 @@ const Departments = () => {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(department)}
+                    onClick={() => setDepartmentToDelete(department)}
                     className="flex-1 text-xs bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition font-medium"
                   >
                     Delete
@@ -152,8 +163,21 @@ const Departments = () => {
             ))}
 
             {departments.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-gray-400">
-                No departments yet. Create one to use it in users and subjects.
+              <div className="col-span-3">
+                <EmptyState
+                  icon="🏛️"
+                  title="No departments yet"
+                  description="Create your first department so students, instructors, and subjects can be organized properly."
+                  action={(
+                    <button
+                      type="button"
+                      onClick={openCreateModal}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Add Department
+                    </button>
+                  )}
+                />
               </div>
             )}
           </div>
@@ -198,6 +222,18 @@ const Departments = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={!!departmentToDelete}
+        title="Delete Department"
+        message={departmentToDelete
+          ? `Delete ${departmentToDelete.name}? This only works when no users or subjects still depend on it.`
+          : ''}
+        confirmText="Delete Department"
+        busy={deletingDepartment}
+        onClose={() => setDepartmentToDelete(null)}
+        onConfirm={handleDelete}
+      />
     </AdminLayout>
   )
 }

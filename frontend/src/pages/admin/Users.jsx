@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
+import ConfirmDialog from '../../components/ConfirmDialog'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import useForm from '../../hooks/useForm'
+import { getFriendlyErrorMessage } from '../../utils/errors'
 import logger from '../../utils/logger'
 const initialUserValues = {
   name: '',
@@ -27,6 +31,8 @@ const Users = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState('instructor')
+  const [userToDelete, setUserToDelete] = useState(null)
+  const [deletingUser, setDeletingUser] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [filterRole, setFilterRole] = useState('')
@@ -119,30 +125,45 @@ const Users = () => {
       fetchUsers()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+      setError(getFriendlyErrorMessage(err, 'Unable to create the user right now.'))
     }
   }
 
   const handleToggleStatus = async (id, currentStatus) => {
+    const previousUsers = users
+    const nextStatus = !currentStatus
     try {
+      setUsers((current) => current.map((user) => (
+        user.id === id ? { ...user, isActive: nextStatus } : user
+      )))
       await api.patch(`/admin/users/${id}/toggle-status`)
-      setSuccess(`User ${currentStatus ? 'disabled' : 'enabled'} successfully!`)
-      fetchUsers()
+      setSuccess(`User ${nextStatus ? 'enabled' : 'disabled'} successfully!`)
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+      setUsers(previousUsers)
+      setError(getFriendlyErrorMessage(err, 'Unable to update the user right now.'))
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return
+  const handleDelete = async () => {
+    if (!userToDelete) return
+    const previousUsers = users
+    const previousTotal = total
     try {
-      await api.delete(`/admin/users/${id}`)
+      setDeletingUser(true)
+      const target = userToDelete
+      setUserToDelete(null)
+      setUsers((current) => current.filter((user) => user.id !== target.id))
+      setTotal((current) => Math.max(0, current - 1))
+      await api.delete(`/admin/users/${target.id}`)
       setSuccess('User deleted successfully!')
-      fetchUsers()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+      setUsers(previousUsers)
+      setTotal(previousTotal)
+      setError(getFriendlyErrorMessage(err, 'Unable to delete the user right now.'))
+    } finally {
+      setDeletingUser(false)
     }
   }
 
@@ -164,7 +185,7 @@ const Users = () => {
             <h1 className="text-2xl font-bold text-gray-800">Users</h1>
             <p className="text-gray-500 text-sm mt-1">Manage all users in EduNexus</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => openModal('instructor')}
               className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium"
@@ -210,10 +231,22 @@ const Users = () => {
         {/* Users Table */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {loading ? (
-            <LoadingSpinner text="Loading users..." />
+            <div className="p-6">
+              <LoadingSkeleton rows={6} itemClassName="h-16" />
+            </div>
           ) : (
             <>
-              <table className="w-full">
+              {users.length === 0 ? (
+                <div className="p-6">
+                  <EmptyState
+                    icon="👥"
+                    title="No users found"
+                    description="Try a different role filter or create a new account for your campus."
+                  />
+                </div>
+              ) : (
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[840px]">
                 <thead className="bg-gray-50">
                   <tr className="text-left text-sm text-gray-500">
                     <th className="px-6 py-4">Name</th>
@@ -254,7 +287,7 @@ const Users = () => {
                             {user.isActive ? 'Disable' : 'Enable'}
                           </button>
                           <button
-                            onClick={() => handleDelete(user.id)}
+                            onClick={() => setUserToDelete(user)}
                             className="text-xs px-3 py-1 rounded-lg font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
                           >
                             Delete
@@ -265,6 +298,8 @@ const Users = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
+              )}
               <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
             </>
           )}
@@ -382,6 +417,17 @@ const Users = () => {
         </Modal>
       )}
 
+      <ConfirmDialog
+        open={!!userToDelete}
+        title="Delete User"
+        message={userToDelete
+          ? `Delete ${userToDelete.name}? This action permanently removes the account and related profile data.`
+          : ''}
+        confirmText="Delete User"
+        busy={deletingUser}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleDelete}
+      />
     </AdminLayout>
   )
 }

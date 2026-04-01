@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
@@ -18,6 +19,8 @@ const Notices = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editNotice, setEditNotice] = useState(null)
+  const [noticeToDelete, setNoticeToDelete] = useState(null)
+  const [deletingNotice, setDeletingNotice] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const validateNotice = (values) => {
@@ -66,15 +69,19 @@ const Notices = () => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this notice?')) return
+  const handleDelete = async () => {
+    if (!noticeToDelete) return
     try {
-      await api.delete(`/notices/${id}`)
+      setDeletingNotice(true)
+      await api.delete(`/notices/${noticeToDelete.id}`)
+      setNoticeToDelete(null)
       setSuccess('Notice deleted!')
       fetchNotices()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
+    } finally {
+      setDeletingNotice(false)
     }
   }
 
@@ -146,7 +153,7 @@ const Notices = () => {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(notice.id)}
+                        onClick={() => setNoticeToDelete(notice)}
                         className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 transition"
                       >
                         Delete
@@ -223,6 +230,16 @@ const Notices = () => {
             </form>
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={!!noticeToDelete}
+        title="Delete Notice"
+        message={noticeToDelete ? `Delete "${noticeToDelete.title}"? This will remove it for all users.` : ''}
+        confirmText="Delete Notice"
+        busy={deletingNotice}
+        onClose={() => setNoticeToDelete(null)}
+        onConfirm={handleDelete}
+      />
 
     </AdminLayout>
   )

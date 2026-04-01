@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const menuItems = [
@@ -16,28 +16,67 @@ const menuItems = [
 const InstructorLayout = ({ children }) => {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 md:flex">
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-gray-950/40 md:hidden"
+        />
+      )}
+
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b bg-white px-4 py-3 shadow-sm md:hidden">
+        <div>
+          <h1 className="text-lg font-bold text-gray-800">EduNexus</h1>
+          <p className="text-xs text-gray-500">Instructor Panel</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700"
+        >
+          Menu
+        </button>
+      </div>
 
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-green-700 text-white transition-all duration-300 flex flex-col`}>
+      <div className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-green-700 text-white transition-transform duration-300 md:static md:z-auto md:min-h-screen md:w-auto md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${sidebarOpen ? 'md:w-64' : 'md:w-16'}`}>
 
         {/* Logo */}
         <div className="p-4 flex items-center justify-between border-b border-green-600">
-          {sidebarOpen && (
+          {(sidebarOpen || mobileMenuOpen) && (
             <div>
               <h1 className="text-xl font-bold">EduNexus</h1>
               <p className="text-green-200 text-xs">Instructor Panel</p>
             </div>
           )}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-white hover:bg-green-600 p-1 rounded"
-          >
-            {sidebarOpen ? '◀' : '▶'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="hidden rounded p-1 text-white hover:bg-green-600 md:block"
+            >
+              {sidebarOpen ? '◀' : '▶'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded p-1 text-white hover:bg-green-600 md:hidden"
+            >
+              x
+            </button>
+          </div>
         </div>
 
         {/* Menu */}
@@ -46,6 +85,7 @@ const InstructorLayout = ({ children }) => {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-3 py-3 rounded-lg mb-1 transition
                 ${location.pathname === item.path
                   ? 'bg-white text-green-700 font-semibold'
@@ -53,32 +93,32 @@ const InstructorLayout = ({ children }) => {
                 }`}
             >
               <span className="text-xl">{item.icon}</span>
-              {sidebarOpen && <span className="text-sm">{item.label}</span>}
+              {(sidebarOpen || mobileMenuOpen) && <span className="text-sm">{item.label}</span>}
             </Link>
           ))}
         </nav>
 
         {/* User info */}
         <div className="p-4 border-t border-green-600">
-          {sidebarOpen && (
+          {(sidebarOpen || mobileMenuOpen) && (
             <div className="mb-3">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-green-200 text-xs">{user?.email}</p>
             </div>
           )}
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="flex items-center gap-2 text-sm text-green-200 hover:text-white transition"
           >
             <span>🚪</span>
-            {sidebarOpen && <span>Logout</span>}
+            {(sidebarOpen || mobileMenuOpen) && <span>Logout</span>}
           </button>
         </div>
 
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-x-hidden">
         {children}
       </div>
 

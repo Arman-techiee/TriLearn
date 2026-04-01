@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
+import ConfirmDialog from '../../components/ConfirmDialog'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
+import Modal from '../../components/Modal'
+import useDebouncedValue from '../../hooks/useDebouncedValue'
+import { getFriendlyErrorMessage } from '../../utils/errors'
 import logger from '../../utils/logger'
 const Subjects = () => {
   const [subjects, setSubjects] = useState([])
@@ -9,6 +15,8 @@ const Subjects = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editSubject, setEditSubject] = useState(null)
+  const [subjectToDelete, setSubjectToDelete] = useState(null)
+  const [deletingSubject, setDeletingSubject] = useState(false)
   const [enrollmentSubject, setEnrollmentSubject] = useState(null)
   const [enrollmentStudents, setEnrollmentStudents] = useState([])
   const [loadingEnrollments, setLoadingEnrollments] = useState(false)
@@ -20,6 +28,7 @@ const Subjects = () => {
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const debouncedEnrollmentSearch = useDebouncedValue(enrollmentSearch, 250)
 
   useEffect(() => {
     fetchSubjects()
@@ -65,19 +74,26 @@ const Subjects = () => {
       fetchSubjects()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+      setError(getFriendlyErrorMessage(err, 'Unable to save the subject right now.'))
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this subject?')) return
+  const handleDelete = async () => {
+    if (!subjectToDelete) return
+    const previousSubjects = subjects
     try {
-      await api.delete(`/subjects/${id}`)
+      setDeletingSubject(true)
+      const target = subjectToDelete
+      setSubjectToDelete(null)
+      setSubjects((current) => current.filter((subject) => subject.id !== target.id))
+      await api.delete(`/subjects/${target.id}`)
       setSuccess('Subject deleted successfully!')
-      fetchSubjects()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
+      setSubjects(previousSubjects)
+      setError(getFriendlyErrorMessage(err, 'Unable to delete the subject right now.'))
+    } finally {
+      setDeletingSubject(false)
     }
   }
 
@@ -121,7 +137,7 @@ const Subjects = () => {
       setEnrollmentStudents(res.data.students)
     } catch (err) {
       setEnrollmentSubject(null)
-      setError(err.response?.data?.message || 'Unable to load subject enrollments')
+      setError(getFriendlyErrorMessage(err, 'Unable to load subject enrollments.'))
     } finally {
       setLoadingEnrollments(false)
     }
@@ -155,14 +171,14 @@ const Subjects = () => {
       fetchSubjects()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err.response?.data?.message || 'Unable to update enrollments')
+      setError(getFriendlyErrorMessage(err, 'Unable to update enrollments right now.'))
     } finally {
       setSavingEnrollments(false)
     }
   }
 
   const filteredEnrollmentStudents = enrollmentStudents.filter((student) => {
-    const keyword = enrollmentSearch.trim().toLowerCase()
+    const keyword = debouncedEnrollmentSearch.trim().toLowerCase()
     if (!keyword) return true
 
     return [
@@ -206,7 +222,7 @@ const Subjects = () => {
 
         {/* Subjects Grid */}
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSkeleton rows={6} itemClassName="h-44" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subjects.map((subject) => (
@@ -269,7 +285,7 @@ const Subjects = () => {
                     Students
                   </button>
                   <button
-                    onClick={() => handleDelete(subject.id)}
+                    onClick={() => setSubjectToDelete(subject)}
                     className="text-xs bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition font-medium px-3"
                   >
                     Delete
@@ -280,8 +296,21 @@ const Subjects = () => {
             ))}
 
             {subjects.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-gray-400">
-                No subjects yet. Click + Add Subject to create one!
+              <div className="col-span-3">
+                <EmptyState
+                  icon="📚"
+                  title="No subjects yet"
+                  description="Create your first subject and assign an instructor to start building the academic structure."
+                  action={(
+                    <button
+                      type="button"
+                      onClick={openCreateModal}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Add Subject
+                    </button>
+                  )}
+                />
               </div>
             )}
           </div>
@@ -291,20 +320,7 @@ const Subjects = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">
-                {editSubject ? 'Edit Subject' : 'Add Subject'}
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                ✕
-              </button>
-            </div>
+        <Modal title={editSubject ? 'Edit Subject' : 'Add Subject'} onClose={() => setShowModal(false)}>
 
             {error && (
               <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">
@@ -392,9 +408,7 @@ const Subjects = () => {
                 </button>
               </div>
             </form>
-
-          </div>
-        </div>
+        </Modal>
       )}
 
       {enrollmentSubject && (
@@ -467,7 +481,11 @@ const Subjects = () => {
                   </label>
                 ))}
                 {filteredEnrollmentStudents.length === 0 && (
-                  <div className="text-center text-gray-400 py-12">No students matched your search.</div>
+                  <EmptyState
+                    icon="🧑‍🎓"
+                    title="No students matched"
+                    description="Try a different search term or apply the suggested enrollment list for this subject."
+                  />
                 )}
               </div>
             )}
@@ -492,6 +510,18 @@ const Subjects = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!subjectToDelete}
+        title="Delete Subject"
+        message={subjectToDelete
+          ? `Delete ${subjectToDelete.name} (${subjectToDelete.code})? This removes the subject from active use.`
+          : ''}
+        confirmText="Delete Subject"
+        busy={deletingSubject}
+        onClose={() => setSubjectToDelete(null)}
+        onConfirm={handleDelete}
+      />
 
     </AdminLayout>
   )

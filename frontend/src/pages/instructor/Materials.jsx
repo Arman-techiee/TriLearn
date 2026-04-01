@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Alert from '../../components/Alert'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
@@ -12,6 +13,8 @@ const InstructorMaterials = () => {
   const [materialPdf, setMaterialPdf] = useState(null)
   const [success, setSuccess] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
+  const [materialToDelete, setMaterialToDelete] = useState(null)
+  const [deletingMaterial, setDeletingMaterial] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
   const {
     data: materials = [],
@@ -77,15 +80,19 @@ const InstructorMaterials = () => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this material?')) return
+  const handleDelete = async () => {
+    if (!materialToDelete) return
     try {
-      await api.delete(`/materials/${id}`)
+      setDeletingMaterial(true)
+      await api.delete(`/materials/${materialToDelete.id}`)
+      setMaterialToDelete(null)
       setSuccess('Material deleted!')
       fetchMaterials()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
+    } finally {
+      setDeletingMaterial(false)
     }
   }
 
@@ -163,7 +170,7 @@ const InstructorMaterials = () => {
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-3xl">{getFileIcon(mat.fileUrl)}</span>
                   <button
-                    onClick={() => handleDelete(mat.id)}
+                    onClick={() => setMaterialToDelete(mat)}
                     className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg hover:bg-red-100 transition"
                   >
                     Delete
@@ -300,6 +307,15 @@ const InstructorMaterials = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!materialToDelete}
+        title="Delete Material"
+        message={materialToDelete ? `Delete "${materialToDelete.title}"? Students will no longer be able to access it.` : ''}
+        confirmText="Delete Material"
+        busy={deletingMaterial}
+        onClose={() => setMaterialToDelete(null)}
+        onConfirm={handleDelete}
+      />
     </InstructorLayout>
   )
 }

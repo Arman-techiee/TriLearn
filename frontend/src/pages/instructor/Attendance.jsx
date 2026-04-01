@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
+import useDebouncedValue from '../../hooks/useDebouncedValue'
+import { getFriendlyErrorMessage } from '../../utils/errors'
 import logger from '../../utils/logger'
 const DEFAULT_STATUS = 'PRESENT'
 const STATUSES = ['PRESENT', 'ABSENT', 'LATE']
@@ -27,6 +31,7 @@ const Attendance = () => {
   const [attendance, setAttendance] = useState([])
   const [summary, setSummary] = useState({ total: 0, present: 0, absent: 0, late: 0 })
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 250)
 
   useEffect(() => {
     fetchSubjects()
@@ -68,7 +73,7 @@ const Attendance = () => {
       setSummary(attendanceRes.data.summary)
     } catch (fetchError) {
       logger.error(fetchError)
-      setError(fetchError.response?.data?.message || 'Unable to load attendance data')
+      setError(getFriendlyErrorMessage(fetchError, 'Unable to load attendance data.'))
     } finally {
       setLoading(false)
     }
@@ -92,7 +97,7 @@ const Attendance = () => {
         setSuccess('')
       }, 10 * 60 * 1000)
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to generate QR code')
+      setError(getFriendlyErrorMessage(requestError, 'Unable to generate the QR code right now.'))
     }
   }
 
@@ -134,14 +139,14 @@ const Attendance = () => {
       await fetchAttendanceWorkspace()
       setTimeout(() => setSuccess(''), 3000)
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to save attendance')
+      setError(getFriendlyErrorMessage(requestError, 'Unable to save attendance right now.'))
     } finally {
       setSaving(false)
     }
   }
 
   const filteredRoster = roster.filter((student) => {
-    const keyword = search.trim().toLowerCase()
+    const keyword = debouncedSearch.trim().toLowerCase()
     if (!keyword) return true
 
     return [
@@ -288,9 +293,13 @@ const Attendance = () => {
                 </div>
 
                 {loading ? (
-                  <div className="py-10 text-center text-gray-500">Loading roster...</div>
+                  <LoadingSkeleton rows={5} itemClassName="h-24" />
                 ) : filteredRoster.length === 0 ? (
-                  <div className="py-10 text-center text-gray-400">No students matched this subject/date filter.</div>
+                  <EmptyState
+                    icon="🔎"
+                    title="No students matched"
+                    description="Try another name, roll number, email, or section to find the student you need."
+                  />
                 ) : (
                   <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
                     {filteredRoster.map((student) => (
@@ -333,12 +342,20 @@ const Attendance = () => {
                 <p className="text-sm text-gray-500 mt-1">Showing records for {selectedDate}.</p>
               </div>
               {loading ? (
-                <div className="p-8 text-center text-gray-500">Loading...</div>
+                <div className="p-6">
+                  <LoadingSkeleton rows={4} itemClassName="h-14" />
+                </div>
               ) : attendance.length === 0 ? (
-                <div className="p-8 text-center text-gray-400">No attendance records saved for this date yet.</div>
+                <div className="p-6">
+                  <EmptyState
+                    icon="🗂️"
+                    title="No saved records yet"
+                    description="Once attendance is saved for this date, the finalized records will appear here."
+                  />
+                </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[720px]">
                     <thead className="bg-gray-50">
                       <tr className="text-left text-sm text-gray-500">
                         <th className="px-6 py-4">Student</th>
