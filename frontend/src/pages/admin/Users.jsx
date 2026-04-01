@@ -3,12 +3,16 @@ import AdminLayout from '../../layouts/AdminLayout'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import api from '../../utils/api'
 
 const Users = () => {
   const [users, setUsers] = useState([])
   const [departments, setDepartments] = useState([])
+  const [page, setPage] = useState(1)
+  const [limit] = useState(20)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState('instructor')
@@ -22,6 +26,10 @@ const Users = () => {
 
   useEffect(() => {
     fetchUsers()
+  }, [filterRole, page])
+
+  useEffect(() => {
+    setPage(1)
   }, [filterRole])
 
   useEffect(() => {
@@ -31,9 +39,18 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const params = filterRole ? `?role=${filterRole}` : ''
-      const res = await api.get(`/admin/users${params}`)
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit)
+      })
+
+      if (filterRole) {
+        params.set('role', filterRole)
+      }
+
+      const res = await api.get(`/admin/users?${params.toString()}`)
       setUsers(res.data.users)
+      setTotal(res.data.total)
     } catch (error) {
       console.error(error)
     } finally {
@@ -158,58 +175,61 @@ const Users = () => {
           {loading ? (
             <LoadingSpinner text="Loading users..." />
           ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr className="text-left text-sm text-gray-500">
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Email</th>
-                  <th className="px-6 py-4">Role</th>
-                  <th className="px-6 py-4">Details</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-800">{user.name}</td>
-                    <td className="px-6 py-4 text-gray-500 text-sm">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={user.role} />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {user.student && `Sem ${user.student.semester} · ${user.student.rollNumber}`}
-                      {user.instructor && `${user.instructor.department || 'No dept'}`}
-                      {user.role === 'GATEKEEPER' && 'Gate QR operator'}
-                      {user.admin && 'Administrator'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={user.isActive ? 'ACTIVE' : 'DISABLED'} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleToggleStatus(user.id, user.isActive)}
-                          className={`text-xs px-3 py-1 rounded-lg font-medium transition
-                            ${user.isActive
-                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                              : 'bg-green-100 text-green-700 hover:bg-green-200'
-                            }`}
-                        >
-                          {user.isActive ? 'Disable' : 'Enable'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="text-xs px-3 py-1 rounded-lg font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+            <>
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr className="text-left text-sm text-gray-500">
+                    <th className="px-6 py-4">Name</th>
+                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Details</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} className="border-t hover:bg-gray-50">
+                      <td className="px-6 py-4 font-medium text-gray-800">{user.name}</td>
+                      <td className="px-6 py-4 text-gray-500 text-sm">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={user.role} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {user.student && `Sem ${user.student.semester} · ${user.student.rollNumber}`}
+                        {user.instructor && `${user.instructor.department || 'No dept'}`}
+                        {user.role === 'GATEKEEPER' && 'Gate QR operator'}
+                        {user.admin && 'Administrator'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={user.isActive ? 'ACTIVE' : 'DISABLED'} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleToggleStatus(user.id, user.isActive)}
+                            className={`text-xs px-3 py-1 rounded-lg font-medium transition
+                              ${user.isActive
+                                ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                          >
+                            {user.isActive ? 'Disable' : 'Enable'}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            className="text-xs px-3 py-1 rounded-lg font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
+            </>
           )}
         </div>
 

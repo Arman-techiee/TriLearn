@@ -3,11 +3,15 @@ import AdminLayout from '../../layouts/AdminLayout'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import api from '../../utils/api'
 
 const Notices = () => {
   const [notices, setNotices] = useState([])
+  const [page, setPage] = useState(1)
+  const [limit] = useState(10)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editNotice, setEditNotice] = useState(null)
@@ -15,13 +19,14 @@ const Notices = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => { fetchNotices() }, [])
+  useEffect(() => { fetchNotices() }, [page])
 
   const fetchNotices = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/notices')
+      const res = await api.get(`/notices?page=${page}&limit=${limit}`)
       setNotices(res.data.notices)
+      setTotal(res.data.total)
     } catch (error) {
       console.error(error)
     } finally {
@@ -102,46 +107,49 @@ const Notices = () => {
         {loading ? (
           <LoadingSpinner text="Loading notices..." />
         ) : (
-          <div className="space-y-4">
-            {notices.map((notice) => (
-              <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <StatusBadge status={notice.type} />
-                      <span className="text-xs text-gray-400">
-                        {new Date(notice.createdAt).toLocaleDateString()}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        by {notice.user?.name}
-                      </span>
+          <>
+            <div className="space-y-4">
+              {notices.map((notice) => (
+                <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <StatusBadge status={notice.type} />
+                        <span className="text-xs text-gray-400">
+                          {new Date(notice.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          by {notice.user?.name}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-gray-800 mb-2">{notice.title}</h3>
+                      <p className="text-sm text-gray-500">{notice.content}</p>
                     </div>
-                    <h3 className="font-semibold text-gray-800 mb-2">{notice.title}</h3>
-                    <p className="text-sm text-gray-500">{notice.content}</p>
-                  </div>
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => openEditModal(notice)}
-                      className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(notice.id)}
-                      className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 transition"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => openEditModal(notice)}
+                        className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(notice.id)}
+                        className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {notices.length === 0 && (
-              <div className="text-center py-12 text-gray-400">
-                No notices yet. Click + Post Notice to create one!
-              </div>
-            )}
-          </div>
+              ))}
+              {notices.length === 0 && (
+                <div className="text-center py-12 text-gray-400">
+                  No notices yet. Click + Post Notice to create one!
+                </div>
+              )}
+            </div>
+            <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
+          </>
         )}
 
       </div>

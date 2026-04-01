@@ -1,30 +1,31 @@
 import { useState, useEffect } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
+import Alert from '../../components/Alert'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import Modal from '../../components/Modal'
+import Pagination from '../../components/Pagination'
+import StatusBadge from '../../components/StatusBadge'
 import api from '../../utils/api'
-
-const typeColors = {
-  GENERAL: 'bg-gray-100 text-gray-700',
-  EXAM: 'bg-red-100 text-red-700',
-  HOLIDAY: 'bg-green-100 text-green-700',
-  EVENT: 'bg-blue-100 text-blue-700',
-  URGENT: 'bg-orange-100 text-orange-700',
-}
 
 const InstructorNotices = () => {
   const [notices, setNotices] = useState([])
+  const [page, setPage] = useState(1)
+  const [limit] = useState(10)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', content: '', type: 'GENERAL' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => { fetchNotices() }, [])
+  useEffect(() => { fetchNotices() }, [page])
 
   const fetchNotices = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/notices')
+      const res = await api.get(`/notices?page=${page}&limit=${limit}`)
       setNotices(res.data.notices)
+      setTotal(res.data.total)
     } catch (error) {
       console.error(error)
     } finally {
@@ -61,37 +62,34 @@ const InstructorNotices = () => {
           </button>
         </div>
 
-        {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
+        <Alert type="success" message={success} />
+        <Alert type="error" message={error} />
 
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSpinner text="Loading notices..." />
         ) : (
-          <div className="space-y-4">
-            {notices.map((notice) => (
-              <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${typeColors[notice.type]}`}>
-                    {notice.type}
-                  </span>
-                  <span className="text-xs text-gray-400">{new Date(notice.createdAt).toLocaleDateString()}</span>
-                  <span className="text-xs text-gray-400">by {notice.user?.name}</span>
+          <>
+            <div className="space-y-4">
+              {notices.map((notice) => (
+                <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <StatusBadge status={notice.type} />
+                    <span className="text-xs text-gray-400">{new Date(notice.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-gray-400">by {notice.user?.name}</span>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 mb-1">{notice.title}</h3>
+                  <p className="text-sm text-gray-500">{notice.content}</p>
                 </div>
-                <h3 className="font-semibold text-gray-800 mb-1">{notice.title}</h3>
-                <p className="text-sm text-gray-500">{notice.content}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
+          </>
         )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Post Notice</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        <Modal title="Post Notice" onClose={() => setShowModal(false)}>
+            <Alert type="error" message={error} />
             <form onSubmit={handleSubmit} className="space-y-4">
               <input type="text" placeholder="Title" required value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -114,8 +112,7 @@ const InstructorNotices = () => {
                   className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 font-medium">Post</button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </InstructorLayout>
   )

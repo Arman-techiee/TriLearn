@@ -1,25 +1,25 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import Pagination from '../../components/Pagination'
+import StatusBadge from '../../components/StatusBadge'
 import api from '../../utils/api'
-
-const typeColors = {
-  GENERAL: 'bg-gray-100 text-gray-700',
-  EXAM: 'bg-red-100 text-red-700',
-  HOLIDAY: 'bg-green-100 text-green-700',
-  EVENT: 'bg-blue-100 text-blue-700',
-  URGENT: 'bg-orange-100 text-orange-700',
-}
 
 const StudentNotices = () => {
   const [notices, setNotices] = useState([])
+  const [page, setPage] = useState(1)
+  const [limit] = useState(10)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchNotices() }, [])
+  useEffect(() => { fetchNotices() }, [page])
 
   const fetchNotices = async () => {
     try {
-      const res = await api.get('/notices')
+      setLoading(true)
+      const res = await api.get(`/notices?page=${page}&limit=${limit}`)
       setNotices(res.data.notices)
+      setTotal(res.data.total)
     } catch (error) {
       console.error(error)
     } finally {
@@ -36,28 +36,29 @@ const StudentNotices = () => {
         </div>
 
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSpinner text="Loading notices..." />
         ) : (
-          <div className="space-y-4">
-            {notices.map((notice) => (
-              <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${typeColors[notice.type]}`}>
-                    {notice.type}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(notice.createdAt).toLocaleDateString()}
-                  </span>
-                  <span className="text-xs text-gray-400">by {notice.user?.name}</span>
+          <>
+            <div className="space-y-4">
+              {notices.map((notice) => (
+                <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
+                  <div className="flex items-center gap-3 mb-3">
+                    <StatusBadge status={notice.type} />
+                    <span className="text-xs text-gray-400">
+                      {new Date(notice.createdAt).toLocaleDateString()}
+                    </span>
+                    <span className="text-xs text-gray-400">by {notice.user?.name}</span>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 mb-2">{notice.title}</h3>
+                  <p className="text-sm text-gray-600">{notice.content}</p>
                 </div>
-                <h3 className="font-semibold text-gray-800 mb-2">{notice.title}</h3>
-                <p className="text-sm text-gray-600">{notice.content}</p>
-              </div>
-            ))}
-            {notices.length === 0 && (
-              <div className="text-center py-12 text-gray-400">No notices yet</div>
-            )}
-          </div>
+              ))}
+              {notices.length === 0 && (
+                <div className="text-center py-12 text-gray-400">No notices yet</div>
+              )}
+            </div>
+            <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
+          </>
         )}
       </div>
     </StudentLayout>

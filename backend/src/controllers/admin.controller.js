@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma')
 const bcrypt = require('bcryptjs')
 const { enrollStudentInMatchingSubjects } = require('../utils/enrollment')
+const { getPagination } = require('../utils/pagination')
 const { ensureDepartmentExists } = require('./department.controller')
 
 // ================================
@@ -9,29 +10,35 @@ const { ensureDepartmentExists } = require('./department.controller')
 const getAllUsers = async (req, res) => {
   try {
     const { role, isActive } = req.query
+    const { page, limit, skip } = getPagination(req.query)
 
     const filters = {}
     if (role) filters.role = role
     if (isActive !== undefined) filters.isActive = isActive === 'true'
 
-    const users = await prisma.user.findMany({
-      where: filters,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        isActive: true,
-        createdAt: true,
-        student: true,
-        instructor: true,
-        admin: true,
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: filters,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          isActive: true,
+          createdAt: true,
+          student: true,
+          instructor: true,
+          admin: true,
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.count({ where: filters })
+    ])
 
-    res.json({ total: users.length, users })
+    res.json({ total, page, limit, users })
 
   } catch (error) {
     console.error(error)

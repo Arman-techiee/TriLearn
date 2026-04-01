@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma')
+const { getPagination } = require('../utils/pagination')
 const { ensureDepartmentExists } = require('./department.controller')
 
 const buildSubjectVisibilityFilter = async (user, filters = {}) => {
@@ -135,6 +136,7 @@ const createSubject = async (req, res) => {
 const getAllSubjects = async (req, res) => {
   try {
     const { semester, department } = req.query
+    const { page, limit, skip } = getPagination(req.query)
 
     const filters = {}
     if (semester) filters.semester = parseInt(semester)
@@ -142,13 +144,18 @@ const getAllSubjects = async (req, res) => {
 
     const visibleFilters = await buildSubjectVisibilityFilter(req.user, filters)
 
-    const subjects = await prisma.subject.findMany({
-      where: visibleFilters,
-      include: subjectListInclude,
-      orderBy: { createdAt: 'desc' }
-    })
+    const [subjects, total] = await Promise.all([
+      prisma.subject.findMany({
+        where: visibleFilters,
+        skip,
+        take: limit,
+        include: subjectListInclude,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.subject.count({ where: visibleFilters })
+    ])
 
-    res.json({ total: subjects.length, subjects })
+    res.json({ total, page, limit, subjects })
 
   } catch (error) {
     console.error(error)

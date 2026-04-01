@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma')
+const { getPagination } = require('../utils/pagination')
 
 // ================================
 // CREATE NOTICE (Admin/Instructor)
@@ -36,19 +37,25 @@ const createNotice = async (req, res) => {
 const getAllNotices = async (req, res) => {
   try {
     const { type } = req.query
+    const { page, limit, skip } = getPagination(req.query)
 
     const filters = {}
     if (type) filters.type = type
 
-    const notices = await prisma.notice.findMany({
-      where: filters,
-      include: {
-        user: { select: { name: true, role: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const [notices, total] = await Promise.all([
+      prisma.notice.findMany({
+        where: filters,
+        skip,
+        take: limit,
+        include: {
+          user: { select: { name: true, role: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.notice.count({ where: filters })
+    ])
 
-    res.json({ total: notices.length, notices })
+    res.json({ total, page, limit, notices })
 
   } catch (error) {
     console.error(error)
