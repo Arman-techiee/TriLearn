@@ -31,6 +31,18 @@ import StudentNotices from './pages/student/Notices'
 import StudentMaterials from './pages/student/Materials'
 import StudentRoutine from './pages/student/Routine'
 
+const getHomeRouteForRole = (role) => {
+  if (!role) return '/login'
+
+  const normalizedRole = String(role).toUpperCase()
+
+  if (normalizedRole === 'ADMIN') return '/admin'
+  if (normalizedRole === 'GATEKEEPER') return '/gate'
+  if (normalizedRole === 'INSTRUCTOR') return '/instructor'
+  if (normalizedRole === 'STUDENT') return '/student'
+
+  return '/login'
+}
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth()
@@ -46,9 +58,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 const AppRoutes = () => {
   const { user } = useAuth()
+  const homeRoute = getHomeRouteForRole(user?.role)
+
   return (
     <Routes>
-      <Route path="/login" element={!user ? <Login /> : <Navigate to={`/${user.role.toLowerCase()}`} />} />
+      <Route path="/login" element={!user ? <Login /> : <Navigate to={homeRoute} />} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
@@ -83,8 +97,7 @@ const AppRoutes = () => {
       <Route path="/student/materials" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentMaterials /></ProtectedRoute>} />
       <Route path="/student/routine" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentRoutine /></ProtectedRoute>} />
       
-
-      <Route path="*" element={<Navigate to="/login" />} />
+      <Route path="*" element={<Navigate to={user ? homeRoute : '/login'} />} />
     </Routes>
   )
 }

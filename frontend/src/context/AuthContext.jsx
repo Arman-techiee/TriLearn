@@ -10,10 +10,24 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
     const savedUser = localStorage.getItem('user')
+
     if (savedToken && savedUser) {
-      setToken(savedToken)
-      setUser(JSON.parse(savedUser))
+      try {
+        const parsedUser = JSON.parse(savedUser)
+
+        if (parsedUser?.role) {
+          setToken(savedToken)
+          setUser(parsedUser)
+        } else {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+        }
+      } catch {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
     }
+
     setLoading(false)
   }, [])
 
