@@ -66,6 +66,29 @@ app.use('/api/materials', studyMaterialRoutes)
 app.use('/api/routines', routineRoutes)
 app.use('/api/departments', departmentRoutes)
 
+app.get('/health', async (_req, res) => {
+  try {
+    await require('./utils/prisma').$queryRaw`SELECT 1`
+    res.json({
+      status: 'ok',
+      database: 'ok',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    logger.error(error.message, { stack: error.stack })
+    res.status(503).json({
+      status: 'error',
+      database: 'unavailable',
+      timestamp: new Date().toISOString()
+    })
+  }
+})
+
+app.get('/ping', (_req, res) => {
+  res.json({ status: 'ok' })
+})
+
 app.get('/', (req, res) => {
   res.json({ message: 'EduNexus backend is running! 🚀' })
 })

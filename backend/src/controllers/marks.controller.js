@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
+const { getPagination } = require('../utils/pagination')
 
 const getInstructorProfile = (userId) => prisma.instructor.findUnique({
   where: { userId }
@@ -130,6 +131,7 @@ const getMarksBySubject = async (req, res) => {
   try {
     const { subjectId } = req.params
     const { examType } = req.query
+    const { page, limit, skip } = getPagination(req.query)
 
     const access = await getManagedSubject(subjectId, req.user)
     if (access.error) {
@@ -139,16 +141,21 @@ const getMarksBySubject = async (req, res) => {
     const filters = { subjectId }
     if (examType) filters.examType = examType
 
-    const marks = await prisma.mark.findMany({
-      where: filters,
-      include: {
-        student: { include: { user: { select: { name: true } } } },
-        subject: { select: { name: true, code: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const [marks, total] = await Promise.all([
+      prisma.mark.findMany({
+        where: filters,
+        include: {
+          student: { include: { user: { select: { name: true } } } },
+          subject: { select: { name: true, code: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.mark.count({ where: filters })
+    ])
 
-    res.json({ total: marks.length, marks, subject: access.subject })
+    res.json({ total, page, limit, marks, subject: access.subject })
 
   } catch (error) {
     res.internalError(error)
@@ -213,6 +220,7 @@ const getEnrolledStudentsBySubject = async (req, res) => {
 // ================================
 const getMyMarks = async (req, res) => {
   try {
+    const { page, limit, skip } = getPagination(req.query)
     const student = await prisma.student.findUnique({
       where: { userId: req.user.id }
     })
@@ -221,17 +229,28 @@ const getMyMarks = async (req, res) => {
       return res.status(403).json({ message: 'Only students can view their marks' })
     }
 
-    const marks = await prisma.mark.findMany({
-      where: { studentId: student.id },
-      include: {
-        subject: { select: { name: true, code: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    const [marks, total, allMarks] = await Promise.all([
+      prisma.mark.findMany({
+        where: { studentId: student.id },
+        include: {
+          subject: { select: { name: true, code: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.mark.count({ where: { studentId: student.id } }),
+      prisma.mark.findMany({
+        where: { studentId: student.id },
+        include: {
+          subject: { select: { name: true, code: true } }
+        }
+      })
+    ])
 
     // Summary per subject
     const summary = {}
-    marks.forEach(m => {
+    allMarks.forEach(m => {
       const key = m.subject.name
       if (!summary[key]) {
         summary[key] = { subject: m.subject.name, code: m.subject.code, exams: [] }
@@ -244,7 +263,7 @@ const getMyMarks = async (req, res) => {
       })
     })
 
-    res.json({ marks, summary: Object.values(summary) })
+    res.json({ total, page, limit, marks, summary: Object.values(summary) })
 
   } catch (error) {
     res.internalError(error)

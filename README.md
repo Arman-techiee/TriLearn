@@ -86,9 +86,13 @@ npm install
 Create a `.env` file with at least:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/edunexus
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/edunexus?connection_limit=10&pool_timeout=20
 JWT_SECRET=your_secret_here
+JWT_REFRESH_SECRET=your_refresh_secret_here
 PORT=5000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+PGPOOL_MAX=10
 ```
 
 Generate Prisma client:
@@ -100,7 +104,7 @@ npm run prisma:generate
 Apply migrations:
 
 ```bash
-npx prisma migrate deploy
+npm run prisma:migrate:dev
 ```
 
 Start the backend:
@@ -158,6 +162,8 @@ Uploaded PDFs are stored under `backend/uploads/`.
 
 This folder is ignored by Git, so uploaded files do not get committed to GitHub.
 
+For production, local-disk uploads are not enough on stateless platforms. See [DEPLOYMENT.md](/C:/Users/arman/EduNexus/DEPLOYMENT.md) for the current deployment baseline and the remaining recommendation to move uploads to S3-compatible object storage.
+
 ## Important Routes
 
 Frontend role panels:
@@ -180,6 +186,8 @@ Backend API groups:
 - `/api/materials`
 - `/api/marks`
 - `/api/notices`
+- `/health`
+- `/ping`
 
 ## Gate QR Testing Locally
 
@@ -198,7 +206,18 @@ If live camera scanning is not supported in the browser, the student scan page i
 
 - Browser-based QR scanning depends on camera permission and browser support.
 - A native mobile app is not included yet.
+- Uploads still need object storage before serious stateless production deployment.
 - Some flows are optimized for local development and may need additional hardening for production deployment.
+
+## Deployment
+
+See [DEPLOYMENT.md](/C:/Users/arman/EduNexus/DEPLOYMENT.md) for:
+
+- production environment variables
+- health checks
+- pg pool tuning
+- migration strategy
+- Docker usage
 
 ## Future Improvements
 

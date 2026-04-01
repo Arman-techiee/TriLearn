@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma')
 const QRCode = require('qrcode')
 const logger = require('../utils/logger')
+const { getPagination } = require('../utils/pagination')
 
 const ATTENDANCE_STATUSES = ['PRESENT', 'ABSENT', 'LATE']
 const QR_VALIDITY_MINUTES = 15
@@ -99,6 +100,21 @@ const buildAttendanceSummary = (attendance) => {
   const totals = attendance.reduce((acc, record) => {
     acc.total += 1
     acc[record.status] += 1
+    return acc
+  }, { total: 0, PRESENT: 0, ABSENT: 0, LATE: 0 })
+
+  return {
+    total: totals.total,
+    present: totals.PRESENT,
+    absent: totals.ABSENT,
+    late: totals.LATE
+  }
+}
+
+const buildStatusSummary = (groups) => {
+  const totals = groups.reduce((acc, group) => {
+    acc.total += group._count._all
+    acc[group.status] = group._count._all
     return acc
   }, { total: 0, PRESENT: 0, ABSENT: 0, LATE: 0 })
 
@@ -375,6 +391,7 @@ const getAttendanceBySubject = async (req, res) => {
   try {
     const { subjectId } = req.params
     const { date } = req.query
+    const { page, limit, skip } = getPagination(req.query)
 
     const access = await getOwnedSubject(subjectId, req.user)
     if (access.error) {
@@ -392,26 +409,38 @@ const getAttendanceBySubject = async (req, res) => {
       filters.date = { gte: dayRange.start, lt: dayRange.end }
     }
 
-    const attendance = await prisma.attendance.findMany({
-      where: filters,
-      include: {
-        student: {
-          include: {
-            user: { select: { name: true, email: true } }
-          }
+    const [attendance, total, groupedSummary] = await Promise.all([
+      prisma.attendance.findMany({
+        where: filters,
+        include: {
+          student: {
+            include: {
+              user: { select: { name: true, email: true } }
+            }
+          },
+          subject: { select: { name: true, code: true } }
         },
-        subject: { select: { name: true, code: true } }
-      },
-      orderBy: [
-        { date: 'desc' },
-        { student: { rollNumber: 'asc' } }
-      ]
-    })
+        orderBy: [
+          { date: 'desc' },
+          { student: { rollNumber: 'asc' } }
+        ],
+        skip,
+        take: limit
+      }),
+      prisma.attendance.count({ where: filters }),
+      prisma.attendance.groupBy({
+        by: ['status'],
+        where: filters,
+        _count: { _all: true }
+      })
+    ])
 
     res.json({
-      total: attendance.length,
+      total,
+      page,
+      limit,
       attendance,
-      summary: buildAttendanceSummary(attendance),
+      summary: buildStatusSummary(groupedSummary),
       subject: access.subject
     })
 
@@ -425,23 +454,37 @@ const getAttendanceBySubject = async (req, res) => {
 // ================================
 const getMyAttendance = async (req, res) => {
   try {
+    const { page, limit, skip } = getPagination(req.query)
     const student = await getStudentProfile(req.user.id)
 
     if (!student) {
       return res.status(403).json({ message: 'Only students can view their attendance' })
     }
 
-    const attendance = await prisma.attendance.findMany({
-      where: { studentId: student.id },
-      include: {
-        subject: { select: { name: true, code: true } }
-      },
-      orderBy: { date: 'desc' }
-    })
+    const [attendance, total, allAttendance] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { studentId: student.id },
+        include: {
+          subject: { select: { name: true, code: true } }
+        },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.attendance.count({
+        where: { studentId: student.id }
+      }),
+      prisma.attendance.findMany({
+        where: { studentId: student.id },
+        include: {
+          subject: { select: { name: true, code: true } }
+        }
+      })
+    ])
 
     // Calculate percentage per subject
     const subjectMap = {}
-    attendance.forEach(a => {
+    allAttendance.forEach(a => {
       const key = a.subjectId
       if (!subjectMap[key]) {
         subjectMap[key] = { total: 0, present: 0, absent: 0, late: 0, subject: a.subject }
@@ -462,7 +505,7 @@ const getMyAttendance = async (req, res) => {
       percentage: ((s.present / s.total) * 100).toFixed(1) + '%'
     })).sort((a, b) => a.code.localeCompare(b.code))
 
-    res.json({ attendance, summary })
+    res.json({ total, page, limit, attendance, summary })
 
   } catch (error) {
     res.internalError(error)
