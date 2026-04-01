@@ -1,17 +1,11 @@
 const fs = require('fs')
-const path = require('path')
 const multer = require('multer')
 const logger = require('../utils/logger')
-
-const uploadRoot = path.join(__dirname, '..', '..', 'uploads')
-
-if (!fs.existsSync(uploadRoot)) {
-  fs.mkdirSync(uploadRoot, { recursive: true })
-}
+const { uploadPath } = require('../utils/fileStorage')
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, uploadRoot)
+    cb(null, uploadPath)
   },
   filename: (_req, file, cb) => {
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -61,4 +55,4 @@ const validateUploadedPdf = async (req, res, next) => {
   }
 }
 
-module.exports = { uploadPdf, uploadRoot, validateUploadedPdf }
+module.exports = { uploadPdf, uploadPath, validateUploadedPdf }

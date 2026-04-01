@@ -1,10 +1,6 @@
 const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
-
-const buildUploadedFileUrl = (req, file) => {
-  if (!file) return undefined
-  return `/uploads/${file.filename}`
-}
+const { buildUploadedFileUrl } = require('../utils/fileStorage')
 
 // ================================
 // CREATE ASSIGNMENT (Instructor)
@@ -12,7 +8,7 @@ const buildUploadedFileUrl = (req, file) => {
 const createAssignment = async (req, res) => {
   try {
     const { title, description, subjectId, dueDate, totalMarks } = req.body
-    const questionPdfUrl = buildUploadedFileUrl(req, req.file)
+    const questionPdfUrl = buildUploadedFileUrl(req.file)
     const parsedTotalMarks = totalMarks ? parseInt(totalMarks, 10) : 100
 
     if (!questionPdfUrl) {

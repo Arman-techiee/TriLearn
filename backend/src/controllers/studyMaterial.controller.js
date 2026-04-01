@@ -1,10 +1,6 @@
 const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
-
-const buildUploadedFileUrl = (req, file) => {
-  if (!file) return undefined
-  return `/uploads/${file.filename}`
-}
+const { buildUploadedFileUrl } = require('../utils/fileStorage')
 
 // ================================
 // CREATE STUDY MATERIAL (Instructor)
@@ -12,7 +8,7 @@ const buildUploadedFileUrl = (req, file) => {
 const createMaterial = async (req, res) => {
   try {
     const { title, description, fileUrl, subjectId } = req.body
-    const uploadedFileUrl = buildUploadedFileUrl(req, req.file)
+    const uploadedFileUrl = buildUploadedFileUrl(req.file)
     const finalFileUrl = uploadedFileUrl || fileUrl
 
     const instructor = await prisma.instructor.findUnique({

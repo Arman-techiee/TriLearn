@@ -5,6 +5,7 @@ const dotenv = require('dotenv')
 const path = require('path')
 const logger = require('./utils/logger')
 const { apiLimiter } = require('./middleware/rateLimit.middleware')
+const { uploadPath, uploadPublicPath } = require('./utils/fileStorage')
 
 dotenv.config()
 
@@ -40,7 +41,7 @@ app.use((req, res, next) => {
   next()
 })
 app.use(apiLimiter)
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')))
+app.use(uploadPublicPath, express.static(uploadPath))
 
 // Routes
 const authRoutes = require('./routes/auth.routes')

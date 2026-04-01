@@ -43,20 +43,44 @@ const getAllDepartments = async (_req, res) => {
       orderBy: { name: 'asc' }
     })
 
-    const enriched = await Promise.all(
-      departments.map(async (department) => {
-        const [students, instructors, subjects] = await Promise.all([
-          prisma.student.count({ where: { department: department.name } }),
-          prisma.instructor.count({ where: { department: department.name } }),
-          prisma.subject.count({ where: { department: department.name } })
-        ])
-
-        return {
-          ...department,
-          _count: { students, instructors, subjects }
-        }
+    const [studentCounts, instructorCounts, subjectCounts] = await Promise.all([
+      prisma.student.groupBy({
+        by: ['department'],
+        _count: { _all: true },
+        where: { department: { not: null } }
+      }),
+      prisma.instructor.groupBy({
+        by: ['department'],
+        _count: { _all: true },
+        where: { department: { not: null } }
+      }),
+      prisma.subject.groupBy({
+        by: ['department'],
+        _count: { _all: true },
+        where: { department: { not: null } }
       })
-    )
+    ])
+
+    const toCountMap = (groups) => groups.reduce((acc, group) => {
+      if (group.department) {
+        acc[group.department] = group._count._all
+      }
+
+      return acc
+    }, {})
+
+    const studentCountMap = toCountMap(studentCounts)
+    const instructorCountMap = toCountMap(instructorCounts)
+    const subjectCountMap = toCountMap(subjectCounts)
+
+    const enriched = departments.map((department) => ({
+      ...department,
+      _count: {
+        students: studentCountMap[department.name] || 0,
+        instructors: instructorCountMap[department.name] || 0,
+        subjects: subjectCountMap[department.name] || 0
+      }
+    }))
 
     res.json({ total: enriched.length, departments: enriched })
   } catch (error) {
