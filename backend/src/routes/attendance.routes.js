@@ -11,6 +11,7 @@ const {
   markAttendanceManual,
   getAttendanceBySubject,
   getCoordinatorDepartmentAttendanceReport,
+  exportCoordinatorDepartmentAttendanceReport,
   getMonthlyAttendanceReport,
   exportAttendanceBySubject,
   getMyAttendance,
@@ -24,6 +25,7 @@ router.post('/generate-daily-qr', allowRoles('GATEKEEPER'), generateDailyAttenda
 router.post('/generate-qr', allowRoles('INSTRUCTOR', 'COORDINATOR'), validate(schemas.attendance.generateQr), generateQR)
 router.post('/manual', allowRoles('INSTRUCTOR', 'COORDINATOR'), validate(schemas.attendance.manual), markAttendanceManual)
 router.get('/coordinator/department-report', allowRoles('COORDINATOR'), validate(schemas.attendance.coordinatorReport), getCoordinatorDepartmentAttendanceReport)
+router.get('/coordinator/department-report/export', allowRoles('COORDINATOR'), validate(schemas.attendance.coordinatorExport), exportCoordinatorDepartmentAttendanceReport)
 router.get('/subject/:subjectId/monthly-report', allowRoles('COORDINATOR', 'ADMIN'), validate(schemas.attendance.monthlyReport), getMonthlyAttendanceReport)
 router.get('/subject/:subjectId/export', allowRoles('INSTRUCTOR', 'COORDINATOR', 'ADMIN'), validate(schemas.attendance.export), exportAttendanceBySubject)
 router.get('/subject/:subjectId/roster', allowRoles('INSTRUCTOR', 'COORDINATOR', 'ADMIN'), validate(schemas.attendance.getBySubject), getSubjectRoster)

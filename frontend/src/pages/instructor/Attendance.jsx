@@ -240,22 +240,19 @@ const Attendance = () => {
       setExportingFormat(format)
       setError('')
       const response = isCoordinator
-        ? await api.get('/attendance/coordinator/department-report', {
+        ? await api.get('/attendance/coordinator/department-report/export', {
             params: {
               month: selectedMonth,
               semester: selectedSemester,
-              section: selectedSection || undefined
-            }
-          }).then((res) => res)
+              section: selectedSection || undefined,
+              format
+            },
+            responseType: 'blob'
+          })
         : await api.get(`/attendance/subject/${selectedSubject}/export`, {
             params: { date: selectedDate, format },
             responseType: 'blob'
           })
-
-      if (isCoordinator) {
-        setError('Department report export is not wired yet. The on-screen report is ready, and I can add Excel/PDF export next.')
-        return
-      }
 
       const contentDisposition = response.headers['content-disposition'] || ''
       const matchedName = contentDisposition.match(/filename="?(.*?)"?$/i)
@@ -588,6 +585,22 @@ const Attendance = () => {
                         placeholder="Search by name, roll number, email, section..."
                         className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
+                      <button
+                        type="button"
+                        onClick={() => exportAttendanceReport('xlsx')}
+                        disabled={!monthlyStudents.length || !!exportingFormat}
+                        className="bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {exportingFormat === 'xlsx' ? 'Exporting...' : 'Export Excel'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportAttendanceReport('pdf')}
+                        disabled={!monthlyStudents.length || !!exportingFormat}
+                        className="bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {exportingFormat === 'pdf' ? 'Exporting...' : 'Export PDF'}
+                      </button>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[980px]">

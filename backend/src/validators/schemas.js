@@ -266,6 +266,14 @@ const schemas = {
         section: optionalString(20)
       })
     },
+    coordinatorExport: {
+      query: z.object({
+        month: z.string().regex(/^\d{4}-\d{2}$/, 'Month must be in YYYY-MM format'),
+        semester: z.coerce.number().int().min(1).max(12),
+        section: optionalString(20),
+        format: exportFormatEnum.optional()
+      })
+    },
     export: {
       params: z.object({ subjectId: z.string().uuid() }),
       query: z.object({
