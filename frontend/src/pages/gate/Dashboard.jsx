@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import GateLayout from '../../layouts/GateLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const GateDashboard = () => {
   const [dailyQrCode, setDailyQrCode] = useState('')
   const [qrExpiry, setQrExpiry] = useState('')
@@ -20,7 +19,7 @@ const GateDashboard = () => {
       setFirstClassStart(res.data.firstClassStart)
       setCutoffAt(new Date(res.data.cutoffAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     } catch (requestError) {
-      console.error(requestError)
+      logger.error(requestError)
       setError(requestError.response?.data?.message || 'Unable to generate gate QR')
     } finally {
       setLoading(false)
@@ -71,3 +70,6 @@ const GateDashboard = () => {
 }
 
 export default GateDashboard
+
+
+

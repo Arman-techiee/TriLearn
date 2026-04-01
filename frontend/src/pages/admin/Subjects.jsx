@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const Subjects = () => {
   const [subjects, setSubjects] = useState([])
   const [instructors, setInstructors] = useState([])
@@ -33,7 +32,7 @@ const Subjects = () => {
       const res = await api.get('/subjects')
       setSubjects(res.data.subjects)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -44,7 +43,7 @@ const Subjects = () => {
       const res = await api.get('/admin/users?role=INSTRUCTOR')
       setInstructors(res.data.users)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   }
 
@@ -107,7 +106,7 @@ const Subjects = () => {
       const res = await api.get('/departments')
       setDepartments(res.data.departments)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   }
 
@@ -498,3 +497,6 @@ const Subjects = () => {
 }
 
 export default Subjects
+
+
+

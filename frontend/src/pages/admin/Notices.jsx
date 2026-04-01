@@ -6,8 +6,7 @@ import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import useForm from '../../hooks/useForm'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const initialNoticeValues = { title: '', content: '', type: 'GENERAL' }
 
 const Notices = () => {
@@ -39,7 +38,7 @@ const Notices = () => {
       setNotices(res.data.notices)
       setTotal(res.data.total)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -229,3 +228,6 @@ const Notices = () => {
 }
 
 export default Notices
+
+
+

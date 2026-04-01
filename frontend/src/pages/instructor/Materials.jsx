@@ -1,18 +1,29 @@
 import { useState, useEffect } from 'react'
+import Alert from '../../components/Alert'
 import InstructorLayout from '../../layouts/InstructorLayout'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import Modal from '../../components/Modal'
+import useApi from '../../hooks/useApi'
 import api, { resolveFileUrl } from '../../utils/api'
 
 const InstructorMaterials = () => {
-  const [materials, setMaterials] = useState([])
-  const [subjects, setSubjects] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', fileUrl: '', subjectId: '' })
   const [materialPdf, setMaterialPdf] = useState(null)
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
   const [previewFile, setPreviewFile] = useState(null)
+  const {
+    data: materials = [],
+    loading,
+    error,
+    setError,
+    execute: executeMaterials
+  } = useApi({ initialData: [], initialLoading: true })
+  const {
+    data: subjects = [],
+    execute: executeSubjects
+  } = useApi({ initialData: [] })
 
   useEffect(() => {
     fetchMaterials()
@@ -20,24 +31,22 @@ const InstructorMaterials = () => {
   }, [])
 
   const fetchMaterials = async () => {
-    try {
-      setLoading(true)
-      const res = await api.get('/materials')
-      setMaterials(res.data.materials)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+    await executeMaterials(
+      () => api.get('/materials'),
+      {
+        fallbackMessage: 'Unable to load materials',
+        transform: (response) => response.data.materials
+      }
+    )
   }
 
   const fetchSubjects = async () => {
-    try {
-      const res = await api.get('/subjects')
-      setSubjects(res.data.subjects)
-    } catch (err) {
-      console.error(err)
-    }
+    await executeSubjects(
+      () => api.get('/subjects'),
+      {
+        transform: (response) => response.data.subjects
+      }
+    )
   }
 
   const handleSubmit = async (e) => {
@@ -120,8 +129,8 @@ const InstructorMaterials = () => {
           </button>
         </div>
 
-        {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
-        {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        <Alert type="success" message={success} />
+        <Alert type="error" message={error} />
 
         {/* Subject Filter */}
         <div className="flex gap-2 mb-6 flex-wrap">
@@ -146,7 +155,7 @@ const InstructorMaterials = () => {
 
         {/* Materials Grid */}
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSpinner text="Loading materials..." />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((mat) => (
@@ -206,13 +215,8 @@ const InstructorMaterials = () => {
 
       {/* Upload Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Upload Material</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        <Modal title="Upload Material" onClose={() => setShowModal(false)}>
+            <Alert type="error" message={error} />
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text" placeholder="Material Title" required
@@ -262,8 +266,7 @@ const InstructorMaterials = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {previewFile && (
@@ -302,3 +305,5 @@ const InstructorMaterials = () => {
 }
 
 export default InstructorMaterials
+
+

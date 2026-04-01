@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const StudentSubjects = () => {
   const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(true)
@@ -13,7 +12,7 @@ const StudentSubjects = () => {
       const res = await api.get('/subjects')
       setSubjects(res.data.subjects)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -77,3 +76,5 @@ const StudentSubjects = () => {
 }
 
 export default StudentSubjects
+
+

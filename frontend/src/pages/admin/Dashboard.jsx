@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const StatCard = ({ title, value, icon, color }) => (
   <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${color}`}>
     <div className="flex items-center justify-between">
@@ -48,7 +47,7 @@ const Dashboard = () => {
       setRecentUsers(users.slice(0, 5))
 
     } catch (error) {
-      console.error(error)
+      logger.error(error)
       setError('Unable to load dashboard data')
     } finally {
       setLoading(false)
@@ -128,3 +127,6 @@ const Dashboard = () => {
 }
 
 export default Dashboard
+
+
+

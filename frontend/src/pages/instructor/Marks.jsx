@@ -4,8 +4,7 @@ import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import StatusBadge from '../../components/StatusBadge'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const Marks = () => {
   const [subjects, setSubjects] = useState([])
   const [marks, setMarks] = useState([])
@@ -46,7 +45,7 @@ const Marks = () => {
       const res = await api.get('/subjects')
       setSubjects(res.data.subjects)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   }
 
@@ -60,7 +59,7 @@ const Marks = () => {
       const res = await api.get(`/marks/subject/${subjectId}/students`)
       setStudents(res.data.students)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
       setStudents([])
     }
   }
@@ -71,7 +70,7 @@ const Marks = () => {
       const res = await api.get(`/marks/subject/${selectedSubject}`)
       setMarks(res.data.marks)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -246,3 +245,6 @@ const Marks = () => {
 }
 
 export default Marks
+
+
+

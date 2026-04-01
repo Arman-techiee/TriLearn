@@ -51,7 +51,9 @@ const subjectListInclude = {
 
 const getEnrollmentTargetStudents = async (subject) => prisma.student.findMany({
   where: {
-    user: { isActive: true }
+    user: { isActive: true },
+    semester: subject.semester,
+    ...(subject.department ? { department: subject.department } : {})
   },
   include: {
     user: {

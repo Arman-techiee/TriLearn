@@ -6,8 +6,7 @@ import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import useForm from '../../hooks/useForm'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const initialUserValues = {
   name: '',
   email: '',
@@ -85,7 +84,7 @@ const Users = () => {
       setUsers(res.data.users)
       setTotal(res.data.total)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -96,7 +95,7 @@ const Users = () => {
       const res = await api.get('/departments')
       setDepartments(res.data.departments)
     } catch (fetchError) {
-      console.error(fetchError)
+      logger.error(fetchError)
     }
   }
 
@@ -387,3 +386,6 @@ const Users = () => {
 }
 
 export default Users
+
+
+

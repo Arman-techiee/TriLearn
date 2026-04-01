@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const DEFAULT_STATUS = 'PRESENT'
 const STATUSES = ['PRESENT', 'ABSENT', 'LATE']
 
@@ -48,7 +47,7 @@ const Attendance = () => {
       const res = await api.get('/subjects')
       setSubjects(res.data.subjects)
     } catch (fetchError) {
-      console.error(fetchError)
+      logger.error(fetchError)
       setError('Unable to load subjects')
     }
   }
@@ -67,7 +66,7 @@ const Attendance = () => {
       setAttendance(attendanceRes.data.attendance)
       setSummary(attendanceRes.data.summary)
     } catch (fetchError) {
-      console.error(fetchError)
+      logger.error(fetchError)
       setError(fetchError.response?.data?.message || 'Unable to load attendance data')
     } finally {
       setLoading(false)
@@ -376,3 +375,6 @@ const Attendance = () => {
 }
 
 export default Attendance
+
+
+

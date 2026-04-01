@@ -3,8 +3,7 @@ import StudentLayout from '../../layouts/StudentLayout'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const StudentNotices = () => {
   const [notices, setNotices] = useState([])
   const [page, setPage] = useState(1)
@@ -21,7 +20,7 @@ const StudentNotices = () => {
       setNotices(res.data.notices)
       setTotal(res.data.total)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -66,3 +65,6 @@ const StudentNotices = () => {
 }
 
 export default StudentNotices
+
+
+

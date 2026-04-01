@@ -11,13 +11,18 @@ const clearAuthState = () => {
 export const resolveFileUrl = (fileUrl) => {
   if (!fileUrl) return ''
 
-  if (/^https?:\/\//i.test(fileUrl)) {
-    return fileUrl
+  const normalizedFileUrl = String(fileUrl).trim()
+  if (!normalizedFileUrl) return ''
+
+  if (/^(https?:\/\/|data:|blob:)/i.test(normalizedFileUrl)) {
+    return normalizedFileUrl
   }
 
-  return fileUrl.startsWith('/')
-    ? `${API_ORIGIN}${fileUrl}`
-    : `${API_ORIGIN}/${fileUrl}`
+  try {
+    return new URL(normalizedFileUrl, `${API_ORIGIN}/`).toString()
+  } catch {
+    return ''
+  }
 }
 
 const api = axios.create({

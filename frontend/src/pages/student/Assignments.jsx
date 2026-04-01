@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
-import api, { resolveFileUrl } from '../../utils/api'
-
+import logger from '../../utils/logger'
 const StudentAssignments = () => {
   const [assignments, setAssignments] = useState([])
   const [submissions, setSubmissions] = useState([])
@@ -24,7 +23,7 @@ const StudentAssignments = () => {
       setAssignments(assignmentsRes.data.assignments)
       setSubmissions(submissionsRes.data.submissions)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -238,3 +237,6 @@ const StudentAssignments = () => {
 }
 
 export default StudentAssignments
+
+
+

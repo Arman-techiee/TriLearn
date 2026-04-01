@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' }
 
@@ -32,7 +31,7 @@ const InstructorRoutine = () => {
       const res = await api.get('/routines')
       setRoutines(res.data.routines)
     } catch (err) {
-      console.error(err)
+      logger.error(err)
     } finally {
       setLoading(false)
     }
@@ -175,3 +174,5 @@ const InstructorRoutine = () => {
 }
 
 export default InstructorRoutine
+
+

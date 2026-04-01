@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
+import Alert from '../../components/Alert'
 import InstructorLayout from '../../layouts/InstructorLayout'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import Modal from '../../components/Modal'
+import useApi from '../../hooks/useApi'
 import api, { resolveFileUrl } from '../../utils/api'
 
 const Assignments = () => {
-  const [assignments, setAssignments] = useState([])
-  const [subjects, setSubjects] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showSubmissions, setShowSubmissions] = useState(null)
   const [form, setForm] = useState({
@@ -16,6 +17,15 @@ const Assignments = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [previewFile, setPreviewFile] = useState(null)
+  const {
+    data: assignments = [],
+    loading,
+    execute: executeAssignments
+  } = useApi({ initialData: [], initialLoading: true })
+  const {
+    data: subjects = [],
+    execute: executeSubjects
+  } = useApi({ initialData: [] })
 
   useEffect(() => {
     fetchAssignments()
@@ -23,24 +33,21 @@ const Assignments = () => {
   }, [])
 
   const fetchAssignments = async () => {
-    try {
-      setLoading(true)
-      const res = await api.get('/assignments')
-      setAssignments(res.data.assignments)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
+    await executeAssignments(
+      () => api.get('/assignments'),
+      {
+        transform: (response) => response.data.assignments
+      }
+    )
   }
 
   const fetchSubjects = async () => {
-    try {
-      const res = await api.get('/subjects')
-      setSubjects(res.data.subjects)
-    } catch (error) {
-      console.error(error)
-    }
+    await executeSubjects(
+      () => api.get('/subjects'),
+      {
+        transform: (response) => response.data.subjects
+      }
+    )
   }
 
   const handleSubmit = async (e) => {
@@ -105,12 +112,12 @@ const Assignments = () => {
           </button>
         </div>
 
-        {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
-        {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        <Alert type="success" message={success} />
+        <Alert type="error" message={error} />
 
         {/* Assignments List */}
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSpinner text="Loading assignments..." />
         ) : (
           <div className="space-y-4">
             {assignments.map((assignment) => (
@@ -165,13 +172,8 @@ const Assignments = () => {
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Create Assignment</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        <Modal title="Create Assignment" onClose={() => setShowModal(false)}>
+            <Alert type="error" message={error} />
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text" placeholder="Assignment Title" required
@@ -226,8 +228,7 @@ const Assignments = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Submissions Modal */}
@@ -345,3 +346,5 @@ const Assignments = () => {
 }
 
 export default Assignments
+
+

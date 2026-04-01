@@ -4,8 +4,7 @@ import StudentLayout from '../../layouts/StudentLayout'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import StatusBadge from '../../components/StatusBadge'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const StudentAttendance = () => {
   const location = useLocation()
   const [attendance, setAttendance] = useState([])
@@ -55,7 +54,7 @@ const StudentAttendance = () => {
       setAttendance(res.data.attendance)
       setSummary(res.data.summary)
     } catch (fetchError) {
-      console.error(fetchError)
+      logger.error(fetchError)
       setError(fetchError.response?.data?.message || 'Unable to load attendance')
     } finally {
       setLoading(false)
@@ -90,7 +89,7 @@ const StudentAttendance = () => {
       await fetchAttendance()
       setTimeout(() => setSuccess(''), 4000)
     } catch (requestError) {
-      console.error(requestError)
+      logger.error(requestError)
       setError(requestError.response?.data?.message || 'Unable to mark attendance')
     } finally {
       setSubmittingScan(false)
@@ -133,11 +132,11 @@ const StudentAttendance = () => {
             await submitDailyQr(codes[0].rawValue)
           }
         } catch (detectError) {
-          console.error(detectError)
+          logger.error(detectError)
         }
       }, 800)
     } catch (cameraError) {
-      console.error(cameraError)
+      logger.error(cameraError)
       setScannerStatus('Unable to access the camera. You can still paste the QR data manually.')
       setError('Camera access was denied or unavailable')
       stopScanner()
@@ -301,3 +300,6 @@ const StudentAttendance = () => {
 }
 
 export default StudentAttendance
+
+
+

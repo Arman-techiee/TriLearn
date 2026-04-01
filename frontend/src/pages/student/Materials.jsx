@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react'
+import LoadingSpinner from '../../components/LoadingSpinner'
 import StudentLayout from '../../layouts/StudentLayout'
+import useApi from '../../hooks/useApi'
 import api, { resolveFileUrl } from '../../utils/api'
 
 const StudentMaterials = () => {
-  const [materials, setMaterials] = useState([])
-  const [subjects, setSubjects] = useState([])
-  const [loading, setLoading] = useState(true)
   const [filterSubject, setFilterSubject] = useState('')
   const [previewFile, setPreviewFile] = useState(null)
+  const {
+    data: materials = [],
+    loading,
+    execute: executeMaterials
+  } = useApi({ initialData: [], initialLoading: true })
+  const {
+    data: subjects = [],
+    execute: executeSubjects
+  } = useApi({ initialData: [] })
 
   useEffect(() => {
     fetchMaterials()
@@ -15,23 +23,21 @@ const StudentMaterials = () => {
   }, [])
 
   const fetchMaterials = async () => {
-    try {
-      const res = await api.get('/materials')
-      setMaterials(res.data.materials)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+    await executeMaterials(
+      () => api.get('/materials'),
+      {
+        transform: (response) => response.data.materials
+      }
+    )
   }
 
   const fetchSubjects = async () => {
-    try {
-      const res = await api.get('/subjects')
-      setSubjects(res.data.subjects)
-    } catch (err) {
-      console.error(err)
-    }
+    await executeSubjects(
+      () => api.get('/subjects'),
+      {
+        transform: (response) => response.data.subjects
+      }
+    )
   }
 
   const filtered = filterSubject
@@ -87,7 +93,7 @@ const StudentMaterials = () => {
         </div>
 
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSpinner text="Loading materials..." />
         ) : (
           <>
             {/* Stats */}
@@ -192,3 +198,5 @@ const StudentMaterials = () => {
 }
 
 export default StudentMaterials
+
+

@@ -1,33 +1,39 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
+import Alert from '../../components/Alert'
+import LoadingSpinner from '../../components/LoadingSpinner'
+import Modal from '../../components/Modal'
+import useApi from '../../hooks/useApi'
 import api from '../../utils/api'
 
 const emptyForm = { name: '', code: '', description: '' }
 
 const Departments = () => {
-  const [departments, setDepartments] = useState([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingDepartment, setEditingDepartment] = useState(null)
   const [form, setForm] = useState(emptyForm)
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const {
+    data: departments = [],
+    setData: setDepartments,
+    loading,
+    error,
+    setError,
+    execute
+  } = useApi({ initialData: [], initialLoading: true })
 
   useEffect(() => {
     fetchDepartments()
   }, [])
 
   const fetchDepartments = async () => {
-    try {
-      setLoading(true)
-      const res = await api.get('/departments')
-      setDepartments(res.data.departments)
-    } catch (fetchError) {
-      console.error(fetchError)
-      setError('Unable to load departments')
-    } finally {
-      setLoading(false)
-    }
+    await execute(
+      () => api.get('/departments'),
+      {
+        fallbackMessage: 'Unable to load departments',
+        transform: (response) => response.data.departments
+      }
+    )
   }
 
   const openCreateModal = () => {
@@ -100,11 +106,11 @@ const Departments = () => {
           </button>
         </div>
 
-        {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
-        {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        <Alert type="success" message={success} />
+        <Alert type="error" message={error} />
 
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSpinner text="Loading departments..." />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {departments.map((department) => (
@@ -155,17 +161,8 @@ const Departments = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">
-                {editingDepartment ? 'Edit Department' : 'Add Department'}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
-
+        <Modal title={editingDepartment ? 'Edit Department' : 'Add Department'} onClose={() => setShowModal(false)}>
+            <Alert type="error" message={error} />
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
@@ -199,11 +196,12 @@ const Departments = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </AdminLayout>
   )
 }
 
 export default Departments
+
+

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
-import api from '../../utils/api'
-
+import logger from '../../utils/logger'
 const StudentMarks = () => {
   const [marks, setMarks] = useState([])
   const [summary, setSummary] = useState([])
@@ -15,7 +14,7 @@ const StudentMarks = () => {
       setMarks(res.data.marks)
       setSummary(res.data.summary)
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -131,3 +130,5 @@ const StudentMarks = () => {
 }
 
 export default StudentMarks
+
+

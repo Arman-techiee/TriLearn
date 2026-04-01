@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
-import { useAuth } from '../../context/AuthContext'
-
+import logger from '../../utils/logger'
 const StatCard = ({ title, value, icon, color }) => (
   <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${color}`}>
     <div className="flex items-center justify-between">
@@ -46,7 +45,7 @@ const InstructorDashboard = () => {
         totalNotices: noticesRes.data.total,
       })
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     } finally {
       setLoading(false)
     }
@@ -140,3 +139,5 @@ const InstructorDashboard = () => {
 }
 
 export default InstructorDashboard
+
+
