@@ -1,6 +1,8 @@
 const express = require('express')
 const router = express.Router()
 const { protect, allowRoles } = require('../middleware/auth.middleware')
+const { validate } = require('../middleware/validate.middleware')
+const { schemas } = require('../validators/schemas')
 const {
   createRoutine,
   getAllRoutines,
@@ -12,12 +14,12 @@ const {
 router.use(protect)
 
 // Admin only - create/update/delete
-router.post('/', allowRoles('ADMIN'), createRoutine)
-router.put('/:id', allowRoles('ADMIN'), updateRoutine)
-router.delete('/:id', allowRoles('ADMIN'), deleteRoutine)
+router.post('/', allowRoles('ADMIN'), validate(schemas.routines.create), createRoutine)
+router.put('/:id', allowRoles('ADMIN'), validate(schemas.routines.update), updateRoutine)
+router.delete('/:id', allowRoles('ADMIN'), validate(schemas.routines.id), deleteRoutine)
 
 // All roles - view
-router.get('/', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getAllRoutines)
-router.get('/:id', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getRoutineById)
+router.get('/', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), validate(schemas.routines.getAll), getAllRoutines)
+router.get('/:id', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), validate(schemas.routines.id), getRoutineById)
 
 module.exports = router

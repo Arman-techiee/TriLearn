@@ -1,7 +1,10 @@
 const express = require('express')
 const router = express.Router()
 const { protect, allowRoles } = require('../middleware/auth.middleware')
-const { uploadPdf } = require('../middleware/upload.middleware')
+const { uploadPdf, validateUploadedPdf } = require('../middleware/upload.middleware')
+const { uploadLimiter } = require('../middleware/rateLimit.middleware')
+const { validate } = require('../middleware/validate.middleware')
+const { schemas } = require('../validators/schemas')
 const {
   createAssignment,
   getAllAssignments,
@@ -16,17 +19,17 @@ const {
 router.use(protect)
 
 // Instructor routes
-router.post('/', allowRoles('INSTRUCTOR'), uploadPdf.single('questionPdf'), createAssignment)
-router.put('/:id', allowRoles('INSTRUCTOR'), uploadPdf.single('questionPdf'), updateAssignment)
-router.delete('/:id', allowRoles('INSTRUCTOR', 'ADMIN'), deleteAssignment)
-router.patch('/submissions/:submissionId/grade', allowRoles('INSTRUCTOR'), gradeSubmission)
+router.post('/', allowRoles('INSTRUCTOR'), uploadLimiter, uploadPdf.single('questionPdf'), validateUploadedPdf, validate(schemas.assignments.create), createAssignment)
+router.put('/:id', allowRoles('INSTRUCTOR'), uploadLimiter, uploadPdf.single('questionPdf'), validateUploadedPdf, validate(schemas.assignments.update), updateAssignment)
+router.delete('/:id', allowRoles('INSTRUCTOR', 'ADMIN'), validate(schemas.assignments.id), deleteAssignment)
+router.patch('/submissions/:submissionId/grade', allowRoles('INSTRUCTOR'), validate(schemas.assignments.grade), gradeSubmission)
 
 // Student routes
-router.post('/:id/submit', allowRoles('STUDENT'), uploadPdf.single('answerPdf'), submitAssignment)
+router.post('/:id/submit', allowRoles('STUDENT'), uploadLimiter, uploadPdf.single('answerPdf'), validateUploadedPdf, validate(schemas.assignments.submit), submitAssignment)
 router.get('/my-submissions', allowRoles('STUDENT'), getMySubmissions)
 
 // All roles
-router.get('/', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getAllAssignments)
-router.get('/:id', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getAssignmentById)
+router.get('/', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), validate(schemas.assignments.getAll), getAllAssignments)
+router.get('/:id', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), validate(schemas.assignments.id), getAssignmentById)
 
 module.exports = router

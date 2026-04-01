@@ -1,6 +1,8 @@
 const express = require('express')
 const router = express.Router()
 const { protect, allowRoles } = require('../middleware/auth.middleware')
+const { validate } = require('../middleware/validate.middleware')
+const { schemas } = require('../validators/schemas')
 const {
   createDepartment,
   getAllDepartments,
@@ -11,8 +13,8 @@ const {
 router.use(protect)
 
 router.get('/', allowRoles('ADMIN', 'INSTRUCTOR'), getAllDepartments)
-router.post('/', allowRoles('ADMIN'), createDepartment)
-router.put('/:id', allowRoles('ADMIN'), updateDepartment)
-router.delete('/:id', allowRoles('ADMIN'), deleteDepartment)
+router.post('/', allowRoles('ADMIN'), validate(schemas.departments.create), createDepartment)
+router.put('/:id', allowRoles('ADMIN'), validate(schemas.departments.update), updateDepartment)
+router.delete('/:id', allowRoles('ADMIN'), validate(schemas.departments.id), deleteDepartment)
 
 module.exports = router

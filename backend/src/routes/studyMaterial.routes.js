@@ -1,7 +1,10 @@
 const express = require('express')
 const router = express.Router()
 const { protect, allowRoles } = require('../middleware/auth.middleware')
-const { uploadPdf } = require('../middleware/upload.middleware')
+const { uploadPdf, validateUploadedPdf } = require('../middleware/upload.middleware')
+const { uploadLimiter } = require('../middleware/rateLimit.middleware')
+const { validate } = require('../middleware/validate.middleware')
+const { schemas } = require('../validators/schemas')
 const {
   createMaterial,
   getMaterialsBySubject,
@@ -12,11 +15,11 @@ const {
 router.use(protect)
 
 // Instructor routes
-router.post('/', allowRoles('INSTRUCTOR'), uploadPdf.single('materialPdf'), createMaterial)
-router.delete('/:id', allowRoles('INSTRUCTOR', 'ADMIN'), deleteMaterial)
+router.post('/', allowRoles('INSTRUCTOR'), uploadLimiter, uploadPdf.single('materialPdf'), validateUploadedPdf, validate(schemas.materials.create), createMaterial)
+router.delete('/:id', allowRoles('INSTRUCTOR', 'ADMIN'), validate(schemas.materials.id), deleteMaterial)
 
 // All roles can view
 router.get('/', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getAllMaterials)
-router.get('/subject/:subjectId', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), getMaterialsBySubject)
+router.get('/subject/:subjectId', allowRoles('ADMIN', 'INSTRUCTOR', 'STUDENT'), validate(schemas.materials.bySubject), getMaterialsBySubject)
 
 module.exports = router

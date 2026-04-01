@@ -1,18 +1,35 @@
 const express = require('express')
 const cors = require('cors')
+const cookieParser = require('cookie-parser')
 const dotenv = require('dotenv')
 const path = require('path')
 const logger = require('./utils/logger')
+const { apiLimiter } = require('./middleware/rateLimit.middleware')
 
 dotenv.config()
 
 const app = express()
 
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
+if (process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0) {
+  allowedOrigins.push('http://localhost:5173')
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('Not allowed by CORS'))
+  },
   credentials: true
 }))
+app.use(cookieParser())
 app.use(express.json())
+app.use(apiLimiter)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')))
 
 // Routes

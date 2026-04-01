@@ -1,8 +1,51 @@
 const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
 const prisma = require('../utils/prisma')
 const { enrollStudentInMatchingSubjects } = require('../utils/enrollment')
 const logger = require('../utils/logger')
+const {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+  hashToken,
+  getRefreshTokenExpiry,
+  getRefreshCookieOptions
+} = require('../utils/token')
+
+const buildAuthUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role
+})
+
+const issueAuthSession = async (user, res, previousRefreshToken) => {
+  const accessToken = signAccessToken(user)
+  const refreshToken = signRefreshToken(user)
+
+  await prisma.$transaction(async (tx) => {
+    if (previousRefreshToken) {
+      await tx.refreshToken.updateMany({
+        where: {
+          tokenHash: hashToken(previousRefreshToken),
+          revokedAt: null
+        },
+        data: { revokedAt: new Date() }
+      })
+    }
+
+    await tx.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(refreshToken),
+        expiresAt: getRefreshTokenExpiry()
+      }
+    })
+  })
+
+  res.cookie('refreshToken', refreshToken, getRefreshCookieOptions())
+
+  return accessToken
+}
 
 // ================================
 // REGISTER
@@ -61,22 +104,12 @@ const register = async (req, res) => {
       })
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    const token = await issueAuthSession(user, res)
 
     res.status(201).json({
       message: 'User registered successfully!',
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      user: buildAuthUser(user)
     })
 
   } catch (error) {
@@ -113,22 +146,12 @@ const login = async (req, res) => {
       return res.status(403).json({ message: 'Your account is disabled' })
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    )
+    const token = await issueAuthSession(user, res)
 
     res.json({
       message: 'Login successful!',
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      user: buildAuthUser(user)
     })
 
   } catch (error) {
@@ -164,4 +187,76 @@ const getMe = async (req, res) => {
   }
 }
 
-module.exports = { register, login, getMe }
+const refresh = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token is required' })
+    }
+
+    const decoded = verifyRefreshToken(refreshToken)
+    const storedRefreshToken = await prisma.refreshToken.findFirst({
+      where: {
+        tokenHash: hashToken(refreshToken),
+        userId: decoded.id,
+        revokedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true
+          }
+        }
+      }
+    })
+
+    if (!storedRefreshToken || !storedRefreshToken.user.isActive) {
+      return res.status(401).json({ message: 'Refresh token is invalid or expired' })
+    }
+
+    const token = await issueAuthSession(storedRefreshToken.user, res, refreshToken)
+
+    res.json({
+      message: 'Token refreshed successfully',
+      token,
+      user: buildAuthUser(storedRefreshToken.user)
+    })
+  } catch (error) {
+    logger.error(error.message, { stack: error.stack })
+    res.status(401).json({ message: 'Refresh token is invalid or expired' })
+  }
+}
+
+const logout = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken
+
+    if (refreshToken) {
+      await prisma.refreshToken.updateMany({
+        where: {
+          tokenHash: hashToken(refreshToken),
+          revokedAt: null
+        },
+        data: { revokedAt: new Date() }
+      })
+    }
+
+    res.clearCookie('refreshToken', {
+      ...getRefreshCookieOptions(),
+      expires: new Date(0)
+    })
+
+    res.json({ message: 'Logged out successfully' })
+  } catch (error) {
+    logger.error(error.message, { stack: error.stack })
+    res.status(500).json({ message: 'Something went wrong', error: error.message })
+  }
+}
+
+module.exports = { register, login, refresh, logout, getMe }

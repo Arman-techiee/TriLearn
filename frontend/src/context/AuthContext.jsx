@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { API_BASE_URL } from '../utils/api'
 
 const AuthContext = createContext()
 
@@ -39,11 +40,16 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = () => {
-    setUser(null)
-    setToken(null)
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    window.location.href = '/login'
+    fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(() => null).finally(() => {
+      setUser(null)
+      setToken(null)
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+    })
   }
 
   return (

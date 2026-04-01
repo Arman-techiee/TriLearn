@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken')
+const prisma = require('../utils/prisma')
+const logger = require('../utils/logger')
 
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1]
 
@@ -9,10 +11,20 @@ const protect = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = decoded
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, isActive: true }
+    })
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: 'User is not authorized' })
+    }
+
+    req.user = user
     next()
 
   } catch (error) {
+    logger.error(error.message, { stack: error.stack })
     res.status(401).json({ message: 'Invalid token' })
   }
 }

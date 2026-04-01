@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const multer = require('multer')
+const logger = require('../utils/logger')
 
 const uploadRoot = path.join(__dirname, '..', '..', 'uploads')
 
@@ -36,4 +37,28 @@ const uploadPdf = multer({
   }
 })
 
-module.exports = { uploadPdf, uploadRoot }
+const validateUploadedPdf = async (req, res, next) => {
+  if (!req.file?.path) {
+    return next()
+  }
+
+  try {
+    const fileHandle = await fs.promises.open(req.file.path, 'r')
+    const signatureBuffer = Buffer.alloc(5)
+    await fileHandle.read(signatureBuffer, 0, 5, 0)
+    await fileHandle.close()
+
+    if (signatureBuffer.toString() !== '%PDF-') {
+      await fs.promises.unlink(req.file.path).catch(() => {})
+      return res.status(400).json({ message: 'Uploaded file content is not a valid PDF' })
+    }
+
+    next()
+  } catch (error) {
+    logger.error(error.message, { stack: error.stack })
+    await fs.promises.unlink(req.file.path).catch(() => {})
+    res.status(400).json({ message: 'Unable to validate uploaded file' })
+  }
+}
+
+module.exports = { uploadPdf, uploadRoot, validateUploadedPdf }
