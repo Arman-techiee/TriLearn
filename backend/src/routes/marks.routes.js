@@ -5,6 +5,7 @@ const {
   addMarks,
   updateMarks,
   getMarksBySubject,
+  getEnrolledStudentsBySubject,
   getMyMarks,
   deleteMarks
 } = require('../controllers/marks.controller')
@@ -17,6 +18,7 @@ router.put('/:id', allowRoles('INSTRUCTOR'), updateMarks)
 
 // Admin + Instructor
 router.get('/subject/:subjectId', allowRoles('ADMIN', 'INSTRUCTOR'), getMarksBySubject)
+router.get('/subject/:subjectId/students', allowRoles('ADMIN', 'INSTRUCTOR'), getEnrolledStudentsBySubject)
 router.delete('/:id', allowRoles('ADMIN'), deleteMarks)
 
 // Student

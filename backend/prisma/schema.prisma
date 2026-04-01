@@ -107,6 +107,8 @@ model SubjectEnrollment {
   createdAt DateTime @default(now())
 
   @@unique([subjectId, studentId])
+  @@index([studentId])
+  @@index([subjectId])
 }
 
 // ================================
@@ -125,6 +127,9 @@ model Attendance {
   status       AttendanceStatus @default(PRESENT)
   qrCode       String?
   createdAt    DateTime @default(now())
+
+  @@index([studentId, subjectId, date])
+  @@index([subjectId, date])
 }
 
 enum AttendanceStatus {
@@ -189,6 +194,8 @@ model Mark {
   obtainedMarks Int
   remarks      String?
   createdAt    DateTime @default(now())
+
+  @@index([studentId, subjectId])
 }
 
 enum ExamType {

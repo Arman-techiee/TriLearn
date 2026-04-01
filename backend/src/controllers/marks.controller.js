@@ -1,5 +1,46 @@
 const prisma = require('../utils/prisma')
 
+const getInstructorProfile = (userId) => prisma.instructor.findUnique({
+  where: { userId }
+})
+
+const getManagedSubject = async (subjectId, user) => {
+  const subject = await prisma.subject.findUnique({
+    where: { id: subjectId },
+    include: {
+      instructor: {
+        include: {
+          user: { select: { name: true, email: true } }
+        }
+      }
+    }
+  })
+
+  if (!subject) {
+    return { error: { status: 404, message: 'Subject not found' } }
+  }
+
+  if (user.role === 'INSTRUCTOR') {
+    const instructor = await getInstructorProfile(user.id)
+
+    if (!instructor) {
+      return { error: { status: 403, message: 'Only instructors can manage marks' } }
+    }
+
+    if (!subject.instructorId) {
+      return { error: { status: 403, message: 'Assign an instructor to this subject before managing marks' } }
+    }
+
+    if (subject.instructorId !== instructor.id) {
+      return { error: { status: 403, message: 'You can only manage marks for your assigned subjects' } }
+    }
+
+    return { subject, instructor }
+  }
+
+  return { subject }
+}
+
 // ================================
 // ADD MARKS (Instructor)
 // ================================
@@ -7,12 +48,22 @@ const addMarks = async (req, res) => {
   try {
     const { studentId, subjectId, examType, totalMarks, obtainedMarks, remarks } = req.body
 
-    const instructor = await prisma.instructor.findUnique({
-      where: { userId: req.user.id }
+    const access = await getManagedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
+    }
+
+    const enrollment = await prisma.subjectEnrollment.findUnique({
+      where: {
+        subjectId_studentId: {
+          subjectId,
+          studentId
+        }
+      }
     })
 
-    if (!instructor) {
-      return res.status(403).json({ message: 'Only instructors can add marks' })
+    if (!enrollment) {
+      return res.status(400).json({ message: 'Selected student is not enrolled in this subject' })
     }
 
     const existing = await prisma.mark.findFirst({
@@ -27,7 +78,7 @@ const addMarks = async (req, res) => {
       data: {
         studentId,
         subjectId,
-        instructorId: instructor.id,
+        instructorId: access.instructor.id,
         examType,
         totalMarks,
         obtainedMarks,
@@ -81,6 +132,11 @@ const getMarksBySubject = async (req, res) => {
     const { subjectId } = req.params
     const { examType } = req.query
 
+    const access = await getManagedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
+    }
+
     const filters = { subjectId }
     if (examType) filters.examType = examType
 
@@ -93,7 +149,61 @@ const getMarksBySubject = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     })
 
-    res.json({ total: marks.length, marks })
+    res.json({ total: marks.length, marks, subject: access.subject })
+
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Something went wrong', error: error.message })
+  }
+}
+
+// ================================
+// GET ENROLLED STUDENTS BY SUBJECT (Instructor/Admin)
+// ================================
+const getEnrolledStudentsBySubject = async (req, res) => {
+  try {
+    const { subjectId } = req.params
+
+    const access = await getManagedSubject(subjectId, req.user)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
+    }
+
+    const enrolledStudents = await prisma.subjectEnrollment.findMany({
+      where: { subjectId },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        student: { rollNumber: 'asc' }
+      }
+    })
+
+    const students = enrolledStudents
+      .filter(({ student }) => student?.user?.isActive)
+      .map(({ student }) => ({
+        id: student.id,
+        userId: student.user.id,
+        name: student.user.name,
+        email: student.user.email,
+        rollNumber: student.rollNumber,
+        semester: student.semester,
+        section: student.section,
+        department: student.department
+      }))
+
+    res.json({ total: students.length, students, subject: access.subject })
 
   } catch (error) {
     console.error(error)
@@ -171,6 +281,7 @@ module.exports = {
   addMarks,
   updateMarks,
   getMarksBySubject,
+  getEnrolledStudentsBySubject,
   getMyMarks,
   deleteMarks
 }

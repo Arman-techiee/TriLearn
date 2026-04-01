@@ -90,15 +90,6 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Role hint */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg text-xs text-gray-500">
-          <p className="font-medium mb-1">Test accounts:</p>
-          <p>Admin: arman@edunexus.com / arman123</p>
-          <p>Gate: create from admin users</p>
-          <p>Instructor: ram@edunexus.com / ram123</p>
-          <p>Student: sita@edunexus.com / sita123</p>
-        </div>
-
       </div>
     </div>
   )

@@ -18,12 +18,24 @@ const Marks = () => {
 
   useEffect(() => {
     fetchSubjects()
-    fetchStudents()
   }, [])
 
   useEffect(() => {
-    if (selectedSubject) fetchMarks()
+    if (selectedSubject) {
+      fetchMarks()
+    }
   }, [selectedSubject])
+
+  useEffect(() => {
+    if (!showModal) return
+
+    if (form.subjectId) {
+      fetchStudents(form.subjectId)
+      return
+    }
+
+    setStudents([])
+  }, [form.subjectId, showModal])
 
   const fetchSubjects = async () => {
     try {
@@ -34,12 +46,18 @@ const Marks = () => {
     }
   }
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (subjectId) => {
+    if (!subjectId) {
+      setStudents([])
+      return
+    }
+
     try {
-      const res = await api.get('/admin/users?role=STUDENT')
-      setStudents(res.data.users)
+      const res = await api.get(`/marks/subject/${subjectId}/students`)
+      setStudents(res.data.students)
     } catch (error) {
       console.error(error)
+      setStudents([])
     }
   }
 
@@ -91,7 +109,14 @@ const Marks = () => {
             <p className="text-gray-500 text-sm mt-1">Add and view student exam marks</p>
           </div>
           <button
-            onClick={() => { setShowModal(true); setError('') }}
+            onClick={() => {
+              setShowModal(true)
+              setError('')
+              setForm((current) => ({
+                ...current,
+                subjectId: selectedSubject || current.subjectId
+              }))
+            }}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
           >
             + Add Marks
@@ -185,10 +210,10 @@ const Marks = () => {
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                 <option value="">Select Student</option>
                 {students.map((s) => (
-                  <option key={s.student?.id} value={s.student?.id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
-              <select required value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
+              <select required value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value, studentId: '' })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                 <option value="">Select Subject</option>
                 {subjects.map((s) => (
