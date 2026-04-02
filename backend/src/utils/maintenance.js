@@ -1,6 +1,6 @@
 const logger = require('./logger')
+const { startTokenCleanupJob } = require('../jobs/cleanupTokens')
 
-const DEFAULT_REFRESH_TOKEN_CLEANUP_INTERVAL_MS = 60 * 60 * 1000
 const DEFAULT_AUDIT_LOG_RETENTION_DAYS = 180
 const DEFAULT_AUDIT_LOG_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 
@@ -12,22 +12,6 @@ const parsePositiveInteger = (value, fallback) => {
 const getAuditLogCutoff = () => {
   const retentionDays = parsePositiveInteger(process.env.AUDIT_LOG_RETENTION_DAYS, DEFAULT_AUDIT_LOG_RETENTION_DAYS)
   return new Date(Date.now() - (retentionDays * 24 * 60 * 60 * 1000))
-}
-
-const runRefreshTokenCleanup = async (prisma) => {
-  const now = new Date()
-  const result = await prisma.refreshToken.deleteMany({
-    where: {
-      OR: [
-        { expiresAt: { lt: now } },
-        { revokedAt: { lt: now } }
-      ]
-    }
-  })
-
-  if (result.count > 0) {
-    logger.info('Expired refresh tokens cleaned up', { deletedCount: result.count })
-  }
 }
 
 const runAuditLogCleanup = async (prisma) => {
@@ -47,10 +31,6 @@ const runAuditLogCleanup = async (prisma) => {
 }
 
 const scheduleMaintenance = (prisma) => {
-  const refreshTokenCleanupInterval = parsePositiveInteger(
-    process.env.REFRESH_TOKEN_CLEANUP_INTERVAL_MS,
-    DEFAULT_REFRESH_TOKEN_CLEANUP_INTERVAL_MS
-  )
   const auditLogCleanupInterval = parsePositiveInteger(
     process.env.AUDIT_LOG_CLEANUP_INTERVAL_MS,
     DEFAULT_AUDIT_LOG_CLEANUP_INTERVAL_MS
@@ -64,16 +44,11 @@ const scheduleMaintenance = (prisma) => {
     }
   }
 
-  const refreshTokenTask = safeRun('refresh-token-cleanup', runRefreshTokenCleanup)
   const auditLogTask = safeRun('audit-log-cleanup', runAuditLogCleanup)
 
-  void refreshTokenTask()
   void auditLogTask()
 
-  const refreshTokenTimer = setInterval(() => {
-    void refreshTokenTask()
-  }, refreshTokenCleanupInterval)
-  refreshTokenTimer.unref?.()
+  const tokenCleanupJob = startTokenCleanupJob(prisma)
 
   const auditLogTimer = setInterval(() => {
     void auditLogTask()
@@ -82,7 +57,7 @@ const scheduleMaintenance = (prisma) => {
 
   return {
     stop: () => {
-      clearInterval(refreshTokenTimer)
+      tokenCleanupJob.stop()
       clearInterval(auditLogTimer)
     }
   }

@@ -3,26 +3,23 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const dotenv = require('dotenv')
 const logger = require('./utils/logger')
+const validateEnv = require('./utils/validateEnv')
 const { apiLimiter } = require('./middleware/rateLimit.middleware')
+const { requestId } = require('./middleware/requestId.middleware')
 const { uploadPath, uploadPublicPath } = require('./utils/fileStorage')
 const { csrfProtection, getRuntimeEnv, getTrustedOrigins } = require('./middleware/csrf.middleware')
 const prisma = require('./utils/prisma')
 const { scheduleMaintenance } = require('./utils/maintenance')
 
 dotenv.config()
+validateEnv()
 
 const app = express()
 const runtimeEnv = getRuntimeEnv()
 const isDevelopment = runtimeEnv === 'development'
-const requiredEnvVars = ['JWT_SECRET', 'JWT_REFRESH_SECRET']
-const missingEnvVars = requiredEnvVars.filter((envKey) => !process.env[envKey])
-
-if (missingEnvVars.length > 0) {
-  throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`)
-}
-
 const allowedOrigins = getTrustedOrigins()
 
+app.use(requestId)
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true)
@@ -34,9 +31,15 @@ app.use(cors({
 app.use(cookieParser())
 app.use(express.json())
 app.use((req, res, next) => {
+  req.logger = logger.child({
+    requestId: req.id,
+    method: req.method,
+    path: req.originalUrl
+  })
+
   res.internalError = (error, fallbackMessage = 'Something went wrong') => {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error(errorMessage, { stack: error?.stack })
+    req.logger.error(errorMessage, { stack: error?.stack })
     return res.status(500).json({
       message: isDevelopment ? (errorMessage || fallbackMessage) : fallbackMessage
     })
@@ -98,9 +101,9 @@ app.get('/', (req, res) => {
   res.json({ message: 'EduNexus backend is running! 🚀' })
 })
 
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
   const errorMessage = error instanceof Error ? error.message : String(error)
-  logger.error(errorMessage, { stack: error?.stack })
+  ;(req.logger || logger).error(errorMessage, { stack: error?.stack })
   res.status(400).json({
     message: isDevelopment
       ? (errorMessage || 'Something went wrong')
