@@ -1,22 +1,25 @@
 # EduNexus
 
-EduNexus is a full-stack school and college management system built for a Nepal campus workflow. It includes role-based dashboards, attendance management, academic modules, admissions intake, student onboarding, and first-login account setup.
+EduNexus is a full-stack campus management system built around a Nepal college workflow. It includes role-based dashboards, admissions intake, account onboarding, scoped academic routines, student and staff attendance tools, study materials, assignments, notices, marks, and profile management.
 
-The project is currently optimized for local development and demos. Core academic and administrative flows are implemented, while some production-only features like email delivery and cloud file storage are intentionally left for later.
+The project is currently strong for local development, demos, and iterative product building. Core flows are implemented across frontend and backend, while some production-facing concerns such as email delivery and cloud storage are still future work.
 
-## Highlights
+## What The System Does
 
-- Role-based system for `ADMIN`, `COORDINATOR`, `INSTRUCTOR`, `GATEKEEPER`, and `STUDENT`
-- Public student intake form for collecting admission details before creating a portal account
-- Admin and coordinator admissions review flow with account creation from submitted forms
-- Personal-email student login with institution-assigned student ID
-- Default student password with forced password change on first login
-- Student profile completion and profile editing flow
-- Department, subject, routine, notice, assignment, study material, and exam result management
-- Student QR attendance windows with semester-based gate access, holiday controls, and instructor manual attendance
-- Coordinator monthly department attendance reporting by semester and section
-- PDF and Excel attendance export
-- Pagination, reusable frontend components, validation, logging, audit records, and safer auth handling
+- Role-based access for `ADMIN`, `COORDINATOR`, `INSTRUCTOR`, `GATEKEEPER`, and `STUDENT`
+- Public student intake form before account creation
+- Admin/coordinator review flow for student applications
+- Student account creation with first-login password change
+- Profile completion and ongoing profile editing
+- Department, subject, routine, notice, assignment, material, and marks management
+- Attendance through:
+  - instructor subject QR
+  - instructor manual attendance
+  - gatekeeper Student QR time windows
+  - staff scanning of student ID card QR
+- Absence auto-marking and student ticket submission
+- Student ID card with QR-based identity details
+- Exportable attendance reports in PDF and Excel
 
 ## Tech Stack
 
@@ -24,176 +27,237 @@ The project is currently optimized for local development and demos. Core academi
 - Backend: Node.js, Express
 - Database: PostgreSQL
 - ORM: Prisma
-- Authentication: JWT access token + refresh token
+- Auth: JWT access token + refresh token cookies
 - Validation: Zod
 - Logging: Winston
-- File Uploads: Multer
+- QR Generation: `qrcode`
 - Export: PDFKit, ExcelJS
-- QR Support: `qrcode`
 
 ## Roles
 
 ### `ADMIN`
 
 - full system control
-- creates coordinators, instructors, gatekeepers, and students
 - manages departments, subjects, routines, notices, and academic setup
-- manages Student QR windows and attendance holidays
-- reviews admissions and converts intake forms into student accounts
+- manages users including instructors, coordinators, gatekeepers, and students
+- reviews student applications and converts them into accounts
+- manages Student QR settings and attendance holidays
 
 ### `COORDINATOR`
 
-- sub-admin for academic operations
-- can review student intake forms
-- can create student accounts from approved applications
-- can manage attendance, notices, routine-related academic workflows, and student support tasks
-- can manage Student QR time slots and holiday attendance settings
-- can suspend or manage student-related operations without full admin control
+- academic operations and department-level support
+- reviews applications and creates student accounts from them
+- manages Student QR windows and holidays
+- reviews attendance by semester and section
+- can use attendance pages and staff QR attendance flow
 
 ### `INSTRUCTOR`
 
 - manages assigned subject attendance
-- uploads assignments and study materials
-- enters exam results
-- exports subject attendance reports
+- can generate subject attendance QR
+- can mark attendance manually
+- can scan student ID QR to mark a selected subject attendance
+- uploads assignments and materials
+- enters marks
 
 ### `GATEKEEPER`
 
-- manages gate QR attendance flow
-- shows the live rotating Student QR for the currently active semester time slot
+- opens the live Student QR page
+- shows the rotating Student QR for the active time window
+- can scan student ID QR cards directly to mark gate attendance when a valid window is active
 
 ### `STUDENT`
 
 - logs in with personal email
 - changes password on first login
-- completes profile details
-- views subjects, notices, routine, study materials, assignments, attendance, and exam results
-- scans gate QR when the gate attendance flow is active
+- completes profile
+- views subjects, routine, notices, materials, assignments, attendance, tickets, and marks
+- scans the live Student QR during eligible windows
+- has a digital ID card with a scannable QR
 
-## Core Modules
+## Core Flows
 
-### 1. Admissions and Student Onboarding
+### 1. Admissions And Onboarding
 
-- Public form at `/student-intake`
-- Intake form collects:
-  - full name
-  - personal email
-  - phone
-  - father and mother details
-  - blood group
-  - local guardian details
-  - permanent and temporary address
-  - date of birth
-  - preferred department
-- Review pages:
-  - `/admin/applications`
-  - `/coordinator/applications`
-- Admin or coordinator can create a student account from the submitted form
-- Institution student ID is entered manually during account creation
+- public route: `/student-intake`
+- collects student identity and guardian details before account creation
+- admin/coordinator reviews applications
+- student account is created manually from approved application
+- student logs in with personal email and institution-issued student ID
 
-### 2. Authentication and Account Rules
+### 2. Authentication
 
-- login with personal email
-- refresh-token based auth flow
-- forgot-password API prepared for future email integration
-- first login forces password change for newly created students
-- student profile completion is required for first-time onboarding flows
+- login with personal email + password
+- refresh-token session flow
+- first-login password change for new students
+- profile completion gate for student onboarding
+- forgot-password structure exists, but email delivery is not fully integrated yet
 
-### 3. Attendance
+### 3. Routine Management
 
-EduNexus currently supports multiple attendance workflows:
+Routines are now explicitly scoped by:
 
-1. Gate attendance
-   - admin or coordinator defines Student QR windows by day, time, allowed semesters, and optional holidays
-   - gatekeeper opens a simple Student QR page that rotates every 60 seconds
-   - students can scan only when their semester is allowed in the active time window
-   - attendance is marked only for the student’s scheduled routine subjects that overlap that active time slot
-   - if a day is marked as a holiday, no Student QR scan is accepted and attendance percentages are not deducted
-   - if a valid scan or instructor manual attendance is missing after the allowed time window closes, absence is created automatically
+- department
+- semester
+- optional section
+- day
+- time
+- room
+- subject
+- instructor
 
-2. Instructor attendance
-   - instructors manually mark subject attendance by date
-   - instructors can export PDF and Excel reports
+That means:
 
-3. Coordinator attendance reporting
-   - coordinators can view department-wide monthly attendance
-   - filter by semester, optional section, and month
-   - export semester-wise attendance summaries and student records as PDF and Excel
+- admin/coordinator creates routine entries against a specific department-semester-section combination
+- student routine view only shows routines matching the student’s own department, semester, and section
+- instructor routine view shows assigned routine entries clearly with department/semester/section context
 
-### 4. Academic Management
+### 4. Attendance
 
-- departments
-- subjects
-- subject enrollments
-- class routines with explicit department, semester, and section targeting
-- notices
-- assignments
-- study materials
-- exam results
+EduNexus now supports several attendance paths.
 
-### 5. Student Profile Management
+#### A. Subject Attendance By Instructor
 
-Students, instructors, coordinators, and admins can edit their own profile from the profile page.
+- instructor generates a subject QR for a selected subject
+- eligible students scan it for that subject
+- instructor can also mark attendance manually from the subject roster
 
-Locked fields remain read-only for authenticity:
+#### B. Gate Student QR Attendance
 
-- name
-- email
-- student ID for students
-- department for instructor and coordinator
+- admin/coordinator creates Student QR windows by:
+  - day of week
+  - start time
+  - end time
+  - allowed semesters
+- gatekeeper sees a simple `Student QR` page
+- the Student QR rotates every 60 seconds
+- only students whose semester is allowed in the active time window can use it
+- attendance is marked only for the student’s scheduled routine subjects that overlap that active window
 
-Students can manage additional profile fields such as:
+#### C. Student ID Card QR Attendance
 
-- father and mother details
-- local guardian details
-- blood group
-- permanent and temporary address
+- every student has a digital ID card on the profile page
+- the ID card includes a signed QR containing identity details
+- gatekeeper can scan the student ID QR to mark gate attendance during an active Student QR window
+- instructor can scan the student ID QR to mark attendance for a selected subject/date
+- coordinator can use the same staff scan path
+
+#### D. Holiday And Auto-Absence Logic
+
+- admin/coordinator can declare attendance holidays
+- on holidays:
+  - Student QR attendance is disabled
+  - attendance percentages are not deducted
+- on normal days:
+  - if a student does not scan within the valid time slot
+  - and there is no instructor/staff attendance record
+  - the student is marked absent automatically for the applicable routine entries
+
+#### E. Absence Tickets
+
+- absent students can see pending absence records
+- students submit a reason through the tickets page
+- staff can review the ticket status
+
+### 5. Student Profile And ID Card
+
+Student profile includes:
+
+- personal contact information
+- guardian information
+- addresses
 - section
 - date of birth
+- blood group
 
-## Security and Quality Features
+Student profile page also now includes a professional digital ID card with:
 
-- route-level validation with Zod
-- role-based access protection
-- strong password rules
-- auth route rate limiting and global API limiting
-- refresh tokens with server-side storage and rotation
-- safe backend error handling
-- frontend error boundary
-- friendly frontend error messages
-- reusable `useApi` and shared UI components
-- audit logging for important actions
-- pagination for larger lists
-- indexed Prisma schema for common filters
+- student name
+- roll number
+- contact number
+- location/address
+- department
+- semester
+- section
+- signed QR code with student identity details
 
-## Project Structure
+### 6. Academic Modules
 
-```text
-EduNexus/
-├─ backend/
-│  ├─ prisma/
-│  │  ├─ migrations/
-│  │  └─ schema.prisma
-│  ├─ src/
-│  │  ├─ controllers/
-│  │  ├─ middleware/
-│  │  ├─ routes/
-│  │  ├─ utils/
-│  │  └─ validators/
-│  └─ uploads/
-├─ frontend/
-│  ├─ public/
-│  └─ src/
-│     ├─ components/
-│     ├─ context/
-│     ├─ hooks/
-│     ├─ layouts/
-│     ├─ pages/
-│     └─ utils/
-├─ .env.example
-├─ DEPLOYMENT.md
-└─ README.md
-```
+- subjects
+- study materials
+- assignments
+- marks
+- notices
+- departments
+
+## Important Pages
+
+### Public
+
+- `/`
+- `/login`
+- `/forgot-password`
+- `/reset-password`
+- `/student-intake`
+
+### Admin / Coordinator
+
+- `/admin`
+- `/admin/users`
+- `/admin/applications`
+- `/admin/departments`
+- `/admin/subjects`
+- `/admin/routine`
+- `/admin/student-qr`
+- `/admin/notices`
+
+- `/coordinator`
+- `/coordinator/users`
+- `/coordinator/applications`
+- `/coordinator/subjects`
+- `/coordinator/routine`
+- `/coordinator/student-qr`
+- `/coordinator/attendance`
+
+### Instructor
+
+- `/instructor`
+- `/instructor/subjects`
+- `/instructor/attendance`
+- `/instructor/assignments`
+- `/instructor/materials`
+- `/instructor/marks`
+- `/instructor/routine`
+
+### Gatekeeper
+
+- `/gate`
+- `/gatekeeper`
+
+### Student
+
+- `/student`
+- `/student/subjects`
+- `/student/attendance`
+- `/student/tickets`
+- `/student/assignments`
+- `/student/materials`
+- `/student/marks`
+- `/student/routine`
+- `/student/profile`
+
+## Important API Groups
+
+- `/api/auth`
+- `/api/admin`
+- `/api/departments`
+- `/api/subjects`
+- `/api/routines`
+- `/api/attendance`
+- `/api/assignments`
+- `/api/materials`
+- `/api/marks`
+- `/api/notices`
 
 ## Local Setup
 
@@ -203,32 +267,24 @@ EduNexus/
 - PostgreSQL
 - npm
 
-### 1. Clone and install
+### 1. Install dependencies
 
 ```bash
 git clone <your-repo-url>
 cd EduNexus
-```
 
-Backend:
-
-```bash
 cd backend
 npm install
-```
 
-Frontend:
-
-```bash
 cd ../frontend
 npm install
 ```
 
-### 2. Configure environment variables
+### 2. Environment
 
-Create a root `.env` or backend `.env` based on [`.env.example`](/C:/Users/arman/EduNexus/.env.example).
+Create backend `.env` from [`.env.example`](C:/Users/arman/EduNexus/.env.example).
 
-Current example values:
+Typical values:
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/edunexus?connection_limit=10&pool_timeout=20
@@ -240,6 +296,7 @@ PORT=5000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 DEFAULT_STUDENT_PASSWORD=password
+QR_SIGNING_SECRET=change_this_to_a_long_random_string
 PGPOOL_MAX=10
 PGPOOL_MIN=0
 PGPOOL_IDLE_TIMEOUT_MS=10000
@@ -250,30 +307,28 @@ UPLOAD_PUBLIC_PATH=/uploads
 UPLOAD_BASE_URL=
 ```
 
-Frontend local API configuration:
-
 Create `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### 3. Run database migrations
+### 3. Database
 
-From [backend](/C:/Users/arman/EduNexus/backend):
+From [backend](C:/Users/arman/EduNexus/backend):
 
 ```bash
 npx prisma migrate deploy
 npx prisma generate
 ```
 
-For active development, you can also use:
+For active development:
 
 ```bash
-npm run prisma:migrate:dev
+npx prisma migrate dev
 ```
 
-### 4. Start the app
+### 4. Run the app
 
 Backend:
 
@@ -293,101 +348,11 @@ Default local URLs:
 
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:5000/api`
-- Health check: `http://localhost:5000/health`
-
-## Suggested Demo Flow
-
-If you want to show the project to others, this is a clean demo sequence:
-
-1. Create departments
-2. Create coordinator and instructor accounts
-3. Open `/student-intake` and submit a sample student application
-4. Log in as admin or coordinator and open `/admin/applications`
-5. Review the application and create the student account
-6. Share the student's email and default password
-7. Log in as that student
-8. Force password change on first login
-9. Complete or update the profile
-10. Show attendance, notices, assignments, routine, and exam results
-
-## Important Routes
-
-### Frontend
-
-- `/login`
-- `/forgot-password`
-- `/reset-password`
-- `/student-intake`
-- `/admin`
-- `/coordinator`
-- `/instructor`
-- `/gate`
-- `/student`
-- `/admin/applications`
-- `/coordinator/applications`
-
-### Backend API Groups
-
-- `/api/auth`
-- `/api/admin`
-- `/api/departments`
-- `/api/subjects`
-- `/api/routines`
-- `/api/attendance`
-- `/api/assignments`
-- `/api/materials`
-- `/api/marks`
-- `/api/notices`
-- `/health`
-- `/ping`
-
-## Useful Development Notes
-
-### Default student password
-
-The default password comes from `DEFAULT_STUDENT_PASSWORD`.
-
-Current fallback:
-
-```env
-DEFAULT_STUDENT_PASSWORD=password
-```
-
-Students are forced to change this after first login.
-
-### Departments must exist first
-
-Before creating instructors, coordinators, students, or converting intake applications, create departments first. Several flows validate department names against the actual department list in the database.
-
-### Forgot password
-
-Forgot-password is intentionally safe but not fully finished for production mail delivery yet.
-
-Current state:
-
-- reset tokens are generated and stored securely
-- no reset link is exposed to the user
-- real email delivery still needs to be integrated later
-
-### Upload storage
-
-Uploads currently use local disk storage under `backend/uploads`.
-
-This is good for:
-
-- local development
-- demos
-
-This is not ideal yet for:
-
-- stateless production deployment
-- cloud scaling
+- Health: `http://localhost:5000/health`
 
 ## Scripts
 
 ### Backend
-
-From [backend/package.json](/C:/Users/arman/EduNexus/backend/package.json):
 
 - `npm run dev`
 - `npm run start`
@@ -397,49 +362,69 @@ From [backend/package.json](/C:/Users/arman/EduNexus/backend/package.json):
 
 ### Frontend
 
-From [frontend/package.json](/C:/Users/arman/EduNexus/frontend/package.json):
-
 - `npm run dev`
 - `npm run build`
 - `npm run preview`
 - `npm run lint`
 
-## Current Limitations
+## Current Product Status
 
-- forgot-password email delivery is not integrated yet
-- uploads are still stored on local disk
-- there is no parent portal yet
-- QR scanning depends on browser camera support
-- the project is still optimized more for development and demo usage than full production infrastructure
+Implemented well enough for local use and demos:
 
-## Deployment
+- role-based dashboards
+- admissions and student onboarding
+- profile completion
+- Student QR attendance windows
+- student ID card QR
+- instructor/coordinator/gatekeeper staff QR attendance tools
+- scoped routines by department, semester, and section
+- notices, assignments, materials, marks
+- attendance exports
+- absence tickets
 
-Deployment preparation has started, but this project is not focused on production deployment yet.
+Still future work or incomplete for production:
 
-See [DEPLOYMENT.md](/C:/Users/arman/EduNexus/DEPLOYMENT.md) for:
+- password reset email delivery
+- cloud file storage
+- parent portal
+- stronger analytics/reporting
+- final production hardening
 
-- production environment variables
-- migration strategy
-- Docker baseline
-- health check usage
-- file storage notes
+## Notes
 
-## Why This Project Fits a Nepal College Workflow
+### Student QR Settings
 
-This project is shaped around a realistic local campus use case:
+Student QR settings are managed from:
 
-- first-semester admissions intake
-- institution-assigned student IDs
+- `/admin/student-qr`
+- `/coordinator/student-qr`
+
+These define:
+
+- active day/time windows
+- allowed semesters
+- holidays
+
+### Default Student Password
+
+Student account creation still uses `DEFAULT_STUDENT_PASSWORD` on the backend, but it is no longer exposed back to the frontend response. Students are forced to change it on first login.
+
+### Prisma
+
+Whenever schema changes are made:
+
+1. run `npx prisma generate`
+2. apply migrations
+3. restart the backend dev server if it is already running
+
+This is especially important after adding new Prisma models or fields.
+
+## Why This Fits A Nepal College Workflow
+
 - personal email login for students
-- coordinator as sub-admin
-- department, semester, and section-based routines plus semester-window Student QR attendance
-- phone-first student experience
+- institution-issued roll numbers
+- coordinator as academic sub-admin
+- semester and section-based academic structure
+- gate-style attendance workflow
 - printable/exportable attendance records
-
-## Next Good Improvements
-
-- email integration for password reset
-- safer production storage such as S3-compatible object storage
-- marksheet and transcript style exports
-- coordinator-specific dashboards
-- better analytics for low attendance and academic alerts
+- phone-first student interactions
