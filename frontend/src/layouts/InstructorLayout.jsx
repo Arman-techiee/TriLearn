@@ -39,7 +39,7 @@ const InstructorLayout = ({ children }) => {
     { path: `${basePath}/routine`, label: 'Routine', icon: CalendarDays },
     { path: `${basePath}/notices`, label: 'Notices', icon: Bell },
     { label: 'Events', icon: CalendarDays },
-    { label: 'Requests', icon: ClipboardList },
+    { path: `${basePath}/requests`, label: 'Requests', icon: ClipboardList },
     { label: 'Key Dates', icon: CalendarDays },
     { label: 'Survey', icon: FileText },
     { label: 'Weekly', icon: Bell }

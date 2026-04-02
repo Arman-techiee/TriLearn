@@ -61,9 +61,9 @@ const StudentTickets = () => {
     <StudentLayout>
       <div className="p-4 md:p-8">
         <PageHeader
-          title="Absence Tickets"
-          subtitle="Review absent records and submit your explanation where needed."
-          breadcrumbs={['Student', 'Tickets']}
+          title="Requests"
+          subtitle="Submit absence requests and track instructor or coordinator responses from one place."
+          breadcrumbs={['Student', 'Requests']}
         />
 
         <Alert type="error" message={error} />
@@ -123,8 +123,8 @@ const StudentTickets = () => {
             <section className="ui-card rounded-2xl p-6">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Submitted Tickets</h2>
-                  <p className="text-sm text-slate-500">Track the review status of your previous absence explanations.</p>
+                  <h2 className="text-lg font-semibold text-slate-900">Submitted Requests</h2>
+                  <p className="text-sm text-slate-500">Track the review status and response for each submitted request.</p>
                 </div>
                 <span className="ui-status-badge ui-status-neutral">{tickets.length} records</span>
               </div>

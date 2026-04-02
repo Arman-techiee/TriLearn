@@ -208,7 +208,7 @@ const StudentAttendance = () => {
             { label: 'Start Scanner', icon: Camera, variant: 'primary', onClick: startScanner, disabled: submittingScan },
             { label: 'Stop', icon: Square, variant: 'secondary', onClick: () => { stopScanner(); setScannerOpen(false); setScannerStatus('Scanner stopped.') } },
             { label: submittingScan ? 'Submitting...' : 'Submit QR', icon: Upload, variant: 'secondary', onClick: () => submitDailyQr(manualQrData), disabled: !manualQrData.trim() || submittingScan },
-            { label: 'Open Tickets', icon: FileText, variant: 'secondary', to: '/student/tickets' }
+            { label: 'Open Requests', icon: FileText, variant: 'secondary', to: '/student/requests' }
           ]}
         />
 
@@ -224,16 +224,16 @@ const StudentAttendance = () => {
                 <div>
                   <p className="font-semibold text-amber-900">You have {pendingTicketCount} absence ticket{pendingTicketCount === 1 ? '' : 's'} waiting.</p>
                   <p className="mt-1 text-sm text-amber-700">
-                    These absences were auto-recorded after the scan window closed. Open your tickets page to add the reason.
+                    These absences were auto-recorded after the scan window closed. Open your requests page to add the reason.
                   </p>
                 </div>
               </div>
               <Link
-                to="/student/tickets"
+                to="/student/requests"
                 className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-4 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
               >
                 <FileText className="h-4 w-4" />
-                <span>Review Tickets</span>
+                <span>Review Requests</span>
               </Link>
             </div>
           </div>

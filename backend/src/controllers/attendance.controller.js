@@ -163,6 +163,19 @@ const normalizeSemesterList = (semesters = []) => (
   )].sort((left, right) => left - right)
 )
 
+const hasPrismaDelegateMethod = (delegate, methodName) => (
+  Boolean(delegate && typeof delegate[methodName] === 'function')
+)
+
+const hasAbsenceTicketDelegate = () => hasPrismaDelegateMethod(prisma.absenceTicket, 'findMany')
+const hasAttendanceHolidayDelegate = () => hasPrismaDelegateMethod(prisma.attendanceHoliday, 'findFirst')
+
+const respondAttendanceTicketUnavailable = (res) => (
+  res.status(503).json({
+    message: 'Attendance tickets are not available yet. Run the latest Prisma generate and migrations for this feature.'
+  })
+)
+
 const getGateWindowRange = (baseDate, gateWindow) => ({
   startsAt: buildDateWithTime(baseDate, gateWindow.startTime),
   endsAt: buildDateWithTime(baseDate, gateWindow.endTime)
@@ -173,6 +186,10 @@ const rangesOverlap = (leftStart, leftEnd, rightStart, rightEnd) => (
 )
 
 const getHolidayForDate = async (referenceDate = new Date()) => {
+  if (!hasAttendanceHolidayDelegate()) {
+    return null
+  }
+
   const dayRange = getDayRange(referenceDate)
   return prisma.attendanceHoliday.findFirst({
     where: {
@@ -455,7 +472,9 @@ const syncClosedRoutineAbsences = async (referenceDate = new Date()) => {
     },
     select: {
       id: true,
-      semester: true
+      semester: true,
+      department: true,
+      section: true
     }
   })
 
@@ -1809,6 +1828,10 @@ const getMyAbsenceTickets = async (req, res) => {
       return res.status(403).json({ message: 'Student profile not found' })
     }
 
+    if (!hasAbsenceTicketDelegate()) {
+      return res.json({ tickets: [], absencesWithoutTicket: [] })
+    }
+
     await syncClosedRoutineAbsences()
 
     const [tickets, absencesWithoutTicket] = await Promise.all([
@@ -1849,6 +1872,10 @@ const createAbsenceTicket = async (req, res) => {
     const student = req.student
     if (!student) {
       return res.status(403).json({ message: 'Student profile not found' })
+    }
+
+    if (!hasAbsenceTicketDelegate()) {
+      return respondAttendanceTicketUnavailable(res)
     }
 
     const { attendanceId, reason } = req.body
@@ -1898,6 +1925,10 @@ const createAbsenceTicket = async (req, res) => {
 
 const getAbsenceTicketsForStaff = async (req, res) => {
   try {
+    if (!hasAbsenceTicketDelegate()) {
+      return res.json({ tickets: [] })
+    }
+
     const where = {}
 
     if (req.user.role === 'INSTRUCTOR') {
@@ -1950,6 +1981,10 @@ const getAbsenceTicketsForStaff = async (req, res) => {
 
 const reviewAbsenceTicket = async (req, res) => {
   try {
+    if (!hasAbsenceTicketDelegate()) {
+      return respondAttendanceTicketUnavailable(res)
+    }
+
     const { id } = req.params
     const { status, response } = req.body
 
@@ -1974,6 +2009,10 @@ const reviewAbsenceTicket = async (req, res) => {
 
     if (req.user.role === 'COORDINATOR' && existing.attendance.student.department !== req.coordinator?.department) {
       return res.status(403).json({ message: 'You can only review tickets for your department' })
+    }
+
+    if (existing.status === 'APPROVED') {
+      return res.status(409).json({ message: 'Approved requests are locked and cannot be edited.' })
     }
 
     const ticket = await prisma.absenceTicket.update({
