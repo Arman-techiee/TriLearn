@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { BellRing, BookOpenText, ClipboardList } from 'lucide-react'
 import InstructorLayout from '../../layouts/InstructorLayout'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
 import api from '../../utils/api'
@@ -46,15 +48,15 @@ const InstructorDashboard = () => {
 
   if (loading) return (
     <InstructorLayout>
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">Loading...</p>
+      <div className="p-4 md:p-8">
+        <LoadingSkeleton rows={5} itemClassName="h-24" />
       </div>
     </InstructorLayout>
   )
 
   return (
     <InstructorLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title={`Welcome back, ${user?.name}!`}
@@ -88,7 +90,11 @@ const InstructorDashboard = () => {
                 </div>
               ))}
               {subjects.length === 0 && (
-                <p className="text-gray-400 text-sm text-center py-4">No subjects assigned yet</p>
+                <EmptyState
+                  icon="📚"
+                  title="No subjects assigned yet"
+                  description="Your assigned subjects will appear here once scheduling is in place."
+                />
               )}
             </div>
           </div>
@@ -116,7 +122,11 @@ const InstructorDashboard = () => {
                 </div>
               ))}
               {notices.length === 0 && (
-                <p className="text-gray-400 text-sm text-center py-4">No notices yet</p>
+                <EmptyState
+                  icon="📣"
+                  title="No notices yet"
+                  description="Recent notices will show up here when new campus updates are posted."
+                />
               )}
             </div>
           </div>

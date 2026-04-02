@@ -9,6 +9,8 @@ import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
 import PageHeader from '../../components/PageHeader'
 import StatusBadge from '../../components/StatusBadge'
+import EmptyState from '../../components/EmptyState'
+import { useToast } from '../../components/Toast'
 import useForm from '../../hooks/useForm'
 import logger from '../../utils/logger'
 const initialNoticeValues = { title: '', content: '', type: 'GENERAL' }
@@ -54,7 +56,7 @@ const Notices = () => {
   const [deletingNotice, setDeletingNotice] = useState(false)
   const [expandedNoticeIds, setExpandedNoticeIds] = useState([])
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const validateNotice = (values) => {
     const validationErrors = {}
     if (!values.title.trim()) validationErrors.title = 'Title is required'
@@ -87,17 +89,16 @@ const Notices = () => {
     try {
       if (editNotice) {
         await api.put(`/notices/${editNotice.id}`, formValues)
-        setSuccess('Notice updated successfully!')
+        showToast({ title: 'Notice updated successfully.' })
       } else {
         await api.post('/notices', formValues)
-        setSuccess('Notice created successfully!')
+        showToast({ title: 'Notice created successfully.' })
       }
       setShowModal(false)
       setEditNotice(null)
       setValues(initialNoticeValues)
       setErrors({})
       void fetchNotices()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -109,9 +110,8 @@ const Notices = () => {
       setDeletingNotice(true)
       await api.delete(`/notices/${noticeToDelete.id}`)
       setNoticeToDelete(null)
-      setSuccess('Notice deleted!')
+      showToast({ title: 'Notice deleted.' })
       void fetchNotices()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     } finally {
@@ -145,7 +145,7 @@ const Notices = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title="Notices"
@@ -155,7 +155,6 @@ const Notices = () => {
         />
 
         {/* Success/Error */}
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {/* Notices List */}
@@ -211,8 +210,21 @@ const Notices = () => {
                 </div>
               ))}
               {notices.length === 0 && (
-                <div className="text-center py-12 text-gray-400">
-                  No notices yet. Click + Post Notice to create one!
+                <div className="p-2">
+                  <EmptyState
+                    icon="📣"
+                    title="No notices yet"
+                    description="Create the first notice to share campus updates with your users."
+                    action={(
+                      <button
+                        type="button"
+                        onClick={openCreateModal}
+                        className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
+                      >
+                        Post Notice
+                      </button>
+                    )}
+                  />
                 </div>
               )}
             </div>

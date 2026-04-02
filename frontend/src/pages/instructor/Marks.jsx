@@ -9,6 +9,7 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import { useToast } from '../../components/Toast'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import logger from '../../utils/logger'
 const Marks = () => {
@@ -26,7 +27,7 @@ const Marks = () => {
     totalMarks: 100, obtainedMarks: '', remarks: ''
   })
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
 
   const fetchStudents = useCallback(async (subjectId) => {
     if (!subjectId) {
@@ -88,11 +89,10 @@ const Marks = () => {
         totalMarks: parseInt(form.totalMarks),
         obtainedMarks: parseInt(form.obtainedMarks)
       })
-      setSuccess('Result record added successfully!')
+      showToast({ title: 'Result record added successfully.' })
       setShowModal(false)
       setForm({ studentId: '', subjectId: '', examType: 'INTERNAL', totalMarks: 100, obtainedMarks: '', remarks: '' })
       if (selectedSubject) void fetchMarks()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -100,7 +100,7 @@ const Marks = () => {
 
   return (
     <InstructorLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title="Examination Results"
@@ -121,7 +121,6 @@ const Marks = () => {
           }]}
         />
 
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {/* Subject Filter */}

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpenText, CheckCircle2, ClipboardList } from 'lucide-react'
 import StudentLayout from '../../layouts/StudentLayout'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
 import api from '../../utils/api'
@@ -56,15 +58,15 @@ const StudentDashboard = () => {
 
   if (loading) return (
     <StudentLayout>
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">Loading...</p>
+      <div className="p-4 md:p-8">
+        <LoadingSkeleton rows={5} itemClassName="h-24" />
       </div>
     </StudentLayout>
   )
 
   return (
     <StudentLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title={`Welcome back, ${user?.name}!`}
@@ -118,7 +120,11 @@ const StudentDashboard = () => {
                 </div>
               ))}
               {attendance.length === 0 && (
-                <p className="text-gray-400 text-sm text-center py-4">No attendance records yet</p>
+                <EmptyState
+                  icon="📈"
+                  title="No attendance records yet"
+                  description="Your attendance summary will appear here once classes start recording entries."
+                />
               )}
             </div>
           </div>
@@ -146,7 +152,11 @@ const StudentDashboard = () => {
                 </div>
               ))}
               {notices.length === 0 && (
-                <p className="text-gray-400 text-sm text-center py-4">No notices yet</p>
+                <EmptyState
+                  icon="📣"
+                  title="No notices yet"
+                  description="Recent notices from your campus will appear here once they are posted."
+                />
               )}
             </div>
           </div>

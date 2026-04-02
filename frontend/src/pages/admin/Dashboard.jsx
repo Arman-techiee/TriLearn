@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { BookOpenText, GraduationCap, ShieldUser, Users } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
+import EmptyState from '../../components/EmptyState'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
 
@@ -63,15 +65,15 @@ const Dashboard = () => {
 
   if (loading) return (
     <AdminLayout>
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">Loading...</p>
+      <div className="p-4 md:p-8">
+        <LoadingSkeleton rows={5} itemClassName="h-24" />
       </div>
     </AdminLayout>
   )
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title="Dashboard"
@@ -117,6 +119,13 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
+            {recentUsers.length === 0 && (
+              <EmptyState
+                icon="👥"
+                title="No recent users yet"
+                description="Newly created users will appear here for a quick admin overview."
+              />
+            )}
           </div>
         </div>
 

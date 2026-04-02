@@ -11,6 +11,7 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import useForm from '../../hooks/useForm'
@@ -41,7 +42,7 @@ const Users = () => {
   const [userToDelete, setUserToDelete] = useState(null)
   const [deletingUser, setDeletingUser] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [filterRole, setFilterRole] = useState('')
   const validateUserForm = (values) => {
     const validationErrors = {}
@@ -150,15 +151,17 @@ const Users = () => {
       if (modalType === 'student') {
         const loginEmail = res.data.user?.email
         const defaultPassword = res.data.user?.defaultPassword
-        setSuccess(`Student account created. Login email: ${loginEmail}${defaultPassword ? ` | Default password: ${defaultPassword}` : ''}`)
+        showToast({
+          title: 'Student account created.',
+          description: `Login email: ${loginEmail}${defaultPassword ? ` | Default password: ${defaultPassword}` : ''}`
+        })
       } else {
-        setSuccess(`${modalType} created successfully!`)
+        showToast({ title: `${modalType} created successfully.` })
       }
       setShowModal(false)
       setValues(initialUserValues)
       setErrors({})
       fetchUsers()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(getFriendlyErrorMessage(err, 'Unable to create the user right now.'))
     }
@@ -172,8 +175,7 @@ const Users = () => {
         user.id === id ? { ...user, isActive: nextStatus } : user
       )))
       await api.patch(`/admin/users/${id}/toggle-status`)
-      setSuccess(`User ${nextStatus ? 'enabled' : 'disabled'} successfully!`)
-      setTimeout(() => setSuccess(''), 3000)
+      showToast({ title: `User ${nextStatus ? 'enabled' : 'disabled'} successfully.` })
     } catch (err) {
       setUsers(previousUsers)
       setError(getFriendlyErrorMessage(err, 'Unable to update the user right now.'))
@@ -191,8 +193,7 @@ const Users = () => {
       setUsers((current) => current.filter((user) => user.id !== target.id))
       setTotal((current) => Math.max(0, current - 1))
       await api.delete(`/admin/users/${target.id}`)
-      setSuccess('User deleted successfully!')
-      setTimeout(() => setSuccess(''), 3000)
+      showToast({ title: 'User deleted successfully.' })
     } catch (err) {
       setUsers(previousUsers)
       setTotal(previousTotal)
@@ -212,7 +213,7 @@ const Users = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title="Users"
@@ -229,7 +230,6 @@ const Users = () => {
         />
 
         {/* Success/Error messages */}
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {/* Filter */}

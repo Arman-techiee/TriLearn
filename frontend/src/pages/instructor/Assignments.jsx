@@ -5,6 +5,8 @@ import PageHeader from '../../components/PageHeader'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import EmptyState from '../../components/EmptyState'
+import { useToast } from '../../components/Toast'
 import useApi from '../../hooks/useApi'
 import api, { resolveFileUrl } from '../../utils/api'
 
@@ -17,7 +19,7 @@ const Assignments = () => {
   })
   const [questionPdf, setQuestionPdf] = useState(null)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [previewFile, setPreviewFile] = useState(null)
   const {
     data: assignments = [],
@@ -69,12 +71,11 @@ const Assignments = () => {
       if (questionPdf) payload.append('questionPdf', questionPdf)
 
       await api.post('/assignments', payload)
-      setSuccess('Assignment created successfully!')
+      showToast({ title: 'Assignment created successfully.' })
       setShowModal(false)
       setForm({ title: '', description: '', subjectId: '', dueDate: '', totalMarks: 100 })
       setQuestionPdf(null)
       fetchAssignments()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -83,12 +84,11 @@ const Assignments = () => {
   const handleGrade = async (submissionId, obtainedMarks) => {
     try {
       await api.patch(`/assignments/submissions/${submissionId}/grade`, { obtainedMarks: parseInt(obtainedMarks) })
-      setSuccess('Graded successfully!')
+      showToast({ title: 'Submission graded successfully.' })
       if (showSubmissions) {
         const res = await api.get(`/assignments/${showSubmissions.id}`)
         setShowSubmissions(res.data.assignment)
       }
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -98,7 +98,7 @@ const Assignments = () => {
 
   return (
     <InstructorLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title="Assignments"
@@ -107,7 +107,6 @@ const Assignments = () => {
           actions={[{ label: 'Create Assignment', icon: Plus, variant: 'primary', onClick: () => { setShowModal(true); setError('') } }]}
         />
 
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {/* Assignments List */}
@@ -158,7 +157,11 @@ const Assignments = () => {
               </div>
             ))}
             {assignments.length === 0 && (
-              <div className="text-center py-12 text-gray-400">No assignments yet!</div>
+              <EmptyState
+                icon="📝"
+                title="No assignments yet"
+                description="Create the first assignment for one of your subjects to start collecting work."
+              />
             )}
           </div>
         )}
@@ -236,10 +239,13 @@ const Assignments = () => {
               </h2>
               <button onClick={() => setShowSubmissions(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
-            {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
             <div className="space-y-4">
               {showSubmissions.submissions?.length === 0 && (
-                <p className="text-gray-400 text-center py-8">No submissions yet</p>
+                <EmptyState
+                  icon="📤"
+                  title="No submissions yet"
+                  description="Student submissions will appear here as soon as answers are uploaded."
+                />
               )}
               {showSubmissions.submissions?.map((sub) => (
                 <div key={sub.id} className="border rounded-xl p-4">

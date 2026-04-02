@@ -8,6 +8,8 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import EmptyState from '../../components/EmptyState'
+import { useToast } from '../../components/Toast'
 import logger from '../../utils/logger'
 
 const ringTone = (percentage) => {
@@ -42,7 +44,7 @@ const StudentAttendance = () => {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [scannerOpen, setScannerOpen] = useState(false)
   const [manualQrData, setManualQrData] = useState('')
   const [scannerSupported, setScannerSupported] = useState(false)
@@ -114,12 +116,14 @@ const StudentAttendance = () => {
 
       const res = await api.post('/attendance/scan-daily-qr', { qrData })
       const subjectList = res.data.markedSubjects.map((subject) => subject.code).join(', ')
-      setSuccess(subjectList ? `Attendance marked for ${subjectList}` : res.data.message)
+      showToast({
+        title: 'Attendance marked successfully.',
+        description: subjectList ? `Recorded for ${subjectList}` : res.data.message
+      })
       setManualQrData('')
       setScannerOpen(false)
       stopScanner()
       await fetchAttendance()
-      setTimeout(() => setSuccess(''), 4000)
     } catch (requestError) {
       logger.error(requestError)
       setError(requestError.response?.data?.message || 'Unable to mark attendance')
@@ -177,7 +181,7 @@ const StudentAttendance = () => {
 
   return (
     <StudentLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader
           title={location.pathname === '/student/scan' ? 'Scan Gate QR' : 'My Attendance'}
           subtitle={location.pathname === '/student/scan'
@@ -191,7 +195,6 @@ const StudentAttendance = () => {
           ]}
         />
 
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
@@ -290,8 +293,12 @@ const StudentAttendance = () => {
                 </div>
               ))}
               {summary.length === 0 && (
-                <div className="col-span-3 text-center py-12 text-gray-400">
-                  No attendance records yet
+                <div className="col-span-3">
+                  <EmptyState
+                    icon="📊"
+                    title="No attendance records yet"
+                    description="Your attendance summary will appear here once a class has been recorded."
+                  />
                 </div>
               )}
             </div>

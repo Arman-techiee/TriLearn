@@ -3,7 +3,7 @@ const LoadingSkeleton = ({ rows = 3, className = '', itemClassName = '' }) => (
     {Array.from({ length: rows }).map((_, index) => (
       <div
         key={index}
-        className={`h-20 rounded-2xl bg-gray-200/80 ${itemClassName}`}
+        className={`rounded-2xl border border-slate-200/70 bg-white p-4 ${itemClassName}`}
       />
     ))}
   </div>

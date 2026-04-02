@@ -8,6 +8,8 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import EmptyState from '../../components/EmptyState'
+import { useToast } from '../../components/Toast'
 import useForm from '../../hooks/useForm'
 import logger from '../../utils/logger'
 const initialNoticeValues = { title: '', content: '', type: 'GENERAL' }
@@ -20,7 +22,7 @@ const InstructorNotices = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const validateNotice = (values) => {
     const validationErrors = {}
     if (!values.title.trim()) validationErrors.title = 'Title is required'
@@ -50,12 +52,11 @@ const InstructorNotices = () => {
     setError('')
     try {
       await api.post('/notices', formValues)
-      setSuccess('Notice posted successfully!')
+      showToast({ title: 'Notice posted successfully.' })
       setShowModal(false)
       setValues(initialNoticeValues)
       setErrors({})
       fetchNotices()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -63,7 +64,7 @@ const InstructorNotices = () => {
 
   return (
     <InstructorLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader
           title="Notices"
           subtitle="View and post notices"
@@ -71,7 +72,6 @@ const InstructorNotices = () => {
           actions={[{ label: 'Post Notice', icon: Plus, variant: 'primary', onClick: () => { setShowModal(true); setError(''); setValues(initialNoticeValues); setErrors({}) } }]}
         />
 
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {loading ? (
@@ -90,6 +90,13 @@ const InstructorNotices = () => {
                   <p className="text-sm text-gray-500">{notice.content}</p>
                 </div>
               ))}
+              {notices.length === 0 && (
+                <EmptyState
+                  icon="📣"
+                  title="No notices available"
+                  description="Post a notice to share class updates with your students."
+                />
+              )}
             </div>
             <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
           </>

@@ -6,6 +6,8 @@ import PageHeader from '../../components/PageHeader'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import EmptyState from '../../components/EmptyState'
+import { useToast } from '../../components/Toast'
 import useApi from '../../hooks/useApi'
 import api, { resolveFileUrl } from '../../utils/api'
 
@@ -13,7 +15,7 @@ const InstructorMaterials = () => {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', fileUrl: '', subjectId: '' })
   const [materialPdf, setMaterialPdf] = useState(null)
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [filterSubject, setFilterSubject] = useState('')
   const [materialToDelete, setMaterialToDelete] = useState(null)
   const [deletingMaterial, setDeletingMaterial] = useState(false)
@@ -71,12 +73,11 @@ const InstructorMaterials = () => {
       if (materialPdf) payload.append('materialPdf', materialPdf)
 
       await api.post('/materials', payload)
-      setSuccess('Material uploaded successfully!')
+      showToast({ title: 'Material uploaded successfully.' })
       setShowModal(false)
       setForm({ title: '', description: '', fileUrl: '', subjectId: '' })
       setMaterialPdf(null)
       fetchMaterials()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -88,9 +89,8 @@ const InstructorMaterials = () => {
       setDeletingMaterial(true)
       await api.delete(`/materials/${materialToDelete.id}`)
       setMaterialToDelete(null)
-      setSuccess('Material deleted!')
+      showToast({ title: 'Material deleted.' })
       fetchMaterials()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     } finally {
@@ -132,7 +132,7 @@ const InstructorMaterials = () => {
 
   return (
     <InstructorLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
 
         <PageHeader
           title="Study Materials"
@@ -141,7 +141,6 @@ const InstructorMaterials = () => {
           actions={[{ label: 'Upload Material', icon: Plus, variant: 'primary', onClick: () => { setShowModal(true); setError('') } }]}
         />
 
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {/* Subject Filter */}
@@ -224,8 +223,12 @@ const InstructorMaterials = () => {
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-gray-400">
-                No materials uploaded yet
+              <div className="col-span-3">
+                <EmptyState
+                  icon="📚"
+                  title="No materials uploaded yet"
+                  description="Upload the first study resource so students have something to open here."
+                />
               </div>
             )}
           </div>

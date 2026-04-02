@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
+import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
+import { useToast } from '../../components/Toast'
 import api, { resolveFileUrl } from '../../utils/api'
 import logger from '../../utils/logger'
 const StudentAssignments = () => {
@@ -11,7 +14,7 @@ const StudentAssignments = () => {
   const [answerPdf, setAnswerPdf] = useState(null)
   const [submittingId, setSubmittingId] = useState(null)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const [previewFile, setPreviewFile] = useState(null)
 
   useEffect(() => {
@@ -49,12 +52,11 @@ const StudentAssignments = () => {
       if (answerPdf) payload.append('answerPdf', answerPdf)
 
       await api.post(`/assignments/${assignmentId}/submit`, payload)
-      setSuccess('Assignment submitted successfully!')
+      showToast({ title: 'Assignment submitted successfully.' })
       setSubmittingId(null)
       setSubmitForm({ note: '' })
       setAnswerPdf(null)
       void fetchData()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -64,18 +66,17 @@ const StudentAssignments = () => {
 
   return (
     <StudentLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader
           title="Assignments"
           subtitle="View and submit your assignments"
           breadcrumbs={['Student', 'Assignments']}
         />
 
-        {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <LoadingSkeleton rows={4} itemClassName="h-40" />
         ) : (
           <div className="space-y-4">
             {assignments.map((assignment) => {
@@ -200,7 +201,11 @@ const StudentAssignments = () => {
               )
             })}
             {assignments.length === 0 && (
-              <div className="text-center py-12 text-gray-400">No assignments yet</div>
+              <EmptyState
+                icon="🗂️"
+                title="No assignments yet"
+                description="Assignments from your instructors will appear here when they are published."
+              />
             )}
           </div>
         )}

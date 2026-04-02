@@ -5,9 +5,9 @@ import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
-import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
+import { useToast } from '../../components/Toast'
 import useApi from '../../hooks/useApi'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -20,7 +20,7 @@ const Departments = () => {
   const [departmentToDelete, setDepartmentToDelete] = useState(null)
   const [deletingDepartment, setDeletingDepartment] = useState(false)
   const [form, setForm] = useState(emptyForm)
-  const [success, setSuccess] = useState('')
+  const { showToast } = useToast()
   const {
     data: departments = [],
     setData: setDepartments,
@@ -69,17 +69,16 @@ const Departments = () => {
     try {
       if (editingDepartment) {
         await api.put(`/departments/${editingDepartment.id}`, form)
-        setSuccess('Department updated successfully!')
+        showToast({ title: 'Department updated successfully.' })
       } else {
         await api.post('/departments', form)
-        setSuccess('Department created successfully!')
+        showToast({ title: 'Department created successfully.' })
       }
 
       setShowModal(false)
       setForm(emptyForm)
       setEditingDepartment(null)
       fetchDepartments()
-      setTimeout(() => setSuccess(''), 3000)
     } catch (submitError) {
       setError(getFriendlyErrorMessage(submitError, 'Unable to save the department right now.'))
     }
@@ -93,8 +92,7 @@ const Departments = () => {
       setDepartmentToDelete(null)
       setDepartments((current) => current.filter((department) => department.id !== target.id))
       await api.delete(`/departments/${target.id}`)
-      setSuccess('Department deleted successfully!')
-      setTimeout(() => setSuccess(''), 3000)
+      showToast({ title: 'Department deleted successfully.' })
     } catch (deleteError) {
       await fetchDepartments()
       setError(getFriendlyErrorMessage(deleteError, 'Unable to delete the department right now.'))
@@ -105,7 +103,7 @@ const Departments = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <PageHeader
           title="Departments"
           subtitle="Create and manage the departments used across users and subjects."
@@ -113,7 +111,6 @@ const Departments = () => {
           actions={[{ label: 'Add Department', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
         />
 
-        <Alert type="success" message={success} />
         <Alert type="error" message={error} />
 
         {loading ? (

@@ -1,7 +1,11 @@
-const LoadingSpinner = ({ text = 'Loading...' }) => (
-  <div className="flex items-center justify-center py-12">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3" />
-    <p className="text-gray-500">{text}</p>
+const LoadingSpinner = () => (
+  <div className="animate-pulse space-y-4 py-4">
+    <div className="h-6 w-40 rounded-full bg-slate-200/80" />
+    <div className="space-y-3">
+      <div className="h-24 rounded-3xl border border-slate-200/80 bg-white" />
+      <div className="h-24 rounded-3xl border border-slate-200/80 bg-white" />
+      <div className="h-24 rounded-3xl border border-slate-200/80 bg-white" />
+    </div>
   </div>
 )
 

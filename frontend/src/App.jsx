@@ -39,13 +39,17 @@ import StudentMaterials from './pages/student/Materials'
 import StudentRoutine from './pages/student/Routine'
 import ProfilePage from './pages/shared/ProfilePage'
 import { getHomeRouteForUser } from './utils/auth'
+import LoadingSkeleton from './components/LoadingSkeleton'
+import { ToastProvider } from './components/Toast'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth()
   const location = useLocation()
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-gray-500">Loading...</p>
+    <div className="min-h-screen px-4 py-10">
+      <div className="mx-auto max-w-5xl">
+        <LoadingSkeleton rows={4} itemClassName="h-24" />
+      </div>
     </div>
   )
   if (!user) return <Navigate to="/login" />
@@ -70,8 +74,10 @@ const AppRoutes = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen px-4 py-10">
+        <div className="mx-auto max-w-5xl">
+          <LoadingSkeleton rows={4} itemClassName="h-24" />
+        </div>
       </div>
     )
   }
@@ -144,7 +150,9 @@ const App = () => (
   <BrowserRouter>
     <AuthProvider>
       <ReferenceDataProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </ReferenceDataProvider>
     </AuthProvider>
   </BrowserRouter>
