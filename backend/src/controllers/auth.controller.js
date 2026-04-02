@@ -23,6 +23,15 @@ const buildAuthUser = (user) => ({
 })
 
 const isPasswordResetEnabled = () => process.env.ENABLE_PASSWORD_RESET === 'true'
+const QR_SIGNING_SECRET = process.env.QR_SIGNING_SECRET || process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET || 'edunexus-qr-secret'
+
+const createSignedQrPayload = (payload) => JSON.stringify({
+  payload,
+  signature: crypto
+    .createHmac('sha256', QR_SIGNING_SECRET)
+    .update(JSON.stringify(payload))
+    .digest('hex')
+})
 
 const issueAuthSession = async (user, res, previousRefreshToken) => {
   const accessToken = signAccessToken(user)
@@ -323,7 +332,7 @@ const getStudentIdQr = async (req, res) => {
       return res.status(404).json({ message: 'Student profile not found' })
     }
 
-    const qrPayload = JSON.stringify({
+    const qrPayload = createSignedQrPayload({
       type: 'STUDENT_ID_CARD',
       studentId: user.student.id,
       rollNumber: user.student.rollNumber,

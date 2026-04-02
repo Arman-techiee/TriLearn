@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import StatusBadge from '../../components/StatusBadge'
 import PageHeader from '../../components/PageHeader'
+import QrScanPanel from '../../components/QrScanPanel'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 import EmptyState from '../../components/EmptyState'
@@ -46,6 +47,7 @@ const Attendance = () => {
   const [coordinatorRecords, setCoordinatorRecords] = useState([])
   const [search, setSearch] = useState('')
   const [exportingFormat, setExportingFormat] = useState('')
+  const [scanningStudentId, setScanningStudentId] = useState(false)
   const debouncedSearch = useDebouncedValue(search, 250)
 
   useEffect(() => {
@@ -272,6 +274,42 @@ const Attendance = () => {
       setError(getFriendlyErrorMessage(requestError, 'Unable to export the attendance report right now.'))
     } finally {
       setExportingFormat('')
+    }
+  }
+
+  const scanStudentIdCard = async (qrData) => {
+    if (!isCoordinator && !selectedSubject) {
+      setError('Please select a subject before scanning a student ID card.')
+      return
+    }
+
+    try {
+      setScanningStudentId(true)
+      setError('')
+
+      const payload = isCoordinator
+        ? { qrData }
+        : {
+            qrData,
+            subjectId: selectedSubject,
+            attendanceDate: selectedDate
+          }
+
+      const res = await api.post('/attendance/scan-student-id', payload)
+      setSuccess(res.data.message)
+
+      if (isCoordinator) {
+        await fetchCoordinatorDepartmentReport()
+      } else {
+        await fetchAttendanceWorkspace()
+      }
+
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (requestError) {
+      logger.error(requestError)
+      setError(getFriendlyErrorMessage(requestError, 'Unable to mark attendance from the student ID card right now.'))
+    } finally {
+      setScanningStudentId(false)
     }
   }
 
@@ -561,6 +599,19 @@ const Attendance = () => {
               </div>
             </div>
             )}
+
+            <div className="mb-6">
+              <QrScanPanel
+                title={isCoordinator ? 'Scan Student ID Card' : 'Scan Student ID Card For Subject'}
+                description={isCoordinator
+                  ? 'Coordinator can scan the student ID QR to mark attendance through the active Student QR time window.'
+                  : 'Instructor can scan the student ID QR to mark the selected subject attendance as present for the chosen date.'}
+                submitLabel="Mark From ID Card"
+                onSubmit={scanStudentIdCard}
+                busy={scanningStudentId}
+                accentClassName="focus:ring-green-500"
+              />
+            </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center justify-between p-6 border-b">

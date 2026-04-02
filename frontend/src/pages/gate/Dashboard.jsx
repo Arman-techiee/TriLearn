@@ -3,9 +3,11 @@ import { CalendarDays, Clock3, QrCode, RefreshCw } from 'lucide-react'
 import GateLayout from '../../layouts/GateLayout'
 import PageHeader from '../../components/PageHeader'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
+import QrScanPanel from '../../components/QrScanPanel'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
 import { getFriendlyErrorMessage } from '../../utils/errors'
+import { useToast } from '../../components/Toast'
 
 const formatTime = (value) => (
   value
@@ -18,6 +20,8 @@ const GateDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [scanBusy, setScanBusy] = useState(false)
+  const { showToast } = useToast()
 
   const fetchLiveQr = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -68,6 +72,25 @@ const GateDashboard = () => {
 
     return 'No slot today'
   }, [liveQrState])
+
+  const submitStudentIdQr = async (qrData) => {
+    try {
+      setScanBusy(true)
+      setError('')
+      const res = await api.post('/attendance/scan-student-id', { qrData })
+      const subjectList = (res.data.markedSubjects || []).map((subject) => subject.code).join(', ')
+      showToast({
+        title: `Attendance marked for ${res.data.student?.name || 'student'}.`,
+        description: subjectList ? `Recorded for ${subjectList}` : res.data.message
+      })
+      await fetchLiveQr({ silent: true })
+    } catch (requestError) {
+      logger.error(requestError)
+      setError(getFriendlyErrorMessage(requestError, 'Unable to mark attendance from the student ID card right now.'))
+    } finally {
+      setScanBusy(false)
+    }
+  }
 
   return (
     <GateLayout>
@@ -189,6 +212,15 @@ const GateDashboard = () => {
             </section>
 
             <aside className="space-y-6">
+              <QrScanPanel
+                title="Scan Student ID Card"
+                description="Gatekeeper can scan the student’s ID card QR to mark attendance for the active Student QR time slot."
+                submitLabel="Mark Attendance"
+                onSubmit={submitStudentIdQr}
+                busy={scanBusy}
+                accentClassName="focus:ring-amber-500"
+              />
+
               <section className="ui-card rounded-3xl p-6">
                 <h2 className="text-lg font-semibold text-slate-900">Rules</h2>
                 <div className="mt-4 space-y-3 text-sm text-slate-600">

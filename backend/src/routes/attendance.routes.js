@@ -24,6 +24,7 @@ const {
   deleteGateScanWindow,
   createAttendanceHoliday,
   deleteAttendanceHoliday,
+  scanStudentIdAttendance,
   getMyAbsenceTickets,
   createAbsenceTicket,
   getAbsenceTicketsForStaff,
@@ -36,6 +37,7 @@ router.use(attachActorProfiles)
 // Instructor routes
 router.post('/generate-daily-qr', allowRoles('GATEKEEPER'), generateDailyAttendanceQR)
 router.get('/gatekeeper/live-qr', allowRoles('GATEKEEPER'), getLiveGateAttendanceQr)
+router.post('/scan-student-id', allowRoles('GATEKEEPER', 'INSTRUCTOR', 'COORDINATOR'), validate(schemas.attendance.scanStudentId), scanStudentIdAttendance)
 router.get('/gate-settings', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.attendance.gateSettings), getGateAttendanceSettings)
 router.post('/gate-settings/windows', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.attendance.createGateWindow), createGateScanWindow)
 router.put('/gate-settings/windows/:id', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.attendance.updateGateWindow), updateGateScanWindow)

@@ -151,6 +151,12 @@ const qrBody = z.object({
   qrData: z.string().trim().min(10)
 })
 
+const staffStudentQrBody = z.object({
+  qrData: z.string().trim().min(10),
+  subjectId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  attendanceDate: optionalString(50)
+})
+
 const absenceTicketBody = z.object({
   attendanceId: z.string().uuid(),
   reason: z.string().trim().min(10).max(1000)
@@ -363,6 +369,7 @@ const schemas = {
     generateQr: { body: z.object({ subjectId: z.string().uuid() }) },
     manual: { body: attendanceManualBody },
     scanQr: { body: qrBody },
+    scanStudentId: { body: staffStudentQrBody },
     gateSettings: {
       query: z.object({
         dayOfWeek: dayOfWeekEnum.optional()

@@ -316,6 +316,132 @@ const filterRoutinesForSemesterWindows = ({ routines, baseDate, semester, window
   })
 }
 
+const getStudentByIdCardQr = async (qrData) => {
+  const parsedQr = parseQrPayload(qrData)
+  if (!parsedQr || parsedQr.type !== 'STUDENT_ID_CARD' || !parsedQr.studentId) {
+    return { error: { status: 400, message: 'Invalid student ID QR code' } }
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: parsedQr.studentId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          isActive: true
+        }
+      }
+    }
+  })
+
+  if (!student || !student.user?.isActive) {
+    return { error: { status: 404, message: 'Student was not found or is inactive' } }
+  }
+
+  return { student, parsedQr }
+}
+
+const upsertPresentAttendanceForRoutines = async ({ student, routines, attendanceDate, qrData, actorRole, actorId }) => {
+  const existingAttendance = await prisma.attendance.findMany({
+    where: {
+      studentId: student.id,
+      subjectId: { in: routines.map((routine) => routine.subjectId) },
+      date: { gte: attendanceDate.start, lt: attendanceDate.end }
+    }
+  })
+
+  const existingMap = new Map(existingAttendance.map((record) => [record.subjectId, record]))
+  const routinesToMark = routines.filter((routine) => !existingMap.has(routine.subjectId))
+
+  if (!routinesToMark.length) {
+    return { error: { status: 400, message: 'Attendance has already been recorded for the applicable class entries.' } }
+  }
+
+  const records = await prisma.$transaction(
+    routinesToMark.map((routine) => (
+      prisma.attendance.upsert({
+        where: {
+          studentId_subjectId_date: {
+            studentId: student.id,
+            subjectId: routine.subjectId,
+            date: attendanceDate.start
+          }
+        },
+        update: {
+          instructorId: routine.instructorId,
+          status: 'PRESENT',
+          qrCode: qrData
+        },
+        create: {
+          studentId: student.id,
+          subjectId: routine.subjectId,
+          instructorId: routine.instructorId,
+          status: 'PRESENT',
+          qrCode: qrData,
+          date: attendanceDate.start
+        }
+      })
+    ))
+  )
+
+  await recordAuditLog({
+    actorId,
+    actorRole,
+    action: 'STUDENT_ID_QR_ATTENDANCE_MARKED',
+    entityType: 'Attendance',
+    metadata: {
+      studentId: student.id,
+      subjectIds: records.map((record) => record.subjectId),
+      date: attendanceDate.start
+    }
+  })
+
+  return {
+    records,
+    markedSubjects: routinesToMark.map((routine) => ({
+      id: routine.subjectId,
+      name: routine.subject.name,
+      code: routine.subject.code,
+      startTime: routine.startTime,
+      endTime: routine.endTime
+    }))
+  }
+}
+
+const getEligibleGateAttendanceForStudent = async (student, referenceDate = new Date()) => {
+  const gateDay = await getDailyGateWindows(referenceDate)
+
+  if (gateDay.holiday) {
+    return { error: { status: 400, message: `Today is marked as a holiday: ${gateDay.holiday.title}` } }
+  }
+
+  const eligibleWindows = gateDay.active.filter((window) => window.allowedSemesters.includes(student.semester))
+
+  if (!eligibleWindows.length) {
+    return { error: { status: 400, message: 'There is no active Student QR time slot for this student right now.' } }
+  }
+
+  const studentDayRoutines = await getStudentScheduledRoutinesForDay({
+    studentId: student.id,
+    dayOfWeek: gateDay.dayOfWeek
+  })
+
+  const routines = filterRoutinesForSemesterWindows({
+    routines: studentDayRoutines,
+    baseDate: gateDay.dayRange.start,
+    semester: student.semester,
+    windows: eligibleWindows
+  })
+
+  if (!routines.length) {
+    return { error: { status: 400, message: 'This student has no scheduled subject in the active Student QR time slot.' } }
+  }
+
+  return { gateDay, eligibleWindows, routines }
+}
+
 const syncClosedRoutineAbsences = async (referenceDate = new Date()) => {
   const gateDay = await getDailyGateWindows(referenceDate)
 
@@ -1504,93 +1630,33 @@ const markDailyAttendanceQR = async (req, res) => {
       return res.status(403).json({ message: 'Your semester is not allowed to scan this Student QR right now.' })
     }
 
-    const studentDayRoutines = await getStudentScheduledRoutinesForDay({
-      studentId: student.id,
-      dayOfWeek: gateDay.dayOfWeek
-    })
-
-    const routines = filterRoutinesForSemesterWindows({
-      routines: studentDayRoutines,
-      baseDate: gateDay.dayRange.start,
-      semester: student.semester,
-      windows: eligibleWindows
-    })
-
-    if (!routines.length) {
-      return res.status(400).json({ message: 'You do not have any scheduled subject in this active Student QR time slot.' })
+    const eligibility = await getEligibleGateAttendanceForStudent(student, now)
+    if (eligibility.error) {
+      return res.status(eligibility.error.status).json({ message: eligibility.error.message })
     }
 
-    const subjectIds = routines.map((routine) => routine.subjectId)
-    const existingAttendance = await prisma.attendance.findMany({
-      where: {
-        studentId: student.id,
-        subjectId: { in: subjectIds },
-        date: { gte: gateDay.dayRange.start, lt: gateDay.dayRange.end }
-      }
+    const { routines } = eligibility
+
+    const result = await upsertPresentAttendanceForRoutines({
+      student,
+      routines,
+      attendanceDate: gateDay.dayRange,
+      qrData,
+      actorRole: req.user.role,
+      actorId: req.user.id
     })
 
-    const existingMap = new Map(existingAttendance.map((record) => [record.subjectId, record]))
-    const routinesToMark = routines.filter((routine) => !existingMap.has(routine.subjectId))
-
-    if (!routinesToMark.length) {
-      return res.status(400).json({ message: 'Attendance has already been recorded for all of your classes in this period.' })
+    if (result.error) {
+      return res.status(result.error.status).json({ message: result.error.message })
     }
 
-    const upsertedAttendance = await prisma.$transaction(
-      routinesToMark.map((routine) => (
-        prisma.attendance.upsert({
-          where: {
-            studentId_subjectId_date: {
-              studentId: student.id,
-              subjectId: routine.subjectId,
-              date: gateDay.dayRange.start
-            }
-          },
-          update: {
-            instructorId: routine.instructorId,
-            status: 'PRESENT',
-            qrCode: qrData
-          },
-          create: {
-            studentId: student.id,
-            subjectId: routine.subjectId,
-            instructorId: routine.instructorId,
-            status: 'PRESENT',
-            qrCode: qrData,
-            date: gateDay.dayRange.start
-          }
-        })
-      ))
-    )
-
-    const markedSubjects = upsertedAttendance.map((record) => {
-      const routine = routinesToMark.find((item) => item.subjectId === record.subjectId)
-      return {
-        id: record.subjectId,
-        name: routine.subject.name,
-        code: routine.subject.code,
-        startTime: routine.startTime,
-        endTime: routine.endTime
-      }
-    })
+    const markedSubjects = result.markedSubjects
 
     res.status(201).json({
       message: `Attendance marked for ${markedSubjects.length} class${markedSubjects.length > 1 ? 'es' : ''}.`,
       markedSubjects,
       date: gateDay.dayRange.start,
       expiresAt: parsedQR.expiresAt
-    })
-
-    await recordAuditLog({
-      actorId: req.user.id,
-      actorRole: req.user.role,
-      action: 'DAILY_GATE_ATTENDANCE_MARKED',
-      entityType: 'Attendance',
-      metadata: {
-        date: gateDay.dayRange.start,
-        windowIds: eligibleWindows.map((window) => window.id),
-        markedSubjectIds: markedSubjects.map((subject) => subject.id)
-      }
     })
   } catch (error) {
     res.internalError(error)
@@ -2122,6 +2188,137 @@ const deleteAttendanceHoliday = async (req, res) => {
   }
 }
 
+const scanStudentIdAttendance = async (req, res) => {
+  try {
+    const { qrData, subjectId, attendanceDate } = req.body
+
+    const scanned = await getStudentByIdCardQr(qrData)
+    if (scanned.error) {
+      return res.status(scanned.error.status).json({ message: scanned.error.message })
+    }
+
+    const { student } = scanned
+
+    if (req.user.role === 'GATEKEEPER' || !subjectId) {
+      const eligibility = await getEligibleGateAttendanceForStudent(student, new Date())
+      if (eligibility.error) {
+        return res.status(eligibility.error.status).json({ message: eligibility.error.message })
+      }
+
+      const result = await upsertPresentAttendanceForRoutines({
+        student,
+        routines: eligibility.routines,
+        attendanceDate: eligibility.gateDay.dayRange,
+        qrData,
+        actorRole: req.user.role,
+        actorId: req.user.id
+      })
+
+      if (result.error) {
+        return res.status(result.error.status).json({ message: result.error.message })
+      }
+
+      return res.status(201).json({
+        message: `Attendance marked for ${student.user.name}.`,
+        mode: 'GATE_WINDOW',
+        student: {
+          id: student.id,
+          name: student.user.name,
+          rollNumber: student.rollNumber,
+          semester: student.semester,
+          section: student.section
+        },
+        markedSubjects: result.markedSubjects,
+        date: eligibility.gateDay.dayRange.start
+      })
+    }
+
+    const access = await getOwnedSubject(subjectId, req)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
+    }
+
+    const dayRange = getDayRange(attendanceDate || new Date())
+    if (!dayRange) {
+      return res.status(400).json({ message: 'Please provide a valid attendance date.' })
+    }
+
+    const enrollment = await prisma.subjectEnrollment.findUnique({
+      where: {
+        subjectId_studentId: {
+          subjectId,
+          studentId: student.id
+        }
+      }
+    })
+
+    if (!enrollment) {
+      return res.status(400).json({ message: 'This student is not enrolled in the selected subject.' })
+    }
+
+    const instructorId = access.instructor?.id || access.subject.instructorId
+    if (!instructorId) {
+      return res.status(400).json({ message: 'Assign an instructor to this subject before managing attendance.' })
+    }
+
+    const record = await prisma.attendance.upsert({
+      where: {
+        studentId_subjectId_date: {
+          studentId: student.id,
+          subjectId,
+          date: dayRange.start
+        }
+      },
+      update: {
+        instructorId,
+        status: 'PRESENT',
+        qrCode: qrData
+      },
+      create: {
+        studentId: student.id,
+        subjectId,
+        instructorId,
+        status: 'PRESENT',
+        qrCode: qrData,
+        date: dayRange.start
+      }
+    })
+
+    await recordAuditLog({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: 'STAFF_STUDENT_ID_ATTENDANCE_MARKED',
+      entityType: 'Attendance',
+      metadata: {
+        studentId: student.id,
+        subjectId,
+        attendanceId: record.id,
+        date: dayRange.start
+      }
+    })
+
+    return res.status(201).json({
+      message: `Attendance marked for ${student.user.name} in ${access.subject.name}.`,
+      mode: 'SUBJECT',
+      student: {
+        id: student.id,
+        name: student.user.name,
+        rollNumber: student.rollNumber,
+        semester: student.semester,
+        section: student.section
+      },
+      subject: {
+        id: access.subject.id,
+        name: access.subject.name,
+        code: access.subject.code
+      },
+      date: dayRange.start
+    })
+  } catch (error) {
+    res.internalError(error)
+  }
+}
+
 module.exports = {
   generateDailyAttendanceQR,
   getLiveGateAttendanceQr,
@@ -2142,6 +2339,7 @@ module.exports = {
   deleteGateScanWindow,
   createAttendanceHoliday,
   deleteAttendanceHoliday,
+  scanStudentIdAttendance,
   getMyAbsenceTickets,
   createAbsenceTicket,
   getAbsenceTicketsForStaff,
