@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
-import api from '../../utils/api'
+import api, { resolveFileUrl } from '../../utils/api'
 import logger from '../../utils/logger'
 const StudentAssignments = () => {
   const [assignments, setAssignments] = useState([])
@@ -13,7 +13,9 @@ const StudentAssignments = () => {
   const [success, setSuccess] = useState('')
   const [previewFile, setPreviewFile] = useState(null)
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    void fetchData()
+  }, [])
 
   const fetchData = async () => {
     try {
@@ -24,7 +26,7 @@ const StudentAssignments = () => {
       setAssignments(assignmentsRes.data.assignments)
       setSubmissions(submissionsRes.data.submissions)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load student assignments', error)
     } finally {
       setLoading(false)
     }
@@ -50,7 +52,7 @@ const StudentAssignments = () => {
       setSubmittingId(null)
       setSubmitForm({ note: '' })
       setAnswerPdf(null)
-      fetchData()
+      void fetchData()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')

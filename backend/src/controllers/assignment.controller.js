@@ -2,7 +2,8 @@ const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
 const { buildUploadedFileUrl } = require('../utils/fileStorage')
 
-const resolveAssignmentManager = async (user, subjectId) => {
+const resolveAssignmentManager = async (req, subjectId) => {
+  const { user, instructor } = req
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId }
   })
@@ -19,12 +20,8 @@ const resolveAssignmentManager = async (user, subjectId) => {
     return { subject, instructorId: subject.instructorId }
   }
 
-  const instructor = await prisma.instructor.findUnique({
-    where: { userId: user.id }
-  })
-
   if (!instructor) {
-    return { error: { status: 403, message: 'Only instructors can manage assignments' } }
+    return { error: { status: 403, message: 'Instructor profile not found' } }
   }
 
   return { subject, instructorId: instructor.id }
@@ -47,7 +44,7 @@ const createAssignment = async (req, res) => {
       return res.status(400).json({ message: 'Total marks must be a valid positive number' })
     }
 
-    const access = await resolveAssignmentManager(req.user, subjectId)
+    const access = await resolveAssignmentManager(req, subjectId)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -88,10 +85,7 @@ const getAllAssignments = async (req, res) => {
     if (subjectId) filters.subjectId = subjectId
 
     if (req.user.role === 'INSTRUCTOR') {
-      const instructor = await prisma.instructor.findUnique({
-        where: { userId: req.user.id }
-      })
-      filters.instructorId = instructor?.id || '__no_assignments__'
+      filters.instructorId = req.instructor?.id || '__no_assignments__'
     }
 
     const assignments = await prisma.assignment.findMany({
@@ -160,11 +154,7 @@ const updateAssignment = async (req, res) => {
     }
 
     if (req.user.role === 'INSTRUCTOR') {
-      const instructor = await prisma.instructor.findUnique({
-        where: { userId: req.user.id }
-      })
-
-      if (assignment.instructorId !== instructor?.id) {
+      if (assignment.instructorId !== req.instructor?.id) {
         return res.status(403).json({ message: 'You can only update your own assignments' })
       }
     }
@@ -199,11 +189,7 @@ const deleteAssignment = async (req, res) => {
     }
 
     if (req.user.role === 'INSTRUCTOR') {
-      const instructor = await prisma.instructor.findUnique({
-        where: { userId: req.user.id }
-      })
-
-      if (assignment.instructorId !== instructor?.id) {
+      if (assignment.instructorId !== req.instructor?.id) {
         return res.status(403).json({ message: 'You can only delete your own assignments' })
       }
     }
@@ -225,12 +211,10 @@ const submitAssignment = async (req, res) => {
     const { note } = req.body
     const fileUrl = buildUploadedFileUrl(req.file)
 
-    const student = await prisma.student.findUnique({
-      where: { userId: req.user.id }
-    })
+    const student = req.student
 
     if (!student) {
-      return res.status(403).json({ message: 'Only students can submit assignments' })
+      return res.status(403).json({ message: 'Student profile not found' })
     }
 
     const assignment = await prisma.assignment.findUnique({ where: { id } })
@@ -280,12 +264,10 @@ const submitAssignment = async (req, res) => {
 // ================================
 const getMySubmissions = async (req, res) => {
   try {
-    const student = await prisma.student.findUnique({
-      where: { userId: req.user.id }
-    })
+    const student = req.student
 
     if (!student) {
-      return res.status(403).json({ message: 'Only students can view submissions' })
+      return res.status(403).json({ message: 'Student profile not found' })
     }
 
     const submissions = await prisma.submission.findMany({
@@ -324,11 +306,7 @@ const gradeSubmission = async (req, res) => {
     }
 
     if (req.user.role === 'INSTRUCTOR') {
-      const instructor = await prisma.instructor.findUnique({
-        where: { userId: req.user.id }
-      })
-
-      if (submission.assignment.instructorId !== instructor?.id) {
+      if (submission.assignment.instructorId !== req.instructor?.id) {
         return res.status(403).json({ message: 'You can only grade submissions for your own assignments' })
       }
     }

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ReferenceDataProvider } from './context/ReferenceDataContext'
 import Login from './pages/auth/Login'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -63,8 +64,16 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 }
 
 const AppRoutes = () => {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const homeRoute = getHomeRouteForUser(user)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    )
+  }
 
   return (
     <Routes>
@@ -132,7 +141,9 @@ const AppRoutes = () => {
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
-      <AppRoutes />
+      <ReferenceDataProvider>
+        <AppRoutes />
+      </ReferenceDataProvider>
     </AuthProvider>
   </BrowserRouter>
 )

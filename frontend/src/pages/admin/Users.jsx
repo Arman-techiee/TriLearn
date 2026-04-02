@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import { useAuth } from '../../context/AuthContext'
+import { useReferenceData } from '../../context/ReferenceDataContext'
 import useForm from '../../hooks/useForm'
 import { getFriendlyErrorMessage } from '../../utils/errors'
 import logger from '../../utils/logger'
@@ -26,9 +27,9 @@ const initialUserValues = {
 
 const Users = () => {
   const { user: currentUser } = useAuth()
+  const { departments, loadDepartments } = useReferenceData()
   const isCoordinator = currentUser?.role === 'COORDINATOR'
   const [users, setUsers] = useState([])
-  const [departments, setDepartments] = useState([])
   const [page, setPage] = useState(1)
   const [limit] = useState(20)
   const [total, setTotal] = useState(0)
@@ -85,8 +86,10 @@ const Users = () => {
   }, [filterRole])
 
   useEffect(() => {
-    fetchDepartments()
-  }, [])
+    void loadDepartments().catch((fetchError) => {
+      logger.error('Failed to load departments', fetchError)
+    })
+  }, [loadDepartments])
 
   const fetchUsers = async () => {
     try {
@@ -107,15 +110,6 @@ const Users = () => {
       logger.error(error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await api.get('/departments')
-      setDepartments(res.data.departments)
-    } catch (fetchError) {
-      logger.error(fetchError)
     }
   }
 

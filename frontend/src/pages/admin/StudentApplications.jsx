@@ -5,6 +5,7 @@ import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
+import { useReferenceData } from '../../context/ReferenceDataContext'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
 
@@ -20,7 +21,7 @@ const StudentApplications = () => {
   const [error, setError] = useState('')
   const [creatingAccount, setCreatingAccount] = useState(false)
   const [deletingApplication, setDeletingApplication] = useState(false)
-  const [departments, setDepartments] = useState([])
+  const { departments, loadDepartments } = useReferenceData()
   const [applicationToDelete, setApplicationToDelete] = useState(null)
   const [accountForm, setAccountForm] = useState({
     studentId: '',
@@ -34,8 +35,10 @@ const StudentApplications = () => {
   }, [page, filterStatus])
 
   useEffect(() => {
-    fetchDepartments()
-  }, [])
+    void loadDepartments().catch((requestError) => {
+      setError(getFriendlyErrorMessage(requestError, 'Unable to load departments right now.'))
+    })
+  }, [loadDepartments])
 
   const fetchApplications = async () => {
     try {
@@ -49,15 +52,6 @@ const StudentApplications = () => {
       setError(getFriendlyErrorMessage(requestError, 'Unable to load student applications right now.'))
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await api.get('/departments')
-      setDepartments(res.data.departments || [])
-    } catch (requestError) {
-      setError(getFriendlyErrorMessage(requestError, 'Unable to load departments right now.'))
     }
   }
 

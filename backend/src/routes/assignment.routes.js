@@ -1,8 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const { protect, allowRoles } = require('../middleware/auth.middleware')
+const { attachActorProfiles } = require('../middleware/profile.middleware')
 const { uploadPdf, validateUploadedPdf } = require('../middleware/upload.middleware')
-const { uploadLimiter } = require('../middleware/rateLimit.middleware')
+const { studentUploadLimiter, staffUploadLimiter } = require('../middleware/rateLimit.middleware')
 const { validate } = require('../middleware/validate.middleware')
 const { schemas } = require('../validators/schemas')
 const {
@@ -17,15 +18,16 @@ const {
 } = require('../controllers/assignment.controller')
 
 router.use(protect)
+router.use(attachActorProfiles)
 
 // Instructor routes
-router.post('/', allowRoles('INSTRUCTOR', 'COORDINATOR'), uploadLimiter, uploadPdf.single('questionPdf'), validateUploadedPdf, validate(schemas.assignments.create), createAssignment)
-router.put('/:id', allowRoles('INSTRUCTOR', 'COORDINATOR'), uploadLimiter, uploadPdf.single('questionPdf'), validateUploadedPdf, validate(schemas.assignments.update), updateAssignment)
+router.post('/', allowRoles('INSTRUCTOR', 'COORDINATOR'), staffUploadLimiter, uploadPdf.single('questionPdf'), validateUploadedPdf, validate(schemas.assignments.create), createAssignment)
+router.put('/:id', allowRoles('INSTRUCTOR', 'COORDINATOR'), staffUploadLimiter, uploadPdf.single('questionPdf'), validateUploadedPdf, validate(schemas.assignments.update), updateAssignment)
 router.delete('/:id', allowRoles('INSTRUCTOR', 'COORDINATOR', 'ADMIN'), validate(schemas.assignments.id), deleteAssignment)
 router.patch('/submissions/:submissionId/grade', allowRoles('INSTRUCTOR', 'COORDINATOR'), validate(schemas.assignments.grade), gradeSubmission)
 
 // Student routes
-router.post('/:id/submit', allowRoles('STUDENT'), uploadLimiter, uploadPdf.single('answerPdf'), validateUploadedPdf, validate(schemas.assignments.submit), submitAssignment)
+router.post('/:id/submit', allowRoles('STUDENT'), studentUploadLimiter, uploadPdf.single('answerPdf'), validateUploadedPdf, validate(schemas.assignments.submit), submitAssignment)
 router.get('/my-submissions', allowRoles('STUDENT'), getMySubmissions)
 
 // All roles

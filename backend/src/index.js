@@ -2,23 +2,26 @@ const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const dotenv = require('dotenv')
-const path = require('path')
 const logger = require('./utils/logger')
 const { apiLimiter } = require('./middleware/rateLimit.middleware')
 const { uploadPath, uploadPublicPath } = require('./utils/fileStorage')
+const { csrfProtection, getRuntimeEnv, getTrustedOrigins } = require('./middleware/csrf.middleware')
+const prisma = require('./utils/prisma')
+const { scheduleMaintenance } = require('./utils/maintenance')
 
 dotenv.config()
 
 const app = express()
+const runtimeEnv = getRuntimeEnv()
+const isDevelopment = runtimeEnv === 'development'
+const requiredEnvVars = ['JWT_SECRET', 'JWT_REFRESH_SECRET']
+const missingEnvVars = requiredEnvVars.filter((envKey) => !process.env[envKey])
 
-const allowedOrigins = (process.env.FRONTEND_URL || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean)
-
-if (process.env.NODE_ENV !== 'production' && allowedOrigins.length === 0) {
-  allowedOrigins.push('http://localhost:5173')
+if (missingEnvVars.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`)
 }
+
+const allowedOrigins = getTrustedOrigins()
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -32,15 +35,17 @@ app.use(cookieParser())
 app.use(express.json())
 app.use((req, res, next) => {
   res.internalError = (error, fallbackMessage = 'Something went wrong') => {
-    logger.error(error.message, { stack: error.stack })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error(errorMessage, { stack: error?.stack })
     return res.status(500).json({
-      message: process.env.NODE_ENV === 'production' ? fallbackMessage : (error.message || fallbackMessage)
+      message: isDevelopment ? (errorMessage || fallbackMessage) : fallbackMessage
     })
   }
 
   next()
 })
 app.use(apiLimiter)
+app.use(csrfProtection)
 app.use(uploadPublicPath, express.static(uploadPath))
 
 // Routes
@@ -94,16 +99,48 @@ app.get('/', (req, res) => {
 })
 
 app.use((error, _req, res, _next) => {
-  logger.error(error.message, { stack: error.stack })
+  const errorMessage = error instanceof Error ? error.message : String(error)
+  logger.error(errorMessage, { stack: error?.stack })
   res.status(400).json({
-    message: process.env.NODE_ENV === 'production'
-      ? 'Request failed'
-      : (error.message || 'Something went wrong')
+    message: isDevelopment
+      ? (errorMessage || 'Something went wrong')
+      : 'Request failed'
   })
 })
 
 const PORT = process.env.PORT || 5000
+const maintenance = scheduleMaintenance(prisma)
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info('EduNexus server running', { port: PORT })
+})
+
+let isShuttingDown = false
+
+const shutdown = async (signal) => {
+  if (isShuttingDown) {
+    return
+  }
+
+  isShuttingDown = true
+  logger.info('Received shutdown signal', { signal })
+  maintenance.stop()
+
+  server.close(async () => {
+    try {
+      await prisma.$disconnect()
+      process.exit(0)
+    } catch (error) {
+      logger.error(error.message, { stack: error.stack })
+      process.exit(1)
+    }
+  })
+}
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM')
+})
+
+process.on('SIGINT', () => {
+  void shutdown('SIGINT')
 })

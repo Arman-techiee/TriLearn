@@ -45,19 +45,8 @@ const getMonthRange = (monthValue) => {
   return { start, end }
 }
 
-const getInstructorProfile = (userId) => prisma.instructor.findUnique({
-  where: { userId }
-})
-
-const getStudentProfile = (userId) => prisma.student.findUnique({
-  where: { userId }
-})
-
-const getCoordinatorProfile = (userId) => prisma.coordinator.findUnique({
-  where: { userId }
-})
-
-const getOwnedSubject = async (subjectId, user) => {
+const getOwnedSubject = async (subjectId, req) => {
+  const { user, instructor } = req
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
     include: {
@@ -74,10 +63,8 @@ const getOwnedSubject = async (subjectId, user) => {
   }
 
   if (user.role === 'INSTRUCTOR') {
-    const instructor = await getInstructorProfile(user.id)
-
     if (!instructor) {
-      return { error: { status: 403, message: 'Only instructors can manage attendance' } }
+      return { error: { status: 403, message: 'Instructor profile not found' } }
     }
 
     if (!subject.instructorId) {
@@ -209,8 +196,8 @@ const formatMonthLabel = (monthValue) => {
 
 const sanitizeFilenamePart = (value) => String(value || 'report').replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase()
 
-const getAttendanceExportPayload = async ({ subjectId, date, month, user }) => {
-  const access = await getOwnedSubject(subjectId, user)
+const getAttendanceExportPayload = async ({ subjectId, date, month, req }) => {
+  const access = await getOwnedSubject(subjectId, req)
   if (access.error) {
     return { error: access.error }
   }
@@ -353,9 +340,7 @@ const exportAttendanceWorkbook = async ({ res, attendance, summary, subject, dat
   res.end()
 }
 
-const getCoordinatorDepartmentReportPayload = async ({ userId, month, semester, section }) => {
-  const coordinator = await getCoordinatorProfile(userId)
-
+const getCoordinatorDepartmentReportPayload = async ({ coordinator, month, semester, section }) => {
   if (!coordinator || !coordinator.department) {
     return { error: { status: 403, message: 'Coordinator department is not configured yet' } }
   }
@@ -601,17 +586,22 @@ const generateQR = async (req, res) => {
   try {
     const { subjectId } = req.body
 
-    const access = await getOwnedSubject(subjectId, req.user)
+    const access = await getOwnedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
 
-    const { instructor, subject } = access
+    const { subject } = access
+    const instructorId = access.instructor?.id || subject.instructorId
+
+    if (!instructorId) {
+      return res.status(400).json({ message: 'Assign an instructor to this subject before managing attendance' })
+    }
 
     // Create QR data with timestamp (valid for 10 minutes)
     const qrData = JSON.stringify({
       subjectId,
-      instructorId: instructor.id,
+      instructorId,
       date: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
     })
@@ -624,7 +614,7 @@ const generateQR = async (req, res) => {
       qrCode,
       expiresIn: '10 minutes',
       subjectId,
-      instructorId: instructor.id
+      instructorId
     })
 
   } catch (error) {
@@ -639,10 +629,10 @@ const markAttendanceQR = async (req, res) => {
   try {
     const { qrData } = req.body
 
-    const student = await getStudentProfile(req.user.id)
+    const student = req.student
 
     if (!student) {
-      return res.status(403).json({ message: 'Only students can mark attendance' })
+      return res.status(403).json({ message: 'Student profile not found' })
     }
 
     const parsedQR = parseQrPayload(qrData)
@@ -678,33 +668,30 @@ const markAttendanceQR = async (req, res) => {
     // Check if already marked today
     const todayRange = getDayRange()
 
-    const existingAttendance = await prisma.attendance.findFirst({
-      where: {
-        studentId: student.id,
-        subjectId,
-        date: { gte: todayRange.start, lt: todayRange.end }
-      }
-    })
+    let attendance
 
-    if (existingAttendance) {
-      return res.status(400).json({ message: 'Attendance already marked for today' })
+    try {
+      attendance = await prisma.attendance.create({
+        data: {
+          studentId: student.id,
+          subjectId,
+          instructorId,
+          status: 'PRESENT',
+          qrCode: qrData,
+          date: todayRange.start
+        },
+        include: {
+          subject: { select: { name: true, code: true } },
+          student: { include: { user: { select: { name: true } } } }
+        }
+      })
+    } catch (error) {
+      if (error.code === 'P2002') {
+        return res.status(400).json({ message: 'Attendance already marked for today' })
+      }
+
+      throw error
     }
-
-    // Mark attendance
-    const attendance = await prisma.attendance.create({
-      data: {
-        studentId: student.id,
-        subjectId,
-        instructorId,
-        status: 'PRESENT',
-        qrCode: qrData,
-        date: todayRange.start
-      },
-      include: {
-        subject: { select: { name: true, code: true } },
-        student: { include: { user: { select: { name: true } } } }
-      }
-    })
 
     res.status(201).json({
       message: 'Attendance marked successfully!',
@@ -741,9 +728,14 @@ const markAttendanceManual = async (req, res) => {
   try {
     const { subjectId, attendanceDate, attendanceList } = req.body
 
-    const access = await getOwnedSubject(subjectId, req.user)
+    const access = await getOwnedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
+    }
+
+    const instructorId = access.instructor?.id || access.subject.instructorId
+    if (!instructorId) {
+      return res.status(400).json({ message: 'Assign an instructor to this subject before managing attendance' })
     }
 
     if (!Array.isArray(attendanceList) || attendanceList.length === 0) {
@@ -766,37 +758,26 @@ const markAttendanceManual = async (req, res) => {
       return res.status(400).json({ message: 'Attendance list contains invalid student or status values' })
     }
 
-    const existingRecords = await prisma.attendance.findMany({
-      where: {
-        subjectId,
-        studentId: { in: attendanceList.map(({ studentId }) => studentId) },
-        date: { gte: dayRange.start, lt: dayRange.end }
-      }
-    })
-
-    const existingMap = new Map(existingRecords.map((record) => [record.studentId, record]))
-
     const records = await prisma.$transaction(
       attendanceList.map(({ studentId, status }) => {
-        const existing = existingMap.get(studentId)
-
-        if (existing) {
-          return prisma.attendance.update({
-            where: { id: existing.id },
-            data: {
-              status,
-              instructorId: access.instructor.id,
-              qrCode: null,
+        return prisma.attendance.upsert({
+          where: {
+            studentId_subjectId_date: {
+              studentId,
+              subjectId,
               date: dayRange.start
             }
-          })
-        }
-
-        return prisma.attendance.create({
-          data: {
+          },
+          update: {
+            status,
+            instructorId,
+            qrCode: null,
+            date: dayRange.start
+          },
+          create: {
             studentId,
             subjectId,
-            instructorId: access.instructor.id,
+            instructorId,
             status,
             date: dayRange.start
           }
@@ -838,7 +819,7 @@ const getAttendanceBySubject = async (req, res) => {
     const { date } = req.query
     const { page, limit, skip } = getPagination(req.query)
 
-    const access = await getOwnedSubject(subjectId, req.user)
+    const access = await getOwnedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -900,10 +881,10 @@ const getAttendanceBySubject = async (req, res) => {
 const getMyAttendance = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query)
-    const student = await getStudentProfile(req.user.id)
+    const student = req.student
 
     if (!student) {
-      return res.status(403).json({ message: 'Only students can view their attendance' })
+      return res.status(403).json({ message: 'Student profile not found' })
     }
 
     const [attendance, total, allAttendance] = await Promise.all([
@@ -962,7 +943,7 @@ const getSubjectRoster = async (req, res) => {
     const { subjectId } = req.params
     const { date } = req.query
 
-    const access = await getOwnedSubject(subjectId, req.user)
+    const access = await getOwnedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -1011,7 +992,7 @@ const getCoordinatorDepartmentAttendanceReport = async (req, res) => {
   try {
     const { month, semester, section } = req.query
     const report = await getCoordinatorDepartmentReportPayload({
-      userId: req.user.id,
+      coordinator: req.coordinator,
       month,
       semester,
       section
@@ -1031,7 +1012,7 @@ const exportCoordinatorDepartmentAttendanceReport = async (req, res) => {
   try {
     const { month, semester, section, format = 'xlsx' } = req.query
     const report = await getCoordinatorDepartmentReportPayload({
-      userId: req.user.id,
+      coordinator: req.coordinator,
       month,
       semester,
       section
@@ -1057,7 +1038,7 @@ const getMonthlyAttendanceReport = async (req, res) => {
     const { subjectId } = req.params
     const { month } = req.query
 
-    const access = await getOwnedSubject(subjectId, req.user)
+    const access = await getOwnedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -1166,7 +1147,7 @@ const exportAttendanceBySubject = async (req, res) => {
       subjectId,
       date,
       month,
-      user: req.user
+      req
     })
 
     if (report.error) {
@@ -1191,9 +1172,9 @@ const markDailyAttendanceQR = async (req, res) => {
   try {
     const { qrData } = req.body
 
-    const student = await getStudentProfile(req.user.id)
+    const student = req.student
     if (!student) {
-      return res.status(403).json({ message: 'Only students can mark attendance' })
+      return res.status(403).json({ message: 'Student profile not found' })
     }
 
     const parsedQR = parseQrPayload(qrData)
@@ -1258,11 +1239,23 @@ const markDailyAttendanceQR = async (req, res) => {
       return res.status(400).json({ message: "Attendance already marked for all of today's classes" })
     }
 
-    await prisma.$transaction(
+    const upsertedAttendance = await prisma.$transaction(
       routinesToMark.map((subjectId) => {
         const routine = uniqueBySubject.get(subjectId)
-        return prisma.attendance.create({
-          data: {
+        return prisma.attendance.upsert({
+          where: {
+            studentId_subjectId_date: {
+              studentId: student.id,
+              subjectId,
+              date: gateWindow.dayRange.start
+            }
+          },
+          update: {
+            instructorId: routine.instructorId,
+            status: 'PRESENT',
+            qrCode: qrData
+          },
+          create: {
             studentId: student.id,
             subjectId,
             instructorId: routine.instructorId,
@@ -1274,7 +1267,11 @@ const markDailyAttendanceQR = async (req, res) => {
       })
     )
 
-    const markedSubjects = routinesToMark.map((subjectId) => ({
+    const markedSubjectIds = upsertedAttendance
+      .map((record) => record.subjectId)
+      .filter((subjectId) => !existingMap.has(subjectId))
+
+    const markedSubjects = markedSubjectIds.map((subjectId) => ({
       id: subjectId,
       name: uniqueBySubject.get(subjectId).subject.name,
       code: uniqueBySubject.get(subjectId).subject.code,
@@ -1282,7 +1279,7 @@ const markDailyAttendanceQR = async (req, res) => {
     }))
 
     const skippedSubjects = subjectIds
-      .filter((subjectId) => existingMap.has(subjectId))
+      .filter((subjectId) => existingMap.has(subjectId) || !markedSubjectIds.includes(subjectId))
       .map((subjectId) => ({
         id: subjectId,
         name: uniqueBySubject.get(subjectId).subject.name,
@@ -1304,7 +1301,7 @@ const markDailyAttendanceQR = async (req, res) => {
       entityType: 'Attendance',
       metadata: {
         date: gateWindow.dayRange.start,
-        markedSubjectIds: routinesToMark,
+        markedSubjectIds,
         skippedSubjectIds: skippedSubjects.map((subject) => subject.id)
       }
     })

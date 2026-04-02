@@ -1,42 +1,42 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { API_BASE_URL } from '../utils/api'
+import { API_BASE_URL, clearAuthState, getAuthState, refreshSession, setAuthState, subscribeToAuthState } from '../utils/api'
 
 const AuthContext = createContext()
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
+  const [user, setUser] = useState(getAuthState().user)
+  const [token, setToken] = useState(getAuthState().token)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token')
-    const savedUser = localStorage.getItem('user')
-
-    if (savedToken && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-
-        if (parsedUser?.role) {
-          setToken(savedToken)
-          setUser(parsedUser)
-        } else {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-        }
-      } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+    let isMounted = true
+    const unsubscribe = subscribeToAuthState((nextState) => {
+      if (!isMounted) {
+        return
       }
-    }
 
-    setLoading(false)
+      setToken(nextState.token)
+      setUser(nextState.user)
+    })
+
+    refreshSession()
+      .catch(() => {
+        clearAuthState()
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+      unsubscribe()
+    }
   }, [])
 
   const login = (userData, userToken) => {
-    setUser(userData)
-    setToken(userToken)
-    localStorage.setItem('token', userToken)
-    localStorage.setItem('user', JSON.stringify(userData))
+    setAuthState({ user: userData, token: userToken })
   }
 
   const logout = () => {
@@ -44,17 +44,13 @@ export const AuthProvider = ({ children }) => {
       method: 'POST',
       credentials: 'include'
     }).catch(() => null).finally(() => {
-      setUser(null)
-      setToken(null)
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      clearAuthState()
       window.location.href = '/login'
     })
   }
 
   const updateUser = (userData) => {
-    setUser(userData)
-    localStorage.setItem('user', JSON.stringify(userData))
+    setAuthState({ user: userData, token })
   }
 
   return (

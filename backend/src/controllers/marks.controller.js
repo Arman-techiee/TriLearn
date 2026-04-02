@@ -3,11 +3,8 @@ const logger = require('../utils/logger')
 const { getPagination } = require('../utils/pagination')
 const { recordAuditLog } = require('../utils/audit')
 
-const getInstructorProfile = (userId) => prisma.instructor.findUnique({
-  where: { userId }
-})
-
-const getManagedSubject = async (subjectId, user) => {
+const getManagedSubject = async (subjectId, req) => {
+  const { user, instructor } = req
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
     include: {
@@ -24,10 +21,8 @@ const getManagedSubject = async (subjectId, user) => {
   }
 
   if (user.role === 'INSTRUCTOR') {
-    const instructor = await getInstructorProfile(user.id)
-
     if (!instructor) {
-      return { error: { status: 403, message: 'Only instructors can manage marks' } }
+      return { error: { status: 403, message: 'Instructor profile not found' } }
     }
 
     if (!subject.instructorId) {
@@ -51,7 +46,7 @@ const addMarks = async (req, res) => {
   try {
     const { studentId, subjectId, examType, totalMarks, obtainedMarks, remarks } = req.body
 
-    const access = await getManagedSubject(subjectId, req.user)
+    const access = await getManagedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -69,29 +64,36 @@ const addMarks = async (req, res) => {
       return res.status(400).json({ message: 'Selected student is not enrolled in this subject' })
     }
 
-    const existing = await prisma.mark.findFirst({
-      where: { studentId, subjectId, examType }
-    })
-
-    if (existing) {
-      return res.status(400).json({ message: 'Marks already added for this exam type' })
+    const instructorId = access.instructor?.id || access.subject.instructorId
+    if (!instructorId) {
+      return res.status(400).json({ message: 'Assign an instructor to this subject before managing marks' })
     }
 
-    const mark = await prisma.mark.create({
-      data: {
-        studentId,
-        subjectId,
-        instructorId: access.instructor.id,
-        examType,
-        totalMarks,
-        obtainedMarks,
-        remarks
-      },
-      include: {
-        student: { include: { user: { select: { name: true } } } },
-        subject: { select: { name: true, code: true } }
+    let mark
+
+    try {
+      mark = await prisma.mark.create({
+        data: {
+          studentId,
+          subjectId,
+          instructorId,
+          examType,
+          totalMarks,
+          obtainedMarks,
+          remarks
+        },
+        include: {
+          student: { include: { user: { select: { name: true } } } },
+          subject: { select: { name: true, code: true } }
+        }
+      })
+    } catch (error) {
+      if (error.code === 'P2002') {
+        return res.status(400).json({ message: 'Marks already added for this exam type' })
       }
-    })
+
+      throw error
+    }
 
     res.status(201).json({ message: 'Marks added successfully!', mark })
 
@@ -158,7 +160,7 @@ const getMarksBySubject = async (req, res) => {
     const { examType } = req.query
     const { page, limit, skip } = getPagination(req.query)
 
-    const access = await getManagedSubject(subjectId, req.user)
+    const access = await getManagedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -194,7 +196,7 @@ const getEnrolledStudentsBySubject = async (req, res) => {
   try {
     const { subjectId } = req.params
 
-    const access = await getManagedSubject(subjectId, req.user)
+    const access = await getManagedSubject(subjectId, req)
     if (access.error) {
       return res.status(access.error.status).json({ message: access.error.message })
     }
@@ -246,12 +248,10 @@ const getEnrolledStudentsBySubject = async (req, res) => {
 const getMyMarks = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query)
-    const student = await prisma.student.findUnique({
-      where: { userId: req.user.id }
-    })
+    const student = req.student
 
     if (!student) {
-      return res.status(403).json({ message: 'Only students can view their marks' })
+      return res.status(403).json({ message: 'Student profile not found' })
     }
 
     const [marks, total, allMarks] = await Promise.all([

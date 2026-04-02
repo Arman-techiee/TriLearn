@@ -63,13 +63,13 @@ enum ApplicationStatus {
 model Admin {
   id     String @id @default(uuid())
   userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Instructor {
   id         String   @id @default(uuid())
   userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   department String?
   subjects   Subject[]
   attendances Attendance[]
@@ -84,14 +84,14 @@ model Instructor {
 model Coordinator {
   id         String   @id @default(uuid())
   userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   department String?
 }
 
 model Student {
   id           String   @id @default(uuid())
   userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rollNumber   String   @unique
   semester     Int
   section      String?
@@ -132,7 +132,7 @@ model Subject {
   semester     Int
   department   String?
   instructorId String?
-  instructor   Instructor? @relation(fields: [instructorId], references: [id])
+  instructor   Instructor? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   attendances  Attendance[]
@@ -167,11 +167,11 @@ model SubjectEnrollment {
 model Attendance {
   id           String   @id @default(uuid())
   studentId    String
-  student      Student  @relation(fields: [studentId], references: [id])
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subjectId    String
-  subject      Subject  @relation(fields: [subjectId], references: [id])
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instructorId String
-  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
   date         DateTime @default(now())
   status       AttendanceStatus @default(PRESENT)
   qrCode       String?
@@ -179,6 +179,7 @@ model Attendance {
 
   @@index([studentId, subjectId, date])
   @@index([subjectId, date])
+  @@unique([studentId, subjectId, date])
 }
 
 enum AttendanceStatus {
@@ -197,9 +198,9 @@ model Assignment {
   description  String
   questionPdfUrl String?
   subjectId    String
-  subject      Subject  @relation(fields: [subjectId], references: [id])
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instructorId String
-  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
   dueDate      DateTime
   totalMarks   Int      @default(100)
   createdAt    DateTime @default(now())
@@ -214,9 +215,9 @@ model Assignment {
 model Submission {
   id           String   @id @default(uuid())
   assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   studentId    String
-  student      Student  @relation(fields: [studentId], references: [id])
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   fileUrl      String?
   note         String?
   obtainedMarks Int?
@@ -241,11 +242,11 @@ enum SubmissionStatus {
 model Mark {
   id           String   @id @default(uuid())
   studentId    String
-  student      Student  @relation(fields: [studentId], references: [id])
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subjectId    String
-  subject      Subject  @relation(fields: [subjectId], references: [id])
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instructorId String
-  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
   examType     ExamType
   totalMarks   Int
   obtainedMarks Int
@@ -253,6 +254,7 @@ model Mark {
   createdAt    DateTime @default(now())
 
   @@index([studentId, subjectId])
+  @@unique([studentId, subjectId, examType])
 }
 
 enum ExamType {
@@ -272,9 +274,9 @@ model StudyMaterial {
   description  String?
   fileUrl      String
   subjectId    String
-  subject      Subject  @relation(fields: [subjectId], references: [id])
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instructorId String
-  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
 
   @@index([subjectId])
@@ -291,7 +293,7 @@ model Notice {
   content   String
   type      NoticeType @default(GENERAL)
   postedBy  String
-  user      User       @relation(fields: [postedBy], references: [id])
+  user      User       @relation(fields: [postedBy], references: [id], onDelete: Cascade)
   createdAt DateTime   @default(now())
 
   @@index([type])
@@ -312,9 +314,9 @@ enum NoticeType {
 model Routine {
   id           String   @id @default(uuid())
   subjectId    String
-  subject      Subject  @relation(fields: [subjectId], references: [id])
+  subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instructorId String
-  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
   dayOfWeek    DayOfWeek
   startTime    String
   endTime      String

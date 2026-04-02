@@ -4,11 +4,25 @@ const jwt = require('jsonwebtoken')
 const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || '15m'
 const REFRESH_TOKEN_EXPIRES_DAYS = parseInt(process.env.REFRESH_TOKEN_EXPIRES_DAYS || '7', 10)
 
-const getRefreshSecret = () => process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
+const getAccessSecret = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET must be configured')
+  }
+
+  return process.env.JWT_SECRET
+}
+
+const getRefreshSecret = () => {
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET must be configured')
+  }
+
+  return process.env.JWT_REFRESH_SECRET
+}
 
 const signAccessToken = (user) => jwt.sign(
   { id: user.id, role: user.role, type: 'access' },
-  process.env.JWT_SECRET,
+  getAccessSecret(),
   { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
 )
 

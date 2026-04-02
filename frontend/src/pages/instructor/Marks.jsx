@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
@@ -6,9 +6,10 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
+import { useReferenceData } from '../../context/ReferenceDataContext'
 import logger from '../../utils/logger'
 const Marks = () => {
-  const [subjects, setSubjects] = useState([])
+  const { subjects, loadSubjects } = useReferenceData()
   const [marks, setMarks] = useState([])
   const [students, setStudents] = useState([])
   const [selectedSubject, setSelectedSubject] = useState('')
@@ -24,37 +25,7 @@ const Marks = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => {
-    fetchSubjects()
-  }, [])
-
-  useEffect(() => {
-    if (selectedSubject) {
-      fetchMarks()
-    }
-  }, [selectedSubject, page])
-
-  useEffect(() => {
-    if (!showModal) return
-
-    if (form.subjectId) {
-      fetchStudents(form.subjectId)
-      return
-    }
-
-    setStudents([])
-  }, [form.subjectId, showModal])
-
-  const fetchSubjects = async () => {
-    try {
-      const res = await api.get('/subjects')
-      setSubjects(res.data.subjects)
-    } catch (error) {
-      logger.error(error)
-    }
-  }
-
-  const fetchStudents = async (subjectId) => {
+  const fetchStudents = useCallback(async (subjectId) => {
     if (!subjectId) {
       setStudents([])
       return
@@ -64,23 +35,46 @@ const Marks = () => {
       const res = await api.get(`/marks/subject/${subjectId}/students`)
       setStudents(res.data.students)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load subject students', error)
       setStudents([])
     }
-  }
+  }, [])
 
-  const fetchMarks = async () => {
+  const fetchMarks = useCallback(async () => {
     try {
       setLoading(true)
       const res = await api.get(`/marks/subject/${selectedSubject}?page=${page}&limit=${limit}`)
       setMarks(res.data.marks)
       setTotal(res.data.total)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load marks', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [limit, page, selectedSubject])
+
+  useEffect(() => {
+    void loadSubjects().catch((error) => {
+      logger.error('Failed to load subjects', error)
+    })
+  }, [loadSubjects])
+
+  useEffect(() => {
+    if (selectedSubject) {
+      void fetchMarks()
+    }
+  }, [fetchMarks, selectedSubject])
+
+  useEffect(() => {
+    if (!showModal) return
+
+    if (form.subjectId) {
+      void fetchStudents(form.subjectId)
+      return
+    }
+
+    setStudents([])
+  }, [fetchStudents, form.subjectId, showModal])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -94,7 +88,7 @@ const Marks = () => {
       setSuccess('Result record added successfully!')
       setShowModal(false)
       setForm({ studentId: '', subjectId: '', examType: 'INTERNAL', totalMarks: 100, obtainedMarks: '', remarks: '' })
-      if (selectedSubject) fetchMarks()
+      if (selectedSubject) void fetchMarks()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')

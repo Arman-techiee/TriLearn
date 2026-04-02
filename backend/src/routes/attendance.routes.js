@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { protect, allowRoles } = require('../middleware/auth.middleware')
+const { attachActorProfiles } = require('../middleware/profile.middleware')
 const { validate } = require('../middleware/validate.middleware')
 const { schemas } = require('../validators/schemas')
 const {
@@ -19,6 +20,7 @@ const {
 } = require('../controllers/attendance.controller')
 
 router.use(protect)
+router.use(attachActorProfiles)
 
 // Instructor routes
 router.post('/generate-daily-qr', allowRoles('GATEKEEPER'), generateDailyAttendanceQR)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
@@ -6,19 +6,21 @@ const InstructorSubjects = () => {
   const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchSubjects() }, [])
-
-  const fetchSubjects = async () => {
+  const fetchSubjects = useCallback(async () => {
     try {
       setLoading(true)
       const res = await api.get('/subjects')
       setSubjects(res.data.subjects)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load instructor subjects', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchSubjects()
+  }, [fetchSubjects])
 
   return (
     <InstructorLayout>

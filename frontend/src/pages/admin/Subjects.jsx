@@ -5,13 +5,13 @@ import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
+import { useReferenceData } from '../../context/ReferenceDataContext'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import { getFriendlyErrorMessage } from '../../utils/errors'
 import logger from '../../utils/logger'
 const Subjects = () => {
-  const [subjects, setSubjects] = useState([])
+  const { subjects, departments, loadSubjects, loadDepartments } = useReferenceData()
   const [instructors, setInstructors] = useState([])
-  const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editSubject, setEditSubject] = useState(null)
@@ -31,18 +31,22 @@ const Subjects = () => {
   const debouncedEnrollmentSearch = useDebouncedValue(enrollmentSearch, 250)
 
   useEffect(() => {
-    fetchSubjects()
+    void fetchSubjects()
     fetchInstructors()
-    fetchDepartments()
   }, [])
+
+  useEffect(() => {
+    void loadDepartments().catch((error) => {
+      logger.error('Failed to load departments', error)
+    })
+  }, [loadDepartments])
 
   const fetchSubjects = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/subjects')
-      setSubjects(res.data.subjects)
+      await loadSubjects({ force: true })
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load subjects', error)
     } finally {
       setLoading(false)
     }
@@ -53,7 +57,7 @@ const Subjects = () => {
       const res = await api.get('/admin/users?role=INSTRUCTOR')
       setInstructors(res.data.users)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load instructors', error)
     }
   }
 
@@ -116,15 +120,6 @@ const Subjects = () => {
     setForm({ name: '', code: '', description: '', semester: 1, department: '', instructorId: '' })
     setError('')
     setShowModal(true)
-  }
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await api.get('/departments')
-      setDepartments(res.data.departments)
-    } catch (error) {
-      logger.error(error)
-    }
   }
 
   const openEnrollmentModal = async (subject) => {

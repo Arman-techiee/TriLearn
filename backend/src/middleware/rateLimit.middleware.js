@@ -24,4 +24,26 @@ const uploadLimiter = rateLimit({
   message: { message: 'Too many upload attempts, please try again later' }
 })
 
-module.exports = { apiLimiter, authLimiter, uploadLimiter }
+const studentUploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many student upload attempts, please try again later' }
+})
+
+const staffUploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many staff upload attempts, please try again later' }
+})
+
+module.exports = {
+  apiLimiter,
+  authLimiter,
+  uploadLimiter,
+  studentUploadLimiter,
+  staffUploadLimiter
+}

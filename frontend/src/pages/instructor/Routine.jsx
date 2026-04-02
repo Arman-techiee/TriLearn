@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
@@ -25,18 +25,20 @@ const InstructorRoutine = () => {
   const [loading, setLoading] = useState(true)
   const [activeDay, setActiveDay] = useState(todayName())
 
-  useEffect(() => { fetchRoutines() }, [])
-
-  const fetchRoutines = async () => {
+  const fetchRoutines = useCallback(async () => {
     try {
       const res = await api.get('/routines')
       setRoutines(res.data.routines)
     } catch (err) {
-      logger.error(err)
+      logger.error('Failed to load instructor routine', err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchRoutines()
+  }, [fetchRoutines])
 
   const byDay = DAYS.reduce((acc, day) => {
     acc[day] = routines.filter(r => r.dayOfWeek === day).sort((a, b) => a.startTime.localeCompare(b.startTime))

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -12,20 +12,22 @@ const StudentNotices = () => {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchNotices() }, [page])
-
-  const fetchNotices = async () => {
+  const fetchNotices = useCallback(async () => {
     try {
       setLoading(true)
       const res = await api.get(`/notices?page=${page}&limit=${limit}`)
       setNotices(res.data.notices)
       setTotal(res.data.total)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load student notices', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [limit, page])
+
+  useEffect(() => {
+    void fetchNotices()
+  }, [fetchNotices])
 
   return (
     <StudentLayout>

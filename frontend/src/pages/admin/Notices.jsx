@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
@@ -33,20 +33,22 @@ const Notices = () => {
   }
   const { values, errors, handleChange, handleSubmit, setValues, setErrors } = useForm(initialNoticeValues, validateNotice)
 
-  useEffect(() => { fetchNotices() }, [page])
-
-  const fetchNotices = async () => {
+  const fetchNotices = useCallback(async () => {
     try {
       setLoading(true)
       const res = await api.get(`/notices?page=${page}&limit=${limit}`)
       setNotices(res.data.notices)
       setTotal(res.data.total)
     } catch (error) {
-      logger.error(error)
+      logger.error('Failed to load admin notices', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [limit, page])
+
+  useEffect(() => {
+    void fetchNotices()
+  }, [fetchNotices])
 
   const saveNotice = async (formValues) => {
     setError('')
@@ -62,7 +64,7 @@ const Notices = () => {
       setEditNotice(null)
       setValues(initialNoticeValues)
       setErrors({})
-      fetchNotices()
+      void fetchNotices()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
@@ -76,7 +78,7 @@ const Notices = () => {
       await api.delete(`/notices/${noticeToDelete.id}`)
       setNoticeToDelete(null)
       setSuccess('Notice deleted!')
-      fetchNotices()
+      void fetchNotices()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')

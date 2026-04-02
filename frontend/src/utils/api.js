@@ -3,9 +3,34 @@ import axios from 'axios'
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '')
 
-const clearAuthState = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+let authState = {
+  token: null,
+  user: null
+}
+
+const authSubscribers = new Set()
+
+const notifyAuthSubscribers = () => {
+  const snapshot = { ...authState }
+  authSubscribers.forEach((listener) => listener(snapshot))
+}
+
+export const getAuthState = () => ({ ...authState })
+
+export const subscribeToAuthState = (listener) => {
+  authSubscribers.add(listener)
+  return () => {
+    authSubscribers.delete(listener)
+  }
+}
+
+export const setAuthState = ({ token = null, user = null } = {}) => {
+  authState = { token, user }
+  notifyAuthSubscribers()
+}
+
+export const clearAuthState = () => {
+  setAuthState({ token: null, user: null })
 }
 
 export const resolveFileUrl = (fileUrl) => {
@@ -62,12 +87,27 @@ const shouldRetryRequest = (error) => {
 
 // Automatically add token to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (authState.token) {
+    config.headers.Authorization = `Bearer ${authState.token}`
   }
   return config
 })
+
+export const refreshSession = async () => {
+  if (!refreshPromise) {
+    refreshPromise = refreshClient.post('/auth/refresh')
+      .then((response) => {
+        const { token, user } = response.data
+        setAuthState({ token, user })
+        return response.data
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
 
 // Handle token expiry
 api.interceptors.response.use(
@@ -98,18 +138,7 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        if (!refreshPromise) {
-          refreshPromise = refreshClient.post('/auth/refresh')
-            .finally(() => {
-              refreshPromise = null
-            })
-        }
-
-        const refreshResponse = await refreshPromise
-        const { token, user } = refreshResponse.data
-
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
+        const { token } = await refreshSession()
 
         originalRequest.headers = originalRequest.headers || {}
         originalRequest.headers.Authorization = `Bearer ${token}`

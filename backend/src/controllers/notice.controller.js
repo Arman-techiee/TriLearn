@@ -2,6 +2,21 @@ const prisma = require('../utils/prisma')
 const { getPagination } = require('../utils/pagination')
 const logger = require('../utils/logger')
 const { recordAuditLog } = require('../utils/audit')
+const { sanitizePlainText } = require('../utils/sanitize')
+
+const validateSanitizedNotice = ({ title, content }, res) => {
+  if (title.length < 3) {
+    res.status(400).json({ message: 'Notice title must contain at least 3 plain-text characters' })
+    return false
+  }
+
+  if (content.length < 10) {
+    res.status(400).json({ message: 'Notice content must contain at least 10 plain-text characters' })
+    return false
+  }
+
+  return true
+}
 
 // ================================
 // CREATE NOTICE (Admin/Instructor)
@@ -9,11 +24,17 @@ const { recordAuditLog } = require('../utils/audit')
 const createNotice = async (req, res) => {
   try {
     const { title, content, type } = req.body
+    const sanitizedTitle = sanitizePlainText(title)
+    const sanitizedContent = sanitizePlainText(content)
+
+    if (!validateSanitizedNotice({ title: sanitizedTitle, content: sanitizedContent }, res)) {
+      return
+    }
 
     const notice = await prisma.notice.create({
       data: {
-        title,
-        content,
+        title: sanitizedTitle,
+        content: sanitizedContent,
         type: type || 'GENERAL',
         postedBy: req.user.id
       },
@@ -104,6 +125,12 @@ const updateNotice = async (req, res) => {
   try {
     const { id } = req.params
     const { title, content, type } = req.body
+    const sanitizedTitle = sanitizePlainText(title)
+    const sanitizedContent = sanitizePlainText(content)
+
+    if (!validateSanitizedNotice({ title: sanitizedTitle, content: sanitizedContent }, res)) {
+      return
+    }
 
     const notice = await prisma.notice.findUnique({ where: { id } })
     if (!notice) {
@@ -117,7 +144,11 @@ const updateNotice = async (req, res) => {
 
     const updated = await prisma.notice.update({
       where: { id },
-      data: { title, content, type }
+      data: {
+        title: sanitizedTitle,
+        content: sanitizedContent,
+        type
+      }
     })
 
     res.json({ message: 'Notice updated successfully!', notice: updated })

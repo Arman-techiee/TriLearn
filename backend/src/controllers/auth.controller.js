@@ -21,6 +21,8 @@ const buildAuthUser = (user) => ({
   profileCompleted: !!user.profileCompleted
 })
 
+const isPasswordResetEnabled = () => process.env.ENABLE_PASSWORD_RESET === 'true'
+
 const issueAuthSession = async (user, res, previousRefreshToken) => {
   const accessToken = signAccessToken(user)
   const refreshToken = signRefreshToken(user)
@@ -483,6 +485,12 @@ const completeProfile = async (req, res) => {
 // ================================
 const forgotPassword = async (req, res) => {
   try {
+    if (!isPasswordResetEnabled()) {
+      return res.status(501).json({
+        message: 'Password reset is not available until email delivery is configured'
+      })
+    }
+
     const { email } = req.body
 
     const user = await prisma.user.findUnique({
@@ -526,6 +534,12 @@ const forgotPassword = async (req, res) => {
 // ================================
 const resetPassword = async (req, res) => {
   try {
+    if (!isPasswordResetEnabled()) {
+      return res.status(501).json({
+        message: 'Password reset is not available until email delivery is configured'
+      })
+    }
+
     const { token, password } = req.body
     const tokenHash = hashToken(token)
 
