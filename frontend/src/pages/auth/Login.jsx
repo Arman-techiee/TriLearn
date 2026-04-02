@@ -68,7 +68,7 @@ const Login = () => {
         {/* Form */}
         <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="ui-form-label">
               Email
             </label>
             <input
@@ -78,13 +78,13 @@ const Login = () => {
               onChange={handleChange}
               placeholder="Enter your email"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
             />
-            {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
+            {errors.email && <p className="ui-form-helper-error">{errors.email}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="ui-form-label">
               Password
             </label>
             <input
@@ -94,9 +94,9 @@ const Login = () => {
               onChange={handleChange}
               placeholder="Enter your password"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`ui-form-input ${errors.password ? 'ui-form-input-error' : ''}`}
             />
-            {errors.password && <p className="text-xs text-red-600 mt-1">{errors.password}</p>}
+            {errors.password && <p className="ui-form-helper-error">{errors.password}</p>}
           </div>
 
           <button

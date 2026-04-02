@@ -6,6 +6,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import ChangePassword from './pages/auth/ChangePassword'
 import StudentIntakeForm from './pages/auth/StudentIntakeForm'
+import HomePage from './pages/shared/HomePage'
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard'
@@ -28,7 +29,7 @@ import InstructorMaterials from './pages/instructor/Materials'
 import InstructorRoutine from './pages/instructor/Routine'
 
 // Student pages
-import StudentDashboard from './pages/student/Dashboard'
+import Learnings from './pages/Learnings'
 import StudentSubjects from './pages/student/Subjects'
 import StudentAttendance from './pages/student/Attendance'
 import StudentAssignments from './pages/student/Assignments'
@@ -77,6 +78,7 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      <Route path="/" element={user ? <Navigate to={homeRoute} /> : <HomePage />} />
       <Route path="/login" element={!user ? <Login /> : <Navigate to={homeRoute} />} />
       <Route path="/student-intake" element={<StudentIntakeForm />} />
       <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to={homeRoute} />} />
@@ -121,7 +123,7 @@ const AppRoutes = () => {
       <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><ProfilePage /></ProtectedRoute>} />
 
       {/* Student Routes */}
-      <Route path="/student" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/student" element={<ProtectedRoute allowedRoles={['STUDENT']}><Learnings /></ProtectedRoute>} />
       <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['STUDENT']}><ProfilePage /></ProtectedRoute>} />
       <Route path="/student/scan" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentAttendance /></ProtectedRoute>} />
       <Route path="/student/subjects" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentSubjects /></ProtectedRoute>} />
@@ -133,7 +135,7 @@ const AppRoutes = () => {
       <Route path="/student/routine" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentRoutine /></ProtectedRoute>} />
       <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={['ADMIN']}><ProfilePage /></ProtectedRoute>} />
       
-      <Route path="*" element={<Navigate to={user ? homeRoute : '/login'} />} />
+      <Route path="*" element={<Navigate to={user ? homeRoute : '/'} />} />
     </Routes>
   )
 }

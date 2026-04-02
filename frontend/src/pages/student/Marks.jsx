@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import logger from '../../utils/logger'
 const StudentMarks = () => {
@@ -36,10 +37,11 @@ const StudentMarks = () => {
   return (
     <StudentLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Examination Results</h1>
-          <p className="text-gray-500 text-sm mt-1">Review your published examination performance by subject and assessment.</p>
-        </div>
+        <PageHeader
+          title="Examination Results"
+          subtitle="Review your published examination performance by subject and assessment."
+          breadcrumbs={['Student', 'Results']}
+        />
 
         {loading ? (
           <div className="text-center text-gray-500 py-8">Loading...</div>

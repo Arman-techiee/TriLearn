@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react'
+import { BellRing, BookOpenText, ClipboardList } from 'lucide-react'
 import InstructorLayout from '../../layouts/InstructorLayout'
+import PageHeader from '../../components/PageHeader'
+import StatCard from '../../components/StatCard'
 import api from '../../utils/api'
 import { useAuth } from '../../context/AuthContext'
 import logger from '../../utils/logger'
-const StatCard = ({ title, value, icon, color }) => (
-  <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${color}`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-gray-500 text-sm">{title}</p>
-        <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
-      </div>
-      <span className="text-4xl">{icon}</span>
-    </div>
-  </div>
-)
 
 const InstructorDashboard = () => {
   const { user } = useAuth()
@@ -64,21 +56,17 @@ const InstructorDashboard = () => {
     <InstructorLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Welcome back, {user?.name}! 👋
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Here's what's happening in your classes today
-          </p>
-        </div>
+        <PageHeader
+          title={`Welcome back, ${user?.name}!`}
+          subtitle="Here's what's happening in your classes today"
+          breadcrumbs={['Instructor', 'Dashboard']}
+        />
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatCard title="My Subjects" value={stats.totalSubjects} icon="📚" color="border-green-500" />
-          <StatCard title="Assignments" value={stats.totalAssignments} icon="📝" color="border-blue-500" />
-          <StatCard title="Notices" value={stats.totalNotices} icon="📢" color="border-purple-500" />
+        <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">
+          <StatCard title="My Subjects" value={stats.totalSubjects} icon={BookOpenText} iconClassName="from-emerald-500 to-green-600" trend="+3.1%" trendLabel="scheduled this term" />
+          <StatCard title="Assignments" value={stats.totalAssignments} icon={ClipboardList} iconClassName="from-blue-500 to-cyan-600" trend="+6.4%" trendLabel="awaiting review" />
+          <StatCard title="Notices" value={stats.totalNotices} icon={BellRing} iconClassName="from-violet-500 to-purple-600" trend="+1.8%" trendLabel="campus updates" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

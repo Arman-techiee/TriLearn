@@ -1,1 +1,42 @@
 @import "tailwindcss";
+@import "./styles/design-tokens.css";
+
+:root {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+body {
+  min-width: 320px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-family: var(--font-sans-base);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: var(--tracking-heading-tight);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+}

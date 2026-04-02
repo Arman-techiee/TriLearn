@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import logger from '../../utils/logger'
@@ -32,10 +33,11 @@ const StudentNotices = () => {
   return (
     <StudentLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Notices</h1>
-          <p className="text-gray-500 text-sm mt-1">Stay updated with school announcements</p>
-        </div>
+        <PageHeader
+          title="Notices"
+          subtitle="Stay updated with school announcements"
+          breadcrumbs={['Student', 'Notices']}
+        />
 
         {loading ? (
           <LoadingSpinner text="Loading notices..." />

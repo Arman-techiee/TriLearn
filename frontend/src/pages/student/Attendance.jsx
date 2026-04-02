@@ -1,12 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
+import { Camera, Square, Upload } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import logger from '../../utils/logger'
+
+const ringTone = (percentage) => {
+  if (percentage >= 75) return 'var(--color-role-instructor)'
+  if (percentage >= 50) return 'var(--color-role-gate)'
+  return '#ef4444'
+}
+
+const AttendanceRing = ({ percentage }) => {
+  const numericPercentage = Number.parseFloat(percentage) || 0
+  const tone = ringTone(numericPercentage)
+
+  return (
+    <div
+      className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
+      style={{
+        background: `conic-gradient(${tone} ${numericPercentage * 3.6}deg, rgba(226,232,240,0.9) 0deg)`
+      }}
+    >
+      <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-white text-sm font-black text-slate-900 shadow-inner">
+        {percentage}
+      </div>
+    </div>
+  )
+}
 const StudentAttendance = () => {
   const location = useLocation()
   const [attendance, setAttendance] = useState([])
@@ -152,14 +178,18 @@ const StudentAttendance = () => {
   return (
     <StudentLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">{location.pathname === '/student/scan' ? 'Scan Gate QR' : 'My Attendance'}</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {location.pathname === '/student/scan'
-              ? 'Use your phone camera here to scan the gate QR quickly when you arrive at college.'
-              : 'Track your attendance and scan the daily entry QR from your phone.'}
-          </p>
-        </div>
+        <PageHeader
+          title={location.pathname === '/student/scan' ? 'Scan Gate QR' : 'My Attendance'}
+          subtitle={location.pathname === '/student/scan'
+            ? 'Use your phone camera here to scan the gate QR quickly when you arrive at college.'
+            : 'Track your attendance and scan the daily entry QR from your phone.'}
+          breadcrumbs={['Student', 'Attendance']}
+          actions={[
+            { label: 'Start Scanner', icon: Camera, variant: 'primary', onClick: startScanner, disabled: submittingScan },
+            { label: 'Stop', icon: Square, variant: 'secondary', onClick: () => { stopScanner(); setScannerOpen(false); setScannerStatus('Scanner stopped.') } },
+            { label: submittingScan ? 'Submitting...' : 'Submit QR', icon: Upload, variant: 'secondary', onClick: () => submitDailyQr(manualQrData), disabled: !manualQrData.trim() || submittingScan }
+          ]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
@@ -229,20 +259,20 @@ const StudentAttendance = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {summary.map((item, index) => (
-                <div key={index} className="bg-white rounded-2xl shadow-sm p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
+                <div key={index} className="ui-card rounded-2xl p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                       <h3 className="font-semibold text-gray-800">{item.subject}</h3>
                       <p className="text-xs text-gray-500">{item.code}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="ui-status-badge ui-status-success">{item.present} present</span>
+                        <span className="ui-status-badge ui-status-danger">{item.absent} absent</span>
+                        <span className="ui-status-badge ui-status-warning">{item.late} late</span>
+                      </div>
                     </div>
-                    <span className={`text-2xl font-bold ${
-                      parseFloat(item.percentage) >= 75 ? 'text-green-600' :
-                      parseFloat(item.percentage) >= 50 ? 'text-orange-500' :
-                      'text-red-600'}`}>
-                      {item.percentage}
-                    </span>
+                    <AttendanceRing percentage={item.percentage} />
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="mt-5 w-full rounded-full bg-gray-200 h-2">
                     <div
                       className={`h-2 rounded-full ${
                         parseFloat(item.percentage) >= 75 ? 'bg-green-500' :
@@ -251,7 +281,7 @@ const StudentAttendance = () => {
                       style={{ width: item.percentage }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-gray-500 mt-3">
                     {item.present} present out of {item.total} classes
                   </p>
                   <p className="text-xs text-gray-400 mt-1">

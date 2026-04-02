@@ -52,24 +52,30 @@ const ResetPassword = () => {
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <input
-            name="password"
-            type="password"
-            value={values.password}
-            onChange={handleChange}
-            placeholder="New password"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.password ? <p className="text-xs text-red-600">{errors.password}</p> : null}
-          <input
-            name="confirmPassword"
-            type="password"
-            value={values.confirmPassword}
-            onChange={handleChange}
-            placeholder="Confirm new password"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.confirmPassword ? <p className="text-xs text-red-600">{errors.confirmPassword}</p> : null}
+          <div>
+            <label className="ui-form-label">New Password</label>
+            <input
+              name="password"
+              type="password"
+              value={values.password}
+              onChange={handleChange}
+              placeholder="Create a new password"
+              className={`ui-form-input ${errors.password ? 'ui-form-input-error' : ''}`}
+            />
+            {errors.password ? <p className="ui-form-helper-error">{errors.password}</p> : null}
+          </div>
+          <div>
+            <label className="ui-form-label">Confirm Password</label>
+            <input
+              name="confirmPassword"
+              type="password"
+              value={values.confirmPassword}
+              onChange={handleChange}
+              placeholder="Confirm new password"
+              className={`ui-form-input ${errors.confirmPassword ? 'ui-form-input-error' : ''}`}
+            />
+            {errors.confirmPassword ? <p className="ui-form-helper-error">{errors.confirmPassword}</p> : null}
+          </div>
           <button
             type="submit"
             disabled={loading}

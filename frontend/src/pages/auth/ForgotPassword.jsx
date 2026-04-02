@@ -38,15 +38,18 @@ const ForgotPassword = () => {
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <input
-            name="email"
-            type="email"
-            value={values.email}
-            onChange={handleChange}
-            placeholder="Enter your email"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.email ? <p className="text-xs text-red-600">{errors.email}</p> : null}
+          <div>
+            <label className="ui-form-label">Email Address</label>
+            <input
+              name="email"
+              type="email"
+              value={values.email}
+              onChange={handleChange}
+              placeholder="Enter your email"
+              className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
+            />
+            {errors.email ? <p className="ui-form-helper-error">{errors.email}</p> : null}
+          </div>
           <button
             type="submit"
             disabled={loading}

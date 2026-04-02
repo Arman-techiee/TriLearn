@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
 import Alert from '../../components/Alert'
+import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 import { getHomeRouteForUser } from '../../utils/auth'
@@ -48,10 +49,11 @@ const ProfileSetup = () => {
   return (
     <StudentLayout>
       <div className="p-8 max-w-3xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Complete Your Profile</h1>
-          <p className="text-sm text-gray-500 mt-1">Fill in your basic student details before using the portal.</p>
-        </div>
+        <PageHeader
+          title="Complete Your Profile"
+          subtitle="Fill in your basic student details before using the portal."
+          breadcrumbs={['Student', 'Profile Setup']}
+        />
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-2xl shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-4">

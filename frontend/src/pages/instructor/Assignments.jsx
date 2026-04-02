@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Plus } from 'lucide-react'
 import Alert from '../../components/Alert'
+import PageHeader from '../../components/PageHeader'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
@@ -98,19 +100,12 @@ const Assignments = () => {
     <InstructorLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Assignments</h1>
-            <p className="text-gray-500 text-sm mt-1">Create and manage assignments</p>
-          </div>
-          <button
-            onClick={() => { setShowModal(true); setError('') }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
-          >
-            + Create Assignment
-          </button>
-        </div>
+        <PageHeader
+          title="Assignments"
+          subtitle="Create and manage assignments"
+          breadcrumbs={['Instructor', 'Assignments']}
+          actions={[{ label: 'Create Assignment', icon: Plus, variant: 'primary', onClick: () => { setShowModal(true); setError('') } }]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />

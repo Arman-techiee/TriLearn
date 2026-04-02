@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { Plus } from 'lucide-react'
 import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import PageHeader from '../../components/PageHeader'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
@@ -122,19 +124,12 @@ const InstructorMaterials = () => {
     <InstructorLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Study Materials</h1>
-            <p className="text-gray-500 text-sm mt-1">Upload and manage learning resources</p>
-          </div>
-          <button
-            onClick={() => { setShowModal(true); setError('') }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
-          >
-            + Upload Material
-          </button>
-        </div>
+        <PageHeader
+          title="Study Materials"
+          subtitle="Upload and manage learning resources"
+          breadcrumbs={['Instructor', 'Materials']}
+          actions={[{ label: 'Upload Material', icon: Plus, variant: 'primary', onClick: () => { setShowModal(true); setError('') } }]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />

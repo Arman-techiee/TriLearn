@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { Plus } from 'lucide-react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import useForm from '../../hooks/useForm'
@@ -62,16 +64,12 @@ const InstructorNotices = () => {
   return (
     <InstructorLayout>
       <div className="p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Notices</h1>
-            <p className="text-gray-500 text-sm mt-1">View and post notices</p>
-          </div>
-          <button onClick={() => { setShowModal(true); setError(''); setValues(initialNoticeValues); setErrors({}) }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium">
-            + Post Notice
-          </button>
-        </div>
+        <PageHeader
+          title="Notices"
+          subtitle="View and post notices"
+          breadcrumbs={['Instructor', 'Notices']}
+          actions={[{ label: 'Post Notice', icon: Plus, variant: 'primary', onClick: () => { setShowModal(true); setError(''); setValues(initialNoticeValues); setErrors({}) } }]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />

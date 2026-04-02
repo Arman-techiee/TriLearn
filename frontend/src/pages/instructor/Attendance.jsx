@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import InstructorLayout from '../../layouts/InstructorLayout'
+import StatusBadge from '../../components/StatusBadge'
+import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 import EmptyState from '../../components/EmptyState'
@@ -315,14 +318,20 @@ const Attendance = () => {
   return (
     <InstructorLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Attendance</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {isCoordinator
-              ? 'Review department attendance by semester and section with monthly averages and a full record list.'
-              : 'Manage daily attendance with a proper subject roster, QR access, and date-wise records.'}
-          </p>
-        </div>
+        <PageHeader
+          title="Attendance"
+          subtitle={isCoordinator
+            ? 'Review department attendance by semester and section with monthly averages and a full record list.'
+            : 'Manage daily attendance with a proper subject roster, QR access, and date-wise records.'}
+          breadcrumbs={[isCoordinator ? 'Coordinator' : 'Instructor', 'Attendance']}
+          actions={[{
+            label: isCoordinator ? 'Load Department Report' : 'Refresh Attendance',
+            icon: RefreshCw,
+            variant: 'secondary',
+            onClick: isCoordinator ? fetchCoordinatorDepartmentReport : fetchAttendanceWorkspace,
+            disabled: isCoordinator ? !selectedSemester : !selectedSubject
+          }]}
+        />
 
         {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
@@ -554,13 +563,18 @@ const Attendance = () => {
             )}
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b">
-                <h2 className="text-lg font-semibold text-gray-800">{isCoordinator ? 'Monthly Attendance Report' : 'Saved Records'}</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {isCoordinator
-                    ? `Showing ${monthlyMeta.department || 'department'} attendance for semester ${monthlyMeta.semester || selectedSemester}${monthlyMeta.section ? `, section ${monthlyMeta.section}` : ''} in ${monthlyMeta.monthLabel || selectedMonth}.`
-                    : `Showing records for ${selectedDate}.`}
-                </p>
+              <div className="flex items-center justify-between p-6 border-b">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">{isCoordinator ? 'Monthly Attendance Report' : 'Saved Records'}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {isCoordinator
+                      ? `Showing ${monthlyMeta.department || 'department'} attendance for semester ${monthlyMeta.semester || selectedSemester}${monthlyMeta.section ? `, section ${monthlyMeta.section}` : ''} in ${monthlyMeta.monthLabel || selectedMonth}.`
+                      : `Showing records for ${selectedDate}.`}
+                  </p>
+                </div>
+                <span className="ui-status-badge ui-status-neutral">
+                  {isCoordinator ? filteredMonthlyStudents.length : attendance.length} records
+                </span>
               </div>
               {loading ? (
                 <div className="p-6">
@@ -602,9 +616,9 @@ const Attendance = () => {
                         {exportingFormat === 'pdf' ? 'Exporting...' : 'Export PDF'}
                       </button>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[520px]">
                       <table className="w-full min-w-[980px]">
-                        <thead className="bg-gray-50">
+                        <thead className="sticky top-0 z-10 bg-slate-50">
                           <tr className="text-left text-sm text-gray-500">
                             <th className="px-4 py-3">Student</th>
                             <th className="px-4 py-3">Roll</th>
@@ -617,9 +631,9 @@ const Attendance = () => {
                         </thead>
                         <tbody>
                           {filteredMonthlyStudents.map((student) => (
-                            <tr key={student.id} className="border-t hover:bg-gray-50">
+                            <tr key={student.id} className="border-t border-slate-200 transition-colors hover:bg-blue-50/30">
                               <td className="px-4 py-4">
-                                <p className="font-medium text-gray-800">{student.name}</p>
+                                <p className="font-semibold text-slate-900">{student.name}</p>
                                 <p className="text-xs text-gray-500 mt-1">{student.email}</p>
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-600">{student.rollNumber}</td>
@@ -634,11 +648,16 @@ const Attendance = () => {
                       </table>
                     </div>
                     <div className="mt-6 border-t pt-6">
-                      <h3 className="text-base font-semibold text-gray-800">Attendance Record List</h3>
-                      <p className="text-sm text-gray-500 mt-1">Detailed monthly entries for every student in the selected department group.</p>
-                      <div className="overflow-x-auto mt-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-semibold text-gray-800">Attendance Record List</h3>
+                          <p className="text-sm text-gray-500 mt-1">Detailed monthly entries for every student in the selected department group.</p>
+                        </div>
+                        <span className="ui-status-badge ui-status-neutral">{filteredCoordinatorRecords.length} records</span>
+                      </div>
+                      <div className="overflow-x-auto mt-4 max-h-[420px]">
                         <table className="w-full min-w-[980px]">
-                          <thead className="bg-gray-50">
+                          <thead className="sticky top-0 z-10 bg-slate-50">
                             <tr className="text-left text-sm text-gray-500">
                               <th className="px-4 py-3">Student</th>
                               <th className="px-4 py-3">Roll</th>
@@ -649,9 +668,9 @@ const Attendance = () => {
                           </thead>
                           <tbody>
                             {filteredCoordinatorRecords.map((record) => (
-                              <tr key={record.id} className="border-t hover:bg-gray-50">
+                              <tr key={record.id} className="border-t border-slate-200 transition-colors hover:bg-blue-50/30">
                                 <td className="px-4 py-4">
-                                  <p className="font-medium text-gray-800">{record.student.name}</p>
+                                  <p className="font-semibold text-slate-900">{record.student.name}</p>
                                   <p className="text-xs text-gray-500 mt-1">{record.student.email}</p>
                                 </td>
                                 <td className="px-4 py-4 text-sm text-gray-600">{record.student.rollNumber}</td>
@@ -661,9 +680,7 @@ const Attendance = () => {
                                 </td>
                                 <td className="px-4 py-4 text-sm text-gray-600">{new Date(record.date).toLocaleDateString()}</td>
                                 <td className="px-4 py-4">
-                                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusClasses[record.status]}`}>
-                                    {record.status}
-                                  </span>
+                                  <StatusBadge status={record.status} />
                                 </td>
                               </tr>
                             ))}
@@ -682,9 +699,9 @@ const Attendance = () => {
                   />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[520px]">
                   <table className="w-full min-w-[720px]">
-                    <thead className="bg-gray-50">
+                    <thead className="sticky top-0 z-10 bg-slate-50">
                       <tr className="text-left text-sm text-gray-500">
                         <th className="px-6 py-4">Student</th>
                         <th className="px-6 py-4">Email</th>
@@ -694,17 +711,15 @@ const Attendance = () => {
                     </thead>
                     <tbody>
                       {attendance.map((record) => (
-                        <tr key={record.id} className="border-t hover:bg-gray-50">
+                        <tr key={record.id} className="border-t border-slate-200 transition-colors hover:bg-blue-50/30">
                           <td className="px-6 py-4">
-                            <p className="font-medium text-gray-800">{record.student?.user?.name}</p>
+                            <p className="font-semibold text-slate-900">{record.student?.user?.name}</p>
                             <p className="text-xs text-gray-500 mt-1">{record.student?.rollNumber}</p>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">{record.student?.user?.email}</td>
                           <td className="px-6 py-4 text-sm text-gray-500">{new Date(record.date).toLocaleDateString()}</td>
                           <td className="px-6 py-4">
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusClasses[record.status]}`}>
-                              {record.status}
-                            </span>
+                            <StatusBadge status={record.status} />
                           </td>
                         </tr>
                       ))}

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { Plus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import logger from '../../utils/logger'
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' }
@@ -133,19 +136,17 @@ const AdminRoutine = () => {
     <AdminLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Class Routine</h1>
-            <p className="text-gray-500 text-sm mt-1">Manage weekly timetable</p>
-          </div>
-          <button
-            onClick={() => { setEditRoutine(null); setForm({ subjectId: '', instructorId: '', dayOfWeek: 'MONDAY', startTime: '08:00', endTime: '09:00', room: '' }); setError(''); setShowModal(true) }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-          >
-            + Add Class
-          </button>
-        </div>
+        <PageHeader
+          title="Class Routine"
+          subtitle="Manage weekly timetable"
+          breadcrumbs={['Admin', 'Routine']}
+          actions={[{
+            label: 'Add Class',
+            icon: Plus,
+            variant: 'primary',
+            onClick: () => { setEditRoutine(null); setForm({ subjectId: '', instructorId: '', dayOfWeek: 'MONDAY', startTime: '08:00', endTime: '09:00', room: '' }); setError(''); setShowModal(true) }
+          }]}
+        />
 
         {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
@@ -242,48 +243,52 @@ const AdminRoutine = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">{editRoutine ? 'Edit Class' : 'Add Class'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
+        <Modal title={editRoutine ? 'Edit Class' : 'Add Class'} onClose={() => setShowModal(false)}>
             {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <select required value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select Subject</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name} — {s.code}</option>)}
-              </select>
-              <select required value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select Instructor</option>
-                {instructors.filter(i => i.instructor?.id).map(i => (
-  <option key={i.instructor.id} value={i.instructor.id}>{i.name}</option>
-))}
-              </select>
-              <select value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <div>
+                <label className="ui-form-label">Subject</label>
+                <select required value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })} className="ui-form-input">
+                  <option value="">Select Subject</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name} — {s.code}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="ui-form-label">Instructor</label>
+                <select required value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })} className="ui-form-input">
+                  <option value="">Select Instructor</option>
+                  {instructors.filter(i => i.instructor?.id).map(i => (
+                    <option key={i.instructor.id} value={i.instructor.id}>{i.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="ui-form-label">Day Of Week</label>
+                <select value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: e.target.value })} className="ui-form-input">
+                  {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
+                  <label className="ui-form-label">Start Time</label>
                   <input type="time" required value={form.startTime}
                     onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="ui-form-input" />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500 mb-1 block">End Time</label>
+                  <label className="ui-form-label">End Time</label>
                   <input type="time" required value={form.endTime}
                     onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="ui-form-input" />
                 </div>
               </div>
-              <input type="text" placeholder="Room / Location (optional)"
-                value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <div className="flex gap-3 pt-2">
+              <div>
+                <label className="ui-form-label">Room / Location</label>
+                <input type="text"
+                  value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })}
+                  className="ui-form-input" />
+              </div>
+              <div className="ui-modal-footer">
                 <button type="button" onClick={() => setShowModal(false)}
                   className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                 <button type="submit"
@@ -292,8 +297,7 @@ const AdminRoutine = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
       <ConfirmDialog
         open={!!routineToDelete}

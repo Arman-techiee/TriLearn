@@ -1,13 +1,22 @@
+import { X } from 'lucide-react'
+
 const Modal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">{title}</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl" aria-label="Close modal">
-          x
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+        <h2 className="ui-heading-tight text-xl font-bold text-gray-800">{title}</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-gray-400 transition hover:bg-slate-100 hover:text-gray-600"
+          aria-label="Close modal"
+        >
+          <X className="h-5 w-5" />
         </button>
       </div>
-      {children}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        {children}
+      </div>
     </div>
   </div>
 )

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import StudentLayout from '../../layouts/StudentLayout'
+import PageHeader from '../../components/PageHeader'
 import api, { resolveFileUrl } from '../../utils/api'
 import logger from '../../utils/logger'
 const StudentAssignments = () => {
@@ -64,10 +65,11 @@ const StudentAssignments = () => {
   return (
     <StudentLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Assignments</h1>
-          <p className="text-gray-500 text-sm mt-1">View and submit your assignments</p>
-        </div>
+        <PageHeader
+          title="Assignments"
+          subtitle="View and submit your assignments"
+          breadcrumbs={['Student', 'Assignments']}
+        />
 
         {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}

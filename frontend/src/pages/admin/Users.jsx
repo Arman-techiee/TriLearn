@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Power, Trash2, UserPlus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
@@ -7,6 +8,7 @@ import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import { useAuth } from '../../context/AuthContext'
@@ -212,43 +214,19 @@ const Users = () => {
     <AdminLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Users</h1>
-            <p className="text-gray-500 text-sm mt-1">Manage all users in EduNexus</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {!isCoordinator && (
-              <>
-                <button
-                  onClick={() => openModal('coordinator')}
-                  className="bg-sky-600 text-white px-4 py-2 rounded-lg hover:bg-sky-700 transition text-sm font-medium"
-                >
-                  + Add Coordinator
-                </button>
-                <button
-                  onClick={() => openModal('instructor')}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium"
-                >
-                  + Add Instructor
-                </button>
-                <button
-                  onClick={() => openModal('gatekeeper')}
-                  className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition text-sm font-medium"
-                >
-                  + Add Gate Account
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => openModal('student')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-            >
-              + Add Student
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title="Users"
+          subtitle="Manage all users in EduNexus"
+          breadcrumbs={['Admin', 'Users']}
+          actions={[
+            ...(!isCoordinator ? [
+              { label: 'Add Coordinator', icon: UserPlus, variant: 'primary', onClick: () => openModal('coordinator') },
+              { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') },
+              { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') }
+            ] : []),
+            { label: 'Add Student', icon: UserPlus, variant: 'primary', onClick: () => openModal('student') }
+          ]}
+        />
 
         {/* Success/Error messages */}
         <Alert type="success" message={success} />
@@ -285,12 +263,30 @@ const Users = () => {
                     icon="👥"
                     title="No users found"
                     description="Try a different role filter or create a new account for your campus."
+                    action={(
+                      <button
+                        type="button"
+                        onClick={() => openModal('student')}
+                        className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        <span>Add Student</span>
+                      </button>
+                    )}
                   />
                 </div>
               ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Directory</h2>
+                  <p className="text-sm text-slate-500">Manage account access, roles, and user status.</p>
+                </div>
+                <span className="ui-status-badge ui-status-neutral">{total} records</span>
+              </div>
+              <div className="overflow-x-auto max-h-[720px]">
               <table className="w-full min-w-[840px]">
-                <thead className="bg-gray-50">
+                <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="text-left text-sm text-gray-500">
                     <th className="px-6 py-4">Name</th>
                     <th className="px-6 py-4">Email</th>
@@ -302,8 +298,11 @@ const Users = () => {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-800">{user.name}</td>
+                    <tr key={user.id} className="border-t border-slate-200 transition-colors hover:bg-blue-50/30">
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-slate-900">{user.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{user.phone || user.email}</p>
+                      </td>
                       <td className="px-6 py-4 text-gray-500 text-sm">{user.email}</td>
                       <td className="px-6 py-4">
                         <StatusBadge status={user.role} />
@@ -323,20 +322,22 @@ const Users = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleToggleStatus(user.id, user.isActive)}
-                            className={`text-xs px-3 py-1 rounded-lg font-medium transition
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition
                               ${user.isActive
                                 ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                                 : 'bg-green-100 text-green-700 hover:bg-green-200'
                               }`}
+                            aria-label={user.isActive ? `Disable ${user.name}` : `Enable ${user.name}`}
                           >
-                            {user.isActive ? 'Disable' : 'Enable'}
+                            <Power className="h-4 w-4" />
                           </button>
                           {!isCoordinator && (
                             <button
                               onClick={() => setUserToDelete(user)}
-                              className="text-xs px-3 py-1 rounded-lg font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-700 transition hover:bg-red-200"
+                              aria-label={`Delete ${user.name}`}
                             >
-                              Delete
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>
@@ -346,6 +347,7 @@ const Users = () => {
                 </tbody>
               </table>
               </div>
+              </>
               )}
               <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
             </>
@@ -363,84 +365,98 @@ const Users = () => {
             <Alert type="error" message={error} />
 
             <form onSubmit={handleSubmit(handleCreateUser)} className="space-y-4">
-              <input
-                name="name"
-                type="text"
-                placeholder="Full Name"
-                required
-                value={values.name}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.name && <p className="text-xs text-red-600 -mt-2">{errors.name}</p>}
+              <div>
+                <label className="ui-form-label">Full Name</label>
+                <input
+                  name="name"
+                  type="text"
+                  required
+                  value={values.name}
+                  onChange={handleChange}
+                  className={`ui-form-input ${errors.name ? 'ui-form-input-error' : ''}`}
+                />
+                {errors.name && <p className="ui-form-helper-error">{errors.name}</p>}
+              </div>
               {modalType === 'student' ? (
                 <>
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="Student Personal Email"
-                    required
-                    value={values.email}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {errors.email && <p className="text-xs text-red-600 -mt-2">{errors.email}</p>}
-                  <input
-                    name="studentId"
-                    type="text"
-                    placeholder="Student ID / Roll Number"
-                    required
-                    value={values.studentId}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {errors.studentId && <p className="text-xs text-red-600 -mt-2">{errors.studentId}</p>}
+                  <div>
+                    <label className="ui-form-label">Student Personal Email</label>
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      value={values.email}
+                      onChange={handleChange}
+                      className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
+                    />
+                    {errors.email && <p className="ui-form-helper-error">{errors.email}</p>}
+                  </div>
+                  <div>
+                    <label className="ui-form-label">Student ID / Roll Number</label>
+                    <input
+                      name="studentId"
+                      type="text"
+                      required
+                      value={values.studentId}
+                      onChange={handleChange}
+                      className={`ui-form-input ${errors.studentId ? 'ui-form-input-error' : ''}`}
+                    />
+                    {errors.studentId && <p className="ui-form-helper-error">{errors.studentId}</p>}
+                  </div>
                   <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
                     The student will sign in using their personal email address and will be forced to change the default password on first login.
                   </div>
                 </>
               ) : (
                 <>
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="Email"
-                    required
-                    value={values.email}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {errors.email && <p className="text-xs text-red-600 -mt-2">{errors.email}</p>}
-                  <input
-                    name="password"
-                    type="password"
-                    placeholder="Password"
-                    required
-                    value={values.password}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {errors.password && <p className="text-xs text-red-600 -mt-2">{errors.password}</p>}
-                  <p className="text-xs text-gray-500 -mt-2">
+                  <div>
+                    <label className="ui-form-label">Email</label>
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      value={values.email}
+                      onChange={handleChange}
+                      className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
+                    />
+                    {errors.email && <p className="ui-form-helper-error">{errors.email}</p>}
+                  </div>
+                  <div>
+                    <label className="ui-form-label">Password</label>
+                    <input
+                      name="password"
+                      type="password"
+                      required
+                      value={values.password}
+                      onChange={handleChange}
+                      className={`ui-form-input ${errors.password ? 'ui-form-input-error' : ''}`}
+                    />
+                    {errors.password && <p className="ui-form-helper-error">{errors.password}</p>}
+                  </div>
+                  <p className="text-xs text-gray-500">
                     Use at least 8 characters with uppercase, lowercase, and a number.
                   </p>
                 </>
               )}
-              <input
-                name="phone"
-                type="text"
-                placeholder="Phone (optional)"
-                value={values.phone}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {modalType !== 'gatekeeper' && (
-                <>
-                  <select
-                  name="department"
-                  value={values.department}
+              <div>
+                <label className="ui-form-label">Phone</label>
+                <input
+                  name="phone"
+                  type="text"
+                  placeholder="Optional"
+                  value={values.phone}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="ui-form-input"
+                />
+              </div>
+              {modalType !== 'gatekeeper' && (
+                <div>
+                  <label className="ui-form-label">Department</label>
+                  <select
+                    name="department"
+                    value={values.department}
+                    onChange={handleChange}
+                    className={`ui-form-input ${errors.department ? 'ui-form-input-error' : ''}`}
                   >
                     <option value="">Select Department</option>
                     {departments.map((department) => (
@@ -449,36 +465,40 @@ const Users = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.department && <p className="text-xs text-red-600 -mt-2">{errors.department}</p>}
-                </>
+                  {errors.department && <p className="ui-form-helper-error">{errors.department}</p>}
+                </div>
               )}
 
               {modalType === 'student' && (
                 <div className="flex gap-3">
-                  <input
-                    name="semester"
-                    type="number"
-                    placeholder="Semester"
-                    min="1"
-                    max="8"
-                    value={values.semester}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    name="section"
-                    type="text"
-                    placeholder="Section (A/B/C)"
-                    value={values.section}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="flex-1">
+                    <label className="ui-form-label">Semester</label>
+                    <input
+                      name="semester"
+                      type="number"
+                      min="1"
+                      max="8"
+                      value={values.semester}
+                      onChange={handleChange}
+                      className={`ui-form-input ${errors.semester ? 'ui-form-input-error' : ''}`}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="ui-form-label">Section</label>
+                    <input
+                      name="section"
+                      type="text"
+                      value={values.section}
+                      onChange={handleChange}
+                      className={`ui-form-input ${errors.section ? 'ui-form-input-error' : ''}`}
+                    />
+                  </div>
                 </div>
               )}
-              {modalType === 'student' && errors.semester && <p className="text-xs text-red-600 -mt-2">{errors.semester}</p>}
-              {modalType === 'student' && errors.section && <p className="text-xs text-red-600 -mt-2">{errors.section}</p>}
+              {modalType === 'student' && errors.semester && <p className="ui-form-helper-error">{errors.semester}</p>}
+              {modalType === 'student' && errors.section && <p className="ui-form-helper-error">{errors.section}</p>}
 
-              <div className="flex gap-3 pt-2">
+              <div className="ui-modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Plus } from 'lucide-react'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
+import EmptyState from '../../components/EmptyState'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import StatusBadge from '../../components/StatusBadge'
 import { useReferenceData } from '../../context/ReferenceDataContext'
@@ -99,25 +102,24 @@ const Marks = () => {
     <InstructorLayout>
       <div className="p-8">
 
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Examination Results</h1>
-            <p className="text-gray-500 text-sm mt-1">Publish and review student examination results with a cleaner academic presentation.</p>
-          </div>
-          <button
-            onClick={() => {
+        <PageHeader
+          title="Examination Results"
+          subtitle="Publish and review student examination results with a cleaner academic presentation."
+          breadcrumbs={['Instructor', 'Results']}
+          actions={[{
+            label: 'Add Result',
+            icon: Plus,
+            variant: 'primary',
+            onClick: () => {
               setShowModal(true)
               setError('')
               setForm((current) => ({
                 ...current,
                 subjectId: selectedSubject || current.subjectId
               }))
-            }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
-          >
-            + Add Result
-          </button>
-        </div>
+            }
+          }]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
@@ -146,13 +148,16 @@ const Marks = () => {
               <LoadingSpinner text="Loading examination results..." />
             ) : (
               <>
-              <div className="px-6 py-4 border-b bg-gray-50/70">
-                <h2 className="text-lg font-semibold text-gray-800">Published Result Records</h2>
-                <p className="text-sm text-gray-500 mt-1">Each row represents an assessment component recorded for the selected subject.</p>
+              <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">Published Result Records</h2>
+                  <p className="text-sm text-gray-500 mt-1">Each row represents an assessment component recorded for the selected subject.</p>
+                </div>
+                <span className="ui-status-badge ui-status-neutral">{total} records</span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[720px]">
               <table className="w-full min-w-[760px]">
-                <thead className="bg-gray-50">
+                <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="text-left text-sm text-gray-500">
                     <th className="px-6 py-4">Student</th>
                     <th className="px-6 py-4">Exam Type</th>
@@ -164,9 +169,10 @@ const Marks = () => {
                 </thead>
                 <tbody>
                   {marks.map((mark) => (
-                    <tr key={mark.id} className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-800">
-                        {mark.student?.user?.name}
+                    <tr key={mark.id} className="border-t border-slate-200 transition-colors hover:bg-blue-50/30">
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-slate-900">{mark.student?.user?.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{mark.student?.rollNumber || mark.student?.user?.email}</p>
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={mark.examType} />
@@ -186,9 +192,29 @@ const Marks = () => {
                   ))}
                   {marks.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
-                        No marks added for this subject yet
-                      
+                      <td colSpan={6} className="px-6 py-10">
+                        <EmptyState
+                          icon="📝"
+                          title="No results published yet"
+                          description="Publish the first result record for this subject to start building the academic ledger."
+                          action={(
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowModal(true)
+                                setError('')
+                                setForm((current) => ({
+                                  ...current,
+                                  subjectId: selectedSubject || current.subjectId
+                                }))
+                              }}
+                              className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
+                            >
+                              <Plus className="h-4 w-4" />
+                              <span>Add Result</span>
+                            </button>
+                          )}
+                        />
                       </td>
                     </tr>
                   )}

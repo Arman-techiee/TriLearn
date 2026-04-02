@@ -1,20 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { BookOpenText, CheckCircle2, ClipboardList } from 'lucide-react'
 import StudentLayout from '../../layouts/StudentLayout'
+import PageHeader from '../../components/PageHeader'
+import StatCard from '../../components/StatCard'
 import api from '../../utils/api'
 import { useAuth } from '../../context/AuthContext'
 import logger from '../../utils/logger'
-const StatCard = ({ title, value, icon, color }) => (
-  <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${color}`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-gray-500 text-sm">{title}</p>
-        <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
-      </div>
-      <span className="text-4xl">{icon}</span>
-    </div>
-  </div>
-)
 
 const StudentDashboard = () => {
   const { user } = useAuth()
@@ -74,21 +66,17 @@ const StudentDashboard = () => {
     <StudentLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Welcome back, {user?.name}! 👋
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Here's your academic overview
-          </p>
-        </div>
+        <PageHeader
+          title={`Welcome back, ${user?.name}!`}
+          subtitle="Here's your academic overview"
+          breadcrumbs={['Student', 'Dashboard']}
+        />
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatCard title="My Subjects" value={stats.totalSubjects} icon="📚" color="border-purple-500" />
-          <StatCard title="Assignments" value={stats.totalAssignments} icon="📝" color="border-blue-500" />
-          <StatCard title="Avg Attendance" value={stats.attendancePercentage} icon="✅" color="border-green-500" />
+        <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">
+          <StatCard title="My Subjects" value={stats.totalSubjects} icon={BookOpenText} iconClassName="from-purple-500 to-fuchsia-600" trend="+2.7%" trendLabel="current semester" />
+          <StatCard title="Assignments" value={stats.totalAssignments} icon={ClipboardList} iconClassName="from-blue-500 to-indigo-600" trend="+4.2%" trendLabel="due this week" />
+          <StatCard title="Avg Attendance" value={stats.attendancePercentage} icon={CheckCircle2} iconClassName="from-emerald-500 to-green-600" trend="+1.5%" trendLabel="class consistency" />
         </div>
 
         <Link

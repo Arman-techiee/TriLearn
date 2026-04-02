@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -6,6 +7,7 @@ import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import useApi from '../../hooks/useApi'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -104,18 +106,12 @@ const Departments = () => {
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Departments</h1>
-            <p className="text-gray-500 text-sm mt-1">Create and manage the departments used across users and subjects.</p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-          >
-            + Add Department
-          </button>
-        </div>
+        <PageHeader
+          title="Departments"
+          subtitle="Create and manage the departments used across users and subjects."
+          breadcrumbs={['Admin', 'Departments']}
+          actions={[{ label: 'Add Department', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
@@ -188,30 +184,36 @@ const Departments = () => {
         <Modal title={editingDepartment ? 'Edit Department' : 'Add Department'} onClose={() => setShowModal(false)}>
             <Alert type="error" message={error} />
             <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Department Name"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Department Code"
-                required
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <textarea
-                placeholder="Description (optional)"
-                rows={3}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="flex gap-3 pt-2">
+              <div>
+                <label className="ui-form-label">Department Name</label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="ui-form-input"
+                />
+              </div>
+              <div>
+                <label className="ui-form-label">Department Code</label>
+                <input
+                  type="text"
+                  required
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                  className="ui-form-input"
+                />
+              </div>
+              <div>
+                <label className="ui-form-label">Description</label>
+                <textarea
+                  rows={3}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="ui-form-input"
+                />
+              </div>
+              <div className="ui-modal-footer">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">
                   Cancel
                 </button>

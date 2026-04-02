@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import PageHeader from '../../components/PageHeader'
 import StudentLayout from '../../layouts/StudentLayout'
 import useApi from '../../hooks/useApi'
 import api, { resolveFileUrl } from '../../utils/api'
@@ -66,10 +67,11 @@ const StudentMaterials = () => {
     <StudentLayout>
       <div className="p-8">
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Study Materials</h1>
-          <p className="text-gray-500 text-sm mt-1">Access learning resources shared by your instructors</p>
-        </div>
+        <PageHeader
+          title="Study Materials"
+          subtitle="Access learning resources shared by your instructors"
+          breadcrumbs={['Student', 'Materials']}
+        />
 
         {/* Subject Filter */}
         <div className="flex gap-2 mb-6 flex-wrap">

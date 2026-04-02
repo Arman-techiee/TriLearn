@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Plus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
@@ -6,6 +7,7 @@ import ConfirmDialog from '../../components/ConfirmDialog'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Modal from '../../components/Modal'
 import Pagination from '../../components/Pagination'
+import PageHeader from '../../components/PageHeader'
 import StatusBadge from '../../components/StatusBadge'
 import useForm from '../../hooks/useForm'
 import logger from '../../utils/logger'
@@ -107,19 +109,12 @@ const Notices = () => {
     <AdminLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Notices</h1>
-            <p className="text-gray-500 text-sm mt-1">Post and manage notices for everyone</p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-          >
-            + Post Notice
-          </button>
-        </div>
+        <PageHeader
+          title="Notices"
+          subtitle="Post and manage notices for everyone"
+          breadcrumbs={['Admin', 'Notices']}
+          actions={[{ label: 'Post Notice', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
+        />
 
         {/* Success/Error */}
         <Alert type="success" message={success} />
@@ -182,39 +177,46 @@ const Notices = () => {
             <Alert type="error" message={error} />
 
             <form onSubmit={handleSubmit(saveNotice)} className="space-y-4">
-              <input
-                name="title"
-                type="text"
-                placeholder="Notice Title"
-                required
-                value={values.title}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.title && <p className="text-xs text-red-600 -mt-2">{errors.title}</p>}
-              <textarea
-                name="content"
-                placeholder="Notice content..."
-                required
-                rows={4}
-                value={values.content}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.content && <p className="text-xs text-red-600 -mt-2">{errors.content}</p>}
-              <select
-                name="type"
-                value={values.type}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="GENERAL">General</option>
-                <option value="EXAM">Exam</option>
-                <option value="HOLIDAY">Holiday</option>
-                <option value="EVENT">Event</option>
-                <option value="URGENT">Urgent</option>
-              </select>
-              <div className="flex gap-3 pt-2">
+              <div>
+                <label className="ui-form-label">Notice Title</label>
+                <input
+                  name="title"
+                  type="text"
+                  required
+                  value={values.title}
+                  onChange={handleChange}
+                  className={`ui-form-input ${errors.title ? 'ui-form-input-error' : ''}`}
+                />
+                {errors.title && <p className="ui-form-helper-error">{errors.title}</p>}
+              </div>
+              <div>
+                <label className="ui-form-label">Notice Content</label>
+                <textarea
+                  name="content"
+                  required
+                  rows={4}
+                  value={values.content}
+                  onChange={handleChange}
+                  className={`ui-form-input ${errors.content ? 'ui-form-input-error' : ''}`}
+                />
+                {errors.content && <p className="ui-form-helper-error">{errors.content}</p>}
+              </div>
+              <div>
+                <label className="ui-form-label">Notice Type</label>
+                <select
+                  name="type"
+                  value={values.type}
+                  onChange={handleChange}
+                  className="ui-form-input"
+                >
+                  <option value="GENERAL">General</option>
+                  <option value="EXAM">Exam</option>
+                  <option value="HOLIDAY">Holiday</option>
+                  <option value="EVENT">Event</option>
+                  <option value="URGENT">Urgent</option>
+                </select>
+              </div>
+              <div className="ui-modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

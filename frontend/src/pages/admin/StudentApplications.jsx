@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { ExternalLink } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import Alert from '../../components/Alert'
 import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import api from '../../utils/api'
@@ -132,15 +134,12 @@ const StudentApplications = () => {
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Student Intake Forms</h1>
-            <p className="mt-1 text-sm text-gray-500">Review student-submitted admission details and create portal accounts from approved forms.</p>
-          </div>
-          <a href="/student-intake" target="_blank" rel="noreferrer" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            Open Public Form
-          </a>
-        </div>
+        <PageHeader
+          title="Student Intake Forms"
+          subtitle="Review student-submitted admission details and create portal accounts from approved forms."
+          breadcrumbs={['Admin', 'Admissions']}
+          actions={[{ label: 'Open Public Form', icon: ExternalLink, variant: 'primary', href: '/student-intake', target: '_blank', rel: 'noreferrer' }]}
+        />
 
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />

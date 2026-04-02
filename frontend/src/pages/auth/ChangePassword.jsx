@@ -48,33 +48,42 @@ const ChangePassword = () => {
         <p className="text-sm text-gray-500 mb-6">You must change your default password before continuing.</p>
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <input
-            name="currentPassword"
-            type="password"
-            value={values.currentPassword}
-            onChange={handleChange}
-            placeholder="Current password"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.currentPassword ? <p className="text-xs text-red-600">{errors.currentPassword}</p> : null}
-          <input
-            name="newPassword"
-            type="password"
-            value={values.newPassword}
-            onChange={handleChange}
-            placeholder="New password"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.newPassword ? <p className="text-xs text-red-600">{errors.newPassword}</p> : null}
-          <input
-            name="confirmPassword"
-            type="password"
-            value={values.confirmPassword}
-            onChange={handleChange}
-            placeholder="Confirm new password"
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {errors.confirmPassword ? <p className="text-xs text-red-600">{errors.confirmPassword}</p> : null}
+          <div>
+            <label className="ui-form-label">Current Password</label>
+            <input
+              name="currentPassword"
+              type="password"
+              value={values.currentPassword}
+              onChange={handleChange}
+              placeholder="Enter current password"
+              className={`ui-form-input ${errors.currentPassword ? 'ui-form-input-error' : ''}`}
+            />
+            {errors.currentPassword ? <p className="ui-form-helper-error">{errors.currentPassword}</p> : null}
+          </div>
+          <div>
+            <label className="ui-form-label">New Password</label>
+            <input
+              name="newPassword"
+              type="password"
+              value={values.newPassword}
+              onChange={handleChange}
+              placeholder="Enter new password"
+              className={`ui-form-input ${errors.newPassword ? 'ui-form-input-error' : ''}`}
+            />
+            {errors.newPassword ? <p className="ui-form-helper-error">{errors.newPassword}</p> : null}
+          </div>
+          <div>
+            <label className="ui-form-label">Confirm Password</label>
+            <input
+              name="confirmPassword"
+              type="password"
+              value={values.confirmPassword}
+              onChange={handleChange}
+              placeholder="Confirm new password"
+              className={`ui-form-input ${errors.confirmPassword ? 'ui-form-input-error' : ''}`}
+            />
+            {errors.confirmPassword ? <p className="ui-form-helper-error">{errors.confirmPassword}</p> : null}
+          </div>
           <button
             type="submit"
             disabled={loading}

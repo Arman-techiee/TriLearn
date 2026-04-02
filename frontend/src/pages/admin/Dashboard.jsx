@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react'
+import { BookOpenText, GraduationCap, ShieldUser, Users } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
+import PageHeader from '../../components/PageHeader'
+import StatCard from '../../components/StatCard'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
-const StatCard = ({ title, value, icon, color }) => (
-  <div className={`bg-white rounded-2xl p-6 shadow-sm border-l-4 ${color}`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-gray-500 text-sm">{title}</p>
-        <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
-      </div>
-      <span className="text-4xl">{icon}</span>
-    </div>
-  </div>
-)
+
+const initialsFromName = (name = '') =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'U'
+
+const roleBadgeClasses = {
+  ADMIN: 'ui-status-badge ui-status-info',
+  INSTRUCTOR: 'ui-status-badge',
+  STUDENT: 'ui-status-badge ui-status-success'
+}
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -67,58 +73,50 @@ const Dashboard = () => {
     <AdminLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">Welcome to EduNexus Admin Panel</p>
-        </div>
+        <PageHeader
+          title="Dashboard"
+          subtitle="Welcome to EduNexus Admin Panel"
+          breadcrumbs={['Admin', 'Dashboard']}
+        />
 
         {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Total Users" value={stats.totalUsers} icon="👥" color="border-blue-500" />
-          <StatCard title="Students" value={stats.totalStudents} icon="🎓" color="border-green-500" />
-          <StatCard title="Instructors" value={stats.totalInstructors} icon="👨‍🏫" color="border-purple-500" />
-          <StatCard title="Subjects" value={stats.totalSubjects} icon="📚" color="border-orange-500" />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <StatCard title="Total Users" value={stats.totalUsers} icon={Users} iconClassName="from-blue-500 to-indigo-600" trend="+8.4%" trendLabel="this month" />
+          <StatCard title="Students" value={stats.totalStudents} icon={GraduationCap} iconClassName="from-emerald-500 to-green-600" trend="+5.2%" trendLabel="active enrollments" />
+          <StatCard title="Instructors" value={stats.totalInstructors} icon={ShieldUser} iconClassName="from-violet-500 to-purple-600" trend="+2.1%" trendLabel="teaching staff" />
+          <StatCard title="Subjects" value={stats.totalSubjects} icon={BookOpenText} iconClassName="from-amber-500 to-orange-500" trend="+3.8%" trendLabel="curriculum growth" />
         </div>
 
         {/* Recent Users */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Users</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-gray-500 border-b">
-                  <th className="pb-3">Name</th>
-                  <th className="pb-3">Email</th>
-                  <th className="pb-3">Role</th>
-                  <th className="pb-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentUsers.map((user) => (
-                  <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-3 text-sm font-medium text-gray-800">{user.name}</td>
-                    <td className="py-3 text-sm text-gray-500">{user.email}</td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium
-                        ${user.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
-                          user.role === 'INSTRUCTOR' ? 'bg-purple-100 text-purple-700' :
-                          'bg-green-100 text-green-700'}`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium
-                        ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {user.isActive ? 'Active' : 'Disabled'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="ui-card rounded-2xl p-6">
+          <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-slate-900">Recent Users</h2>
+          <div className="space-y-3">
+            {recentUsers.map((user) => (
+              <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-4 transition hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="ui-role-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black text-white">
+                    {initialsFromName(user.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{user.name}</p>
+                    <p className="truncate text-xs text-slate-500">{user.email}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={roleBadgeClasses[user.role] || 'ui-status-badge ui-status-neutral'}>
+                    {user.role}
+                  </span>
+                  <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                    user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                  }`}>
+                    <span className={`h-2.5 w-2.5 rounded-full ${user.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    {user.isActive ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

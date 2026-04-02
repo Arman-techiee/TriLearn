@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { Pencil, Plus, Trash2, Users } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import api from '../../utils/api'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
+import PageHeader from '../../components/PageHeader'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -189,19 +191,12 @@ const Subjects = () => {
     <AdminLayout>
       <div className="p-8">
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Subjects</h1>
-            <p className="text-gray-500 text-sm mt-1">Manage all subjects in EduNexus</p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-          >
-            + Add Subject
-          </button>
-        </div>
+        <PageHeader
+          title="Subjects"
+          subtitle="Manage all subjects in EduNexus"
+          breadcrumbs={['Admin', 'Subjects']}
+          actions={[{ label: 'Add Subject', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
+        />
 
         {/* Success/Error */}
         {success && (
@@ -219,6 +214,14 @@ const Subjects = () => {
         {loading ? (
           <LoadingSkeleton rows={6} itemClassName="h-44" />
         ) : (
+          <>
+          <div className="mb-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/70 px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Subject Catalog</h2>
+              <p className="text-sm text-slate-500">All active subjects, instructors, and enrollment summaries.</p>
+            </div>
+            <span className="ui-status-badge ui-status-neutral">{subjects.length} records</span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subjects.map((subject) => (
               <div key={subject.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
@@ -269,21 +272,24 @@ const Subjects = () => {
                 <div className="flex gap-2 pt-4 border-t">
                   <button
                     onClick={() => openEditModal(subject)}
-                    className="text-xs bg-blue-50 text-blue-600 py-2 rounded-lg hover:bg-blue-100 transition font-medium px-3"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100"
+                    aria-label={`Edit ${subject.name}`}
                   >
-                    Edit
+                    <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => openEnrollmentModal(subject)}
-                    className="flex-1 text-xs bg-indigo-50 text-indigo-600 py-2 rounded-lg hover:bg-indigo-100 transition font-medium"
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-xs bg-indigo-50 text-indigo-600 py-2 rounded-lg hover:bg-indigo-100 transition font-medium"
                   >
-                    Students
+                    <Users className="h-4 w-4" />
+                    <span>Students</span>
                   </button>
                   <button
                     onClick={() => setSubjectToDelete(subject)}
-                    className="text-xs bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition font-medium px-3"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 py-2 transition hover:bg-red-100"
+                    aria-label={`Delete ${subject.name}`}
                   >
-                    Delete
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
 
@@ -309,6 +315,7 @@ const Subjects = () => {
               </div>
             )}
           </div>
+          </>
         )}
 
       </div>
@@ -324,70 +331,83 @@ const Subjects = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Subject Name"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Subject Code (e.g. CN301)"
-                required
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!!editSubject}
-              />
-              <textarea
-                placeholder="Description (optional)"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={3}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="flex gap-3">
+              <div>
+                <label className="ui-form-label">Subject Name</label>
                 <input
-                  type="number"
-                  placeholder="Semester"
-                  min="1"
-                  max="8"
+                  type="text"
                   required
-                  value={form.semester}
-                  onChange={(e) => setForm({ ...form, semester: parseInt(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="ui-form-input"
                 />
+              </div>
+              <div>
+                <label className="ui-form-label">Subject Code</label>
+                <input
+                  type="text"
+                  required
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  className="ui-form-input"
+                  disabled={!!editSubject}
+                />
+              </div>
+              <div>
+                <label className="ui-form-label">Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                  className="ui-form-input"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="ui-form-label">Semester</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="8"
+                    required
+                    value={form.semester}
+                    onChange={(e) => setForm({ ...form, semester: parseInt(e.target.value) })}
+                    className="ui-form-input"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="ui-form-label">Department</label>
+                  <select
+                    value={form.department}
+                    onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    className="ui-form-input"
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.name}>
+                        {department.name} ({department.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="ui-form-label">Instructor</label>
                 <select
-                  value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={form.instructorId}
+                  onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
+                  className="ui-form-input"
                 >
-                  <option value="">Select Department</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.name}>
-                      {department.name} ({department.code})
+                  <option value="">Select Instructor (optional)</option>
+                  {instructors.map((inst) => (
+                    <option key={inst.id} value={inst.instructor?.id}>
+                      {inst.name} - {inst.instructor?.department || 'No dept'}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Instructor dropdown */}
-              <select
-                value={form.instructorId}
-                onChange={(e) => setForm({ ...form, instructorId: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select Instructor (optional)</option>
-                {instructors.map((inst) => (
-                  <option key={inst.id} value={inst.instructor?.id}>
-                    {inst.name} - {inst.instructor?.department || 'No dept'}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex gap-3 pt-2">
+              <div className="ui-modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
