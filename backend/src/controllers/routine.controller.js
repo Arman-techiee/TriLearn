@@ -1,14 +1,19 @@
 const prisma = require('../utils/prisma')
-const logger = require('../utils/logger')
+
+const applySectionScope = (studentSection) => (
+  studentSection
+    ? [{ section: null }, { section: studentSection }]
+    : [{ section: null }, { section: '' }]
+)
 
 const buildRoutineFilters = async (req) => {
-  const { dayOfWeek, semester } = req.query
+  const { dayOfWeek, semester, department, section } = req.query
   const filters = {}
 
   if (dayOfWeek) filters.dayOfWeek = dayOfWeek
-  if (semester) {
-    filters.subject = { semester: parseInt(semester, 10) }
-  }
+  if (semester) filters.semester = parseInt(semester, 10)
+  if (department) filters.department = department
+  if (section) filters.section = section
 
   if (req.user.role === 'INSTRUCTOR') {
     const instructor = await prisma.instructor.findUnique({
@@ -23,56 +28,118 @@ const buildRoutineFilters = async (req) => {
       where: { userId: req.user.id }
     })
 
-    filters.subject = {
-      ...(filters.subject || {}),
-      enrollments: {
-        some: {
-          studentId: student?.id || '__no_student__'
-        }
-      }
+    if (!student) {
+      return { id: '__no_routines__' }
+    }
+
+    return {
+      ...filters,
+      department: student.department || filters.department,
+      semester: student.semester,
+      OR: applySectionScope(student.section)
     }
   }
 
   return filters
 }
 
-// ================================
-// CREATE ROUTINE (Admin)
-// ================================
+const getRoutineInclude = () => ({
+  subject: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      semester: true,
+      department: true
+    }
+  },
+  instructor: {
+    include: {
+      user: {
+        select: { name: true }
+      }
+    }
+  }
+})
+
+const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester }) => {
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+  if (!subject) return { error: { status: 404, message: 'Subject not found' } }
+
+  const instructor = await prisma.instructor.findUnique({ where: { id: instructorId } })
+  if (!instructor) return { error: { status: 404, message: 'Instructor not found' } }
+
+  if (subject.semester !== semester) {
+    return { error: { status: 400, message: 'Routine semester must match the selected subject semester.' } }
+  }
+
+  const normalizedDepartment = department || null
+  const normalizedSubjectDepartment = subject.department || null
+
+  if (normalizedDepartment !== normalizedSubjectDepartment) {
+    return { error: { status: 400, message: 'Routine department must match the selected subject department.' } }
+  }
+
+  return { subject, instructor }
+}
+
+const getOverlapFilter = ({ dayOfWeek, startTime, endTime, section, room, department, semester, excludeId }) => {
+  const overlapConditions = [
+    { startTime: { lte: startTime }, endTime: { gt: startTime } },
+    { startTime: { lt: endTime }, endTime: { gte: endTime } },
+    { startTime: { gte: startTime }, endTime: { lte: endTime } }
+  ]
+
+  return {
+    dayOfWeek,
+    id: excludeId ? { not: excludeId } : undefined,
+    OR: [
+      room
+        ? {
+            room,
+            OR: overlapConditions
+          }
+        : null,
+      {
+        department: department || null,
+        semester,
+        section: section || null,
+        OR: overlapConditions
+      }
+    ].filter(Boolean)
+  }
+}
+
 const createRoutine = async (req, res) => {
   try {
-    const { subjectId, instructorId, dayOfWeek, startTime, endTime, room } = req.body
+    const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room } = req.body
 
-    const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
-    if (!subject) return res.status(404).json({ message: 'Subject not found' })
+    const scope = await validateRoutineAcademicScope({ subjectId, instructorId, department, semester })
+    if (scope.error) {
+      return res.status(scope.error.status).json({ message: scope.error.message })
+    }
 
-    const instructor = await prisma.instructor.findUnique({ where: { id: instructorId } })
-    if (!instructor) return res.status(404).json({ message: 'Instructor not found' })
+    const conflict = await prisma.routine.findFirst({
+      where: getOverlapFilter({ dayOfWeek, startTime, endTime, section, room, department, semester })
+    })
 
-    // Check for time conflict on same day/room
-    if (room) {
-      const conflict = await prisma.routine.findFirst({
-        where: {
-          dayOfWeek,
-          room,
-          OR: [
-            { startTime: { lte: startTime }, endTime: { gt: startTime } },
-            { startTime: { lt: endTime }, endTime: { gte: endTime } },
-            { startTime: { gte: startTime }, endTime: { lte: endTime } },
-          ]
-        }
-      })
-      if (conflict) {
-        return res.status(400).json({ message: 'Room is already booked at this time' })
-      }
+    if (conflict) {
+      return res.status(400).json({ message: 'This routine conflicts with another class for the same room or academic section.' })
     }
 
     const routine = await prisma.routine.create({
-      data: { subjectId, instructorId, dayOfWeek, startTime, endTime, room },
-      include: {
-        subject: { select: { name: true, code: true } },
-        instructor: { include: { user: { select: { name: true } } } }
-      }
+      data: {
+        subjectId,
+        instructorId,
+        department: department || null,
+        semester,
+        section: section || null,
+        dayOfWeek,
+        startTime,
+        endTime,
+        room: room || null
+      },
+      include: getRoutineInclude()
     })
 
     res.status(201).json({ message: 'Routine created successfully!', routine })
@@ -81,19 +148,13 @@ const createRoutine = async (req, res) => {
   }
 }
 
-// ================================
-// GET ALL ROUTINES
-// ================================
 const getAllRoutines = async (req, res) => {
   try {
     const filters = await buildRoutineFilters(req)
 
     const routines = await prisma.routine.findMany({
       where: filters,
-      include: {
-        subject: { select: { name: true, code: true, semester: true, department: true } },
-        instructor: { include: { user: { select: { name: true } } } }
-      },
+      include: getRoutineInclude(),
       orderBy: [
         { dayOfWeek: 'asc' },
         { startTime: 'asc' }
@@ -106,18 +167,12 @@ const getAllRoutines = async (req, res) => {
   }
 }
 
-// ================================
-// GET ROUTINE BY ID
-// ================================
 const getRoutineById = async (req, res) => {
   try {
     const { id } = req.params
     const routine = await prisma.routine.findUnique({
       where: { id },
-      include: {
-        subject: { select: { name: true, code: true, semester: true } },
-        instructor: { include: { user: { select: { name: true } } } }
-      }
+      include: getRoutineInclude()
     })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
     res.json({ routine })
@@ -126,24 +181,41 @@ const getRoutineById = async (req, res) => {
   }
 }
 
-// ================================
-// UPDATE ROUTINE (Admin)
-// ================================
 const updateRoutine = async (req, res) => {
   try {
     const { id } = req.params
-    const { subjectId, instructorId, dayOfWeek, startTime, endTime, room } = req.body
+    const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room } = req.body
 
     const routine = await prisma.routine.findUnique({ where: { id } })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
 
+    const scope = await validateRoutineAcademicScope({ subjectId, instructorId, department, semester })
+    if (scope.error) {
+      return res.status(scope.error.status).json({ message: scope.error.message })
+    }
+
+    const conflict = await prisma.routine.findFirst({
+      where: getOverlapFilter({ dayOfWeek, startTime, endTime, section, room, department, semester, excludeId: id })
+    })
+
+    if (conflict) {
+      return res.status(400).json({ message: 'This routine conflicts with another class for the same room or academic section.' })
+    }
+
     const updated = await prisma.routine.update({
       where: { id },
-      data: { subjectId, instructorId, dayOfWeek, startTime, endTime, room },
-      include: {
-        subject: { select: { name: true, code: true } },
-        instructor: { include: { user: { select: { name: true } } } }
-      }
+      data: {
+        subjectId,
+        instructorId,
+        department: department || null,
+        semester,
+        section: section || null,
+        dayOfWeek,
+        startTime,
+        endTime,
+        room: room || null
+      },
+      include: getRoutineInclude()
     })
 
     res.json({ message: 'Routine updated successfully!', routine: updated })
@@ -152,9 +224,6 @@ const updateRoutine = async (req, res) => {
   }
 }
 
-// ================================
-// DELETE ROUTINE (Admin)
-// ================================
 const deleteRoutine = async (req, res) => {
   try {
     const { id } = req.params
@@ -169,5 +238,3 @@ const deleteRoutine = async (req, res) => {
 }
 
 module.exports = { createRoutine, getAllRoutines, getRoutineById, updateRoutine, deleteRoutine }
-
-

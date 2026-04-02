@@ -19,6 +19,18 @@ const COLORS = [
   'bg-yellow-100 border-yellow-300 text-yellow-800',
 ]
 
+const defaultForm = {
+  subjectId: '',
+  instructorId: '',
+  department: '',
+  semester: 1,
+  section: '',
+  dayOfWeek: 'MONDAY',
+  startTime: '08:00',
+  endTime: '09:00',
+  room: ''
+}
+
 const AdminRoutine = () => {
   const [routines, setRoutines] = useState([])
   const [subjects, setSubjects] = useState([])
@@ -28,10 +40,7 @@ const AdminRoutine = () => {
   const [editRoutine, setEditRoutine] = useState(null)
   const [routineToDelete, setRoutineToDelete] = useState(null)
   const [deletingRoutine, setDeletingRoutine] = useState(false)
-  const [form, setForm] = useState({
-    subjectId: '', instructorId: '', dayOfWeek: 'MONDAY',
-    startTime: '08:00', endTime: '09:00', room: ''
-  })
+  const [form, setForm] = useState(defaultForm)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -80,7 +89,7 @@ const AdminRoutine = () => {
       }
       setShowModal(false)
       setEditRoutine(null)
-      setForm({ subjectId: '', instructorId: '', dayOfWeek: 'MONDAY', startTime: '08:00', endTime: '09:00', room: '' })
+      setForm(defaultForm)
       fetchRoutines()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
@@ -109,6 +118,9 @@ const AdminRoutine = () => {
     setForm({
       subjectId: r.subjectId,
       instructorId: r.instructorId,
+      department: r.department || '',
+      semester: r.semester,
+      section: r.section || '',
       dayOfWeek: r.dayOfWeek,
       startTime: r.startTime,
       endTime: r.endTime,
@@ -132,6 +144,27 @@ const AdminRoutine = () => {
     }
   })
 
+  const filteredSubjects = subjects.filter((subject) => {
+    const semesterMatches = Number(subject.semester) === Number(form.semester)
+    const departmentMatches = (subject.department || '') === form.department
+    return semesterMatches && departmentMatches
+  })
+
+  const handleSubjectChange = (subjectId) => {
+    const subject = subjects.find((item) => item.id === subjectId)
+    if (!subject) {
+      setForm({ ...form, subjectId })
+      return
+    }
+
+    setForm({
+      ...form,
+      subjectId,
+      department: subject.department || '',
+      semester: subject.semester
+    })
+  }
+
   return (
     <AdminLayout>
       <div className="p-8">
@@ -144,7 +177,7 @@ const AdminRoutine = () => {
             label: 'Add Class',
             icon: Plus,
             variant: 'primary',
-            onClick: () => { setEditRoutine(null); setForm({ subjectId: '', instructorId: '', dayOfWeek: 'MONDAY', startTime: '08:00', endTime: '09:00', room: '' }); setError(''); setShowModal(true) }
+            onClick: () => { setEditRoutine(null); setForm(defaultForm); setError(''); setShowModal(true) }
           }]}
         />
 
@@ -172,6 +205,7 @@ const AdminRoutine = () => {
                         onClick={() => openEdit(r)}
                       >
                         <p className="text-xs font-bold truncate">{r.subject?.code}</p>
+                        <p className="mt-1 text-[11px] opacity-80">Sem {r.semester}{r.section ? ` • Sec ${r.section}` : ''}</p>
                         <p className="text-xs truncate">{r.startTime}–{r.endTime}</p>
                         {r.room && <p className="text-xs opacity-75">🚪 {r.room}</p>}
                         <button
@@ -200,6 +234,7 @@ const AdminRoutine = () => {
                   <tr className="text-left text-sm text-gray-500">
                     <th className="px-6 py-3">Day</th>
                     <th className="px-6 py-3">Subject</th>
+                    <th className="px-6 py-3">Academic</th>
                     <th className="px-6 py-3">Instructor</th>
                     <th className="px-6 py-3">Time</th>
                     <th className="px-6 py-3">Room</th>
@@ -213,6 +248,10 @@ const AdminRoutine = () => {
                       <td className="px-6 py-3">
                         <p className="text-sm font-medium text-gray-800">{r.subject?.name}</p>
                         <p className="text-xs text-gray-400">{r.subject?.code}</p>
+                      </td>
+                      <td className="px-6 py-3">
+                        <p className="text-sm font-medium text-gray-800">{r.department || 'General'}</p>
+                        <p className="text-xs text-gray-400">Semester {r.semester}{r.section ? ` • Section ${r.section}` : ' • All sections'}</p>
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-600">{r.instructor?.user?.name}</td>
                       <td className="px-6 py-3 text-sm text-gray-600">{r.startTime} – {r.endTime}</td>
@@ -232,7 +271,7 @@ const AdminRoutine = () => {
                     </tr>
                   ))}
                   {routines.length === 0 && (
-                    <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No routines yet</td></tr>
+                    <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No routines yet</td></tr>
                   )}
                 </tbody>
               </table>
@@ -247,11 +286,49 @@ const AdminRoutine = () => {
             {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
+                <label className="ui-form-label">Department</label>
+                <input
+                  type="text"
+                  required
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value, subjectId: '' })}
+                  className="ui-form-input"
+                  placeholder="e.g. BCA"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="ui-form-label">Semester</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    required
+                    value={form.semester}
+                    onChange={(e) => setForm({ ...form, semester: Number(e.target.value), subjectId: '' })}
+                    className="ui-form-input"
+                  />
+                </div>
+                <div>
+                  <label className="ui-form-label">Section</label>
+                  <input
+                    type="text"
+                    value={form.section}
+                    onChange={(e) => setForm({ ...form, section: e.target.value })}
+                    className="ui-form-input"
+                    placeholder="Leave blank for all sections"
+                  />
+                </div>
+              </div>
+              <div>
                 <label className="ui-form-label">Subject</label>
-                <select required value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })} className="ui-form-input">
+                <select required value={form.subjectId} onChange={(e) => handleSubjectChange(e.target.value)} className="ui-form-input">
                   <option value="">Select Subject</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name} — {s.code}</option>)}
+                  {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name} — {s.code}</option>)}
                 </select>
+                {form.department && filteredSubjects.length === 0 ? (
+                  <p className="mt-2 text-xs text-amber-600">No subjects match this department and semester yet.</p>
+                ) : null}
               </div>
               <div>
                 <label className="ui-form-label">Instructor</label>

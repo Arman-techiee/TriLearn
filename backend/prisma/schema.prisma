@@ -368,6 +368,9 @@ model Routine {
   subject      Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instructorId String
   instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  department   String?
+  semester     Int
+  section      String?
   dayOfWeek    DayOfWeek
   startTime    String
   endTime      String
@@ -375,6 +378,7 @@ model Routine {
   createdAt    DateTime @default(now())
 
   @@index([dayOfWeek])
+  @@index([department, semester, section, dayOfWeek])
   @@index([subjectId])
   @@index([instructorId])
 }

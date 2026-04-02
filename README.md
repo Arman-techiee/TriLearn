@@ -13,7 +13,7 @@ The project is currently optimized for local development and demos. Core academi
 - Default student password with forced password change on first login
 - Student profile completion and profile editing flow
 - Department, subject, routine, notice, assignment, study material, and exam result management
-- Gate QR attendance and instructor manual attendance
+- Student QR attendance windows with semester-based gate access, holiday controls, and instructor manual attendance
 - Coordinator monthly department attendance reporting by semester and section
 - PDF and Excel attendance export
 - Pagination, reusable frontend components, validation, logging, audit records, and safer auth handling
@@ -38,6 +38,7 @@ The project is currently optimized for local development and demos. Core academi
 - full system control
 - creates coordinators, instructors, gatekeepers, and students
 - manages departments, subjects, routines, notices, and academic setup
+- manages Student QR windows and attendance holidays
 - reviews admissions and converts intake forms into student accounts
 
 ### `COORDINATOR`
@@ -46,6 +47,7 @@ The project is currently optimized for local development and demos. Core academi
 - can review student intake forms
 - can create student accounts from approved applications
 - can manage attendance, notices, routine-related academic workflows, and student support tasks
+- can manage Student QR time slots and holiday attendance settings
 - can suspend or manage student-related operations without full admin control
 
 ### `INSTRUCTOR`
@@ -58,7 +60,7 @@ The project is currently optimized for local development and demos. Core academi
 ### `GATEKEEPER`
 
 - manages gate QR attendance flow
-- supports entry-time attendance scanning
+- shows the live rotating Student QR for the currently active semester time slot
 
 ### `STUDENT`
 
@@ -102,9 +104,12 @@ The project is currently optimized for local development and demos. Core academi
 EduNexus currently supports multiple attendance workflows:
 
 1. Gate attendance
-   - gatekeeper generates the daily QR
-   - students scan the QR from their phones
-   - attendance is linked to enrolled subjects and routine timing
+   - admin or coordinator defines Student QR windows by day, time, allowed semesters, and optional holidays
+   - gatekeeper opens a simple Student QR page that rotates every 60 seconds
+   - students can scan only when their semester is allowed in the active time window
+   - attendance is marked only for the student’s scheduled routine subjects that overlap that active time slot
+   - if a day is marked as a holiday, no Student QR scan is accepted and attendance percentages are not deducted
+   - if a valid scan or instructor manual attendance is missing after the allowed time window closes, absence is created automatically
 
 2. Instructor attendance
    - instructors manually mark subject attendance by date
@@ -120,7 +125,7 @@ EduNexus currently supports multiple attendance workflows:
 - departments
 - subjects
 - subject enrollments
-- class routines
+- class routines with explicit department, semester, and section targeting
 - notices
 - assignments
 - study materials
@@ -427,7 +432,7 @@ This project is shaped around a realistic local campus use case:
 - institution-assigned student IDs
 - personal email login for students
 - coordinator as sub-admin
-- semester and section-based attendance and reporting
+- department, semester, and section-based routines plus semester-window Student QR attendance
 - phone-first student experience
 - printable/exportable attendance records
 

@@ -253,9 +253,28 @@ const dedupeRoutinesBySubject = (routines) => {
 }
 
 const getStudentScheduledRoutinesForDay = async ({ studentId, dayOfWeek }) => {
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: {
+      id: true,
+      semester: true,
+      section: true,
+      department: true
+    }
+  })
+
+  if (!student) {
+    return []
+  }
+
   const routines = await prisma.routine.findMany({
     where: {
       dayOfWeek,
+      semester: student.semester,
+      department: student.department || null,
+      OR: student.section
+        ? [{ section: null }, { section: student.section }]
+        : [{ section: null }, { section: '' }],
       subject: {
         enrollments: {
           some: {
@@ -367,7 +386,12 @@ const syncClosedRoutineAbsences = async (referenceDate = new Date()) => {
     }
 
     const semesterRoutines = filterRoutinesForSemesterWindows({
-      routines: routines.filter((routine) => routine.subject.enrollments.some((enrollment) => enrollment.studentId === student.id)),
+      routines: routines.filter((routine) => (
+        routine.subject.enrollments.some((enrollment) => enrollment.studentId === student.id) &&
+        routine.semester === student.semester &&
+        (routine.department || null) === (student.department || null) &&
+        (!routine.section || routine.section === student.section)
+      )),
       baseDate: gateDay.dayRange.start,
       semester: student.semester,
       windows: closedWindowsForSemester

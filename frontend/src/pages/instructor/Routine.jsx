@@ -114,6 +114,9 @@ const InstructorRoutine = () => {
                           </span>
                           <h3 className="font-semibold text-gray-800">{r.subject?.name}</h3>
                           <p className="mt-1 text-sm text-gray-500">{r.subject?.code}</p>
+                          <p className="mt-2 text-xs text-gray-500">
+                            {r.department || r.subject?.department || 'General'} • Semester {r.semester}{r.section ? ` • Section ${r.section}` : ' • All sections'}
+                          </p>
                           {r.room ? <p className="mt-2 text-xs text-gray-500">Room: {r.room}</p> : null}
                         </div>
                       ))

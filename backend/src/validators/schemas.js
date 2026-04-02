@@ -132,6 +132,9 @@ const updateSubjectBody = z.object({
 const routineBody = z.object({
   subjectId: z.string().uuid(),
   instructorId: z.string().uuid(),
+  department: optionalString(100),
+  semester: z.coerce.number().int().min(1).max(12),
+  section: optionalString(20),
   dayOfWeek: dayOfWeekEnum,
   startTime: timeSchema,
   endTime: timeSchema,
@@ -442,7 +445,9 @@ const schemas = {
     getAll: {
       query: z.object({
         dayOfWeek: dayOfWeekEnum.optional(),
-        semester: z.coerce.number().int().min(1).max(12).optional()
+        semester: z.coerce.number().int().min(1).max(12).optional(),
+        department: optionalString(100),
+        section: optionalString(20)
       })
     },
     id: { params: uuidParam }
