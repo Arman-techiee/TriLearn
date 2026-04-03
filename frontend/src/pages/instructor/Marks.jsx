@@ -47,13 +47,11 @@ const Marks = () => {
   const [publishing, setPublishing] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
-    studentId: '',
     subjectId: '',
     examType: 'MIDTERM',
-    totalMarks: 100,
-    obtainedMarks: '',
-    remarks: ''
+    totalMarks: 100
   })
+  const [draftMarks, setDraftMarks] = useState({})
   const [error, setError] = useState('')
   const { showToast } = useToast()
 
@@ -140,21 +138,41 @@ const Marks = () => {
     event.preventDefault()
     setError('')
     try {
-      await api.post('/marks', {
-        ...form,
+      const entries = Object.entries(draftMarks)
+        .map(([studentId, value]) => ({
+          studentId,
+          obtainedMarks: value?.obtainedMarks,
+          remarks: value?.remarks || ''
+        }))
+        .filter((entry) => entry.obtainedMarks !== '' && entry.obtainedMarks !== undefined && entry.obtainedMarks !== null)
+
+      if (!form.subjectId || !form.examType) {
+        setError('Please select the exam type and module first')
+        return
+      }
+
+      if (entries.length === 0) {
+        setError('Enter marks for at least one student')
+        return
+      }
+
+      await Promise.all(entries.map((entry) => api.post('/marks', {
+        studentId: entry.studentId,
+        subjectId: form.subjectId,
+        examType: form.examType,
         totalMarks: parseInt(form.totalMarks, 10),
-        obtainedMarks: parseInt(form.obtainedMarks, 10)
-      })
-      showToast({ title: 'Exam mark added successfully.' })
+        obtainedMarks: parseInt(entry.obtainedMarks, 10),
+        remarks: entry.remarks
+      })))
+
+      showToast({ title: `Exam marks added for ${entries.length} student${entries.length === 1 ? '' : 's'}.` })
       setShowModal(false)
       setForm({
-        studentId: '',
         subjectId: selectedSubject || '',
         examType: selectedExamType || 'MIDTERM',
-        totalMarks: 100,
-        obtainedMarks: '',
-        remarks: ''
+        totalMarks: 100
       })
+      setDraftMarks({})
       await fetchMarks()
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
@@ -210,6 +228,7 @@ const Marks = () => {
                   subjectId: selectedSubject || current.subjectId,
                   examType: selectedExamType || current.examType
                 }))
+                setDraftMarks({})
               }
             }] : []),
             ...(isCoordinator ? [{
@@ -394,7 +413,10 @@ const Marks = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <select
               value={form.examType}
-              onChange={(event) => setForm({ ...form, examType: event.target.value, studentId: '' })}
+              onChange={(event) => {
+                setForm({ ...form, examType: event.target.value })
+                setDraftMarks({})
+              }}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               {examTypes.map((examType) => (
@@ -406,7 +428,10 @@ const Marks = () => {
             <select
               required
               value={form.subjectId}
-              onChange={(event) => setForm({ ...form, subjectId: event.target.value, studentId: '' })}
+              onChange={(event) => {
+                setForm({ ...form, subjectId: event.target.value })
+                setDraftMarks({})
+              }}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">Select Module</option>
@@ -414,44 +439,64 @@ const Marks = () => {
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
             </select>
-            <select
-              required
-              value={form.studentId}
-              onChange={(event) => setForm({ ...form, studentId: event.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">Select Student</option>
-              {students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.name} ({student.rollNumber})
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-3">
-              <input
-                type="number"
-                placeholder="Full Marks"
-                required
-                value={form.totalMarks}
-                onChange={(event) => setForm({ ...form, totalMarks: event.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <input
-                type="number"
-                placeholder="Obtained Marks"
-                required
-                value={form.obtainedMarks}
-                onChange={(event) => setForm({ ...form, obtainedMarks: event.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
             <input
-              type="text"
-              placeholder="Remarks"
-              value={form.remarks}
-              onChange={(event) => setForm({ ...form, remarks: event.target.value })}
+              type="number"
+              placeholder="Full Marks"
+              required
+              value={form.totalMarks}
+              onChange={(event) => setForm({ ...form, totalMarks: event.target.value })}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
+            {form.subjectId ? (
+              students.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
+                  No enrolled students found for this module.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                  {students.map((student) => (
+                    <div key={student.id} className="rounded-xl border border-slate-200 p-4">
+                      <div className="mb-3">
+                        <p className="font-semibold text-slate-900">{student.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {student.rollNumber} • Semester {student.semester}{student.section ? ` • Section ${student.section}` : ''}
+                        </p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
+                        <input
+                          type="number"
+                          min="0"
+                          max={form.totalMarks || undefined}
+                          placeholder="Marks"
+                          value={draftMarks[student.id]?.obtainedMarks ?? ''}
+                          onChange={(event) => setDraftMarks((current) => ({
+                            ...current,
+                            [student.id]: {
+                              ...current[student.id],
+                              obtainedMarks: event.target.value
+                            }
+                          }))}
+                          className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Remarks (optional)"
+                          value={draftMarks[student.id]?.remarks ?? ''}
+                          onChange={(event) => setDraftMarks((current) => ({
+                            ...current,
+                            [student.id]: {
+                              ...current[student.id],
+                              remarks: event.target.value
+                            }
+                          }))}
+                          className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : null}
             <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
               {form.examType === 'PRACTICAL'
                 ? 'Practical marks will remain visible only to instructors and coordinators.'
