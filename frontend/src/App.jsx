@@ -44,6 +44,7 @@ import StudentMaterials from './pages/student/Materials'
 import StudentRoutine from './pages/student/Routine'
 import StudentIdCard from './pages/student/IdCard'
 import ProfilePage from './pages/shared/ProfilePage'
+import NotFound from './pages/shared/NotFound'
 import { getHomeRouteForUser } from './utils/auth'
 import LoadingSkeleton from './components/LoadingSkeleton'
 import { ToastProvider } from './components/Toast'
@@ -154,7 +155,7 @@ const AppRoutes = () => {
       <Route path="/student/routine" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentRoutine /></ProtectedRoute>} />
       <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={['ADMIN']}><ProfilePage /></ProtectedRoute>} />
       
-      <Route path="*" element={<Navigate to={user ? homeRoute : '/'} />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

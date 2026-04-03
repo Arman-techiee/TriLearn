@@ -5,31 +5,39 @@ const { attachActorProfiles } = require('../middleware/profile.middleware')
 const { validate } = require('../middleware/validate.middleware')
 const { schemas } = require('../validators/schemas')
 const {
+  markAttendanceManual,
+  getAttendanceBySubject,
+  getMyAttendance,
+  getSubjectRoster,
+  getCoordinatorDepartmentAttendanceReport,
+  getMonthlyAttendanceReport
+} = require('../controllers/attendance/attendance.controller')
+const {
+  exportCoordinatorDepartmentAttendanceReport,
+  exportAttendanceBySubject
+} = require('../controllers/attendance/export.controller')
+const {
   generateDailyAttendanceQR,
   getLiveGateAttendanceQr,
   generateQR,
   markAttendanceQR,
   markDailyAttendanceQR,
-  markAttendanceManual,
-  getAttendanceBySubject,
-  getCoordinatorDepartmentAttendanceReport,
-  exportCoordinatorDepartmentAttendanceReport,
-  getMonthlyAttendanceReport,
-  exportAttendanceBySubject,
-  getMyAttendance,
-  getSubjectRoster,
+  scanStudentIdAttendance
+} = require('../controllers/attendance/qr.controller')
+const {
   getGateAttendanceSettings,
   createGateScanWindow,
   updateGateScanWindow,
   deleteGateScanWindow,
   createAttendanceHoliday,
-  deleteAttendanceHoliday,
-  scanStudentIdAttendance,
+  deleteAttendanceHoliday
+} = require('../controllers/attendance/settings.controller')
+const {
   getMyAbsenceTickets,
   createAbsenceTicket,
   getAbsenceTicketsForStaff,
   reviewAbsenceTicket
-} = require('../controllers/attendance.controller')
+} = require('../controllers/attendance/tickets.controller')
 
 router.use(protect)
 router.use(attachActorProfiles)

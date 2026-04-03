@@ -11,6 +11,10 @@ const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    if (decoded?.type !== 'access') {
+      return res.status(401).json({ message: 'Invalid token type' })
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
       select: { id: true, role: true, isActive: true }

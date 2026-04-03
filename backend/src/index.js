@@ -29,7 +29,7 @@ app.use(cors({
   credentials: true
 }))
 app.use(cookieParser())
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 app.use((req, res, next) => {
   req.logger = logger.child({
     requestId: req.id,
@@ -103,13 +103,17 @@ app.get('/', (req, res) => {
   res.json({ message: 'EduNexus backend is running! 🚀' })
 })
 
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Route not found' })
+})
+
 app.use((error, req, res, _next) => {
   const errorMessage = error instanceof Error ? error.message : String(error)
   ;(req.logger || logger).error(errorMessage, { stack: error?.stack })
-  res.status(400).json({
+  res.status(500).json({
     message: isDevelopment
       ? (errorMessage || 'Something went wrong')
-      : 'Request failed'
+      : 'Something went wrong'
   })
 })
 
