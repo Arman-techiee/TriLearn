@@ -8,6 +8,7 @@ const {
   markAttendanceManual,
   getAttendanceBySubject,
   getMyAttendance,
+  exportMyAttendancePdf,
   getSubjectRoster,
   getCoordinatorDepartmentAttendanceReport,
   getMonthlyAttendanceReport
@@ -65,6 +66,7 @@ router.get('/subject/:subjectId', allowRoles('INSTRUCTOR', 'COORDINATOR', 'ADMIN
 router.post('/scan-daily-qr', allowRoles('STUDENT'), validate(schemas.attendance.scanQr), markDailyAttendanceQR)
 router.post('/scan-qr', allowRoles('STUDENT'), validate(schemas.attendance.scanQr), markAttendanceQR)
 router.get('/my', allowRoles('STUDENT'), getMyAttendance)
+router.get('/my/export', allowRoles('STUDENT'), exportMyAttendancePdf)
 router.get('/tickets/my', allowRoles('STUDENT'), getMyAbsenceTickets)
 router.post('/tickets', allowRoles('STUDENT'), validate(schemas.attendance.createTicket), createAbsenceTicket)
 

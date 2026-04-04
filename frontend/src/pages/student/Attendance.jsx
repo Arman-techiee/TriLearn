@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, Camera, FileText, Square, Upload } from 'lucide-react'
+import { AlertCircle, Camera, Download, FileText, Square, Upload } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
@@ -52,6 +52,7 @@ const StudentAttendance = () => {
   const [scannerSupported, setScannerSupported] = useState(false)
   const [scannerStatus, setScannerStatus] = useState('Tap start scanner to use your phone camera.')
   const [submittingScan, setSubmittingScan] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -149,6 +150,34 @@ const StudentAttendance = () => {
     }
   }
 
+  const downloadAttendancePdf = async () => {
+    try {
+      setDownloadingPdf(true)
+      setError('')
+
+      const response = await api.get('/attendance/my/export', {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const contentDisposition = response.headers['content-disposition'] || ''
+      const fileNameMatch = contentDisposition.match(/filename=\"?([^"]+)\"?/)
+      link.href = url
+      link.download = fileNameMatch?.[1] || 'attendance-report.pdf'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (downloadError) {
+      logger.error(downloadError)
+      setError('Unable to download attendance PDF right now')
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
+
   const startScanner = async () => {
     if (!scannerSupported) {
       setScannerStatus('Camera scanning is not available on this device. Use the manual QR text box below.')
@@ -213,6 +242,7 @@ const StudentAttendance = () => {
             { label: 'Start Scanner', icon: Camera, variant: 'primary', onClick: startScanner, disabled: submittingScan },
             { label: 'Stop', icon: Square, variant: 'secondary', onClick: () => { stopScanner(); setScannerOpen(false); setScannerStatus('Scanner stopped.') } },
             { label: submittingScan ? 'Submitting...' : 'Submit QR', icon: Upload, variant: 'secondary', onClick: () => submitDailyQr(manualQrData), disabled: !manualQrData.trim() || submittingScan },
+            { label: downloadingPdf ? 'Preparing PDF...' : 'Download PDF', icon: Download, variant: 'secondary', onClick: downloadAttendancePdf, disabled: downloadingPdf },
             { label: 'Open Requests', icon: FileText, variant: 'secondary', to: '/student/requests' }
           ]}
         />

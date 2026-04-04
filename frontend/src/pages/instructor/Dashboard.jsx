@@ -19,36 +19,60 @@ const InstructorDashboard = () => {
   const [subjects, setSubjects] = useState([])
   const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchData()
+    const controller = new AbortController()
+
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError('')
+
+        const [subjectsRes, assignmentsRes, noticesRes] = await Promise.all([
+          api.get('/subjects', { signal: controller.signal }),
+          api.get('/assignments', { signal: controller.signal }),
+          api.get('/notices', { signal: controller.signal }),
+        ])
+
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setSubjects(subjectsRes.data.subjects.slice(0, 3))
+        setNotices(noticesRes.data.notices.slice(0, 3))
+        setStats({
+          totalSubjects: subjectsRes.data.total,
+          totalAssignments: assignmentsRes.data.total,
+          totalNotices: noticesRes.data.total,
+        })
+      } catch (error) {
+        if (error?.code === 'ERR_CANCELED') {
+          return
+        }
+
+        logger.error(error)
+        setError('Unable to load the instructor dashboard right now.')
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void fetchData()
+
+    return () => {
+      controller.abort()
+    }
   }, [])
 
-  const fetchData = async () => {
-    try {
-      const [subjectsRes, assignmentsRes, noticesRes] = await Promise.all([
-        api.get('/subjects'),
-        api.get('/assignments'),
-        api.get('/notices'),
-      ])
-
-      setSubjects(subjectsRes.data.subjects.slice(0, 3))
-      setNotices(noticesRes.data.notices.slice(0, 3))
-      setStats({
-        totalSubjects: subjectsRes.data.total,
-        totalAssignments: assignmentsRes.data.total,
-        totalNotices: noticesRes.data.total,
-      })
-    } catch (error) {
-      logger.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading) return (
+  if (loading || (error && subjects.length === 0 && notices.length === 0)) return (
     <InstructorLayout>
       <div className="p-4 md:p-8">
+        {error ? (
+          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        ) : null}
         <LoadingSkeleton rows={5} itemClassName="h-24" />
       </div>
     </InstructorLayout>
@@ -63,6 +87,10 @@ const InstructorDashboard = () => {
           subtitle="Here's what's happening in your classes today"
           breadcrumbs={['Instructor', 'Dashboard']}
         />
+
+        {error ? (
+          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        ) : null}
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">

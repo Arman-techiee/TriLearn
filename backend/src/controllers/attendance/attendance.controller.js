@@ -1,4 +1,5 @@
 const { getPagination } = require('../../utils/pagination')
+const PDFDocument = require('pdfkit')
 const {
   ATTENDANCE_STATUSES,
   prisma,
@@ -14,6 +15,12 @@ const {
   getCoordinatorDepartmentReportPayload,
   recordAuditLog
 } = require('./shared')
+
+const sanitizeFilenamePart = (value) => String(value || 'attendance')
+  .replace(/[^a-z0-9-_]+/gi, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-|-$/g, '')
+  .toLowerCase()
 
 const markAttendanceManual = async (req, res) => {
   try {
@@ -138,6 +145,123 @@ const getMyAttendance = async (req, res) => {
     })).sort((left, right) => left.code.localeCompare(right.code))
 
     res.json({ total, page, limit, attendance, summary })
+  } catch (error) {
+    res.internalError(error)
+  }
+}
+
+const exportMyAttendancePdf = async (req, res) => {
+  try {
+    const student = req.student
+    if (!student) return res.status(403).json({ message: 'Student profile not found' })
+
+    const [attendance, studentProfile] = await Promise.all([
+      prisma.attendance.findMany({
+        where: { studentId: student.id },
+        include: { subject: { select: { name: true, code: true } } },
+        orderBy: { date: 'desc' }
+      }),
+      prisma.student.findUnique({
+        where: { id: student.id },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        }
+      })
+    ])
+
+    if (!studentProfile?.user) {
+      return res.status(404).json({ message: 'Student profile not found' })
+    }
+
+    const summaryMap = {}
+    attendance.forEach((record) => {
+      const key = record.subjectId
+      if (!summaryMap[key]) {
+        summaryMap[key] = {
+          subject: record.subject,
+          total: 0,
+          present: 0,
+          absent: 0,
+          late: 0
+        }
+      }
+
+      summaryMap[key].total += 1
+      if (record.status === 'PRESENT') summaryMap[key].present += 1
+      if (record.status === 'ABSENT') summaryMap[key].absent += 1
+      if (record.status === 'LATE') summaryMap[key].late += 1
+    })
+
+    const subjectSummaries = Object.values(summaryMap)
+      .map((entry) => ({
+        ...entry,
+        percentage: entry.total > 0 ? Number(((entry.present / entry.total) * 100).toFixed(1)) : 0
+      }))
+      .sort((left, right) => left.subject.code.localeCompare(right.subject.code))
+
+    const fileName = `attendance-${sanitizeFilenamePart(studentProfile.rollNumber)}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4' })
+    doc.pipe(res)
+
+    doc.fontSize(20).text('EduNexus Attendance Report', { align: 'center' })
+    doc.moveDown(0.5)
+    doc.fontSize(11).text(`Student: ${studentProfile.user.name}`)
+    doc.text(`Roll Number: ${studentProfile.rollNumber}`)
+    doc.text(`Email: ${studentProfile.user.email}`)
+    doc.text(`Department: ${studentProfile.department || '-'}`)
+    doc.text(`Semester: ${studentProfile.semester}`)
+    doc.text(`Section: ${studentProfile.section || '-'}`)
+    doc.text(`Generated: ${new Date().toLocaleString()}`)
+    doc.moveDown()
+
+    if (!subjectSummaries.length) {
+      doc.text('No attendance records available yet.')
+      doc.end()
+      return
+    }
+
+    doc.fontSize(13).text('Subject Summary')
+    doc.moveDown(0.5)
+
+    subjectSummaries.forEach((entry, index) => {
+      if (doc.y > 720) {
+        doc.addPage()
+      }
+
+      doc.fontSize(11).text(`${index + 1}. ${entry.subject.name} (${entry.subject.code})`)
+      doc.fontSize(10)
+      doc.text(`Attendance: ${entry.present} present, ${entry.absent} absent, ${entry.late} late`)
+      doc.text(`Attendance Percentage: ${entry.percentage.toFixed(1)}%`)
+      doc.moveDown(0.4)
+    })
+
+    if (doc.y > 680) {
+      doc.addPage()
+    }
+
+    doc.moveDown()
+    doc.fontSize(13).text('Recent Record Ledger')
+    doc.moveDown(0.5)
+
+    attendance.slice(0, 20).forEach((record, index) => {
+      if (doc.y > 720) {
+        doc.addPage()
+      }
+
+      doc.fontSize(10).text(
+        `${index + 1}. ${record.subject?.code || '-'} • ${formatDisplayDate(record.date)} • ${record.status}`
+      )
+    })
+
+    doc.end()
   } catch (error) {
     res.internalError(error)
   }
@@ -282,4 +406,4 @@ const getMonthlyAttendanceReport = async (req, res) => {
   }
 }
 
-module.exports = { markAttendanceManual, getAttendanceBySubject, getMyAttendance, getSubjectRoster, getCoordinatorDepartmentAttendanceReport, getMonthlyAttendanceReport }
+module.exports = { markAttendanceManual, getAttendanceBySubject, getMyAttendance, exportMyAttendancePdf, getSubjectRoster, getCoordinatorDepartmentAttendanceReport, getMonthlyAttendanceReport }

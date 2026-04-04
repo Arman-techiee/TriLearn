@@ -36,6 +36,7 @@ model User {
   coordinator Coordinator?
   notices    Notice[]
   notifications Notification[]
+  deviceTokens DeviceToken[]
   refreshTokens RefreshToken[]
   auditLogs  AuditLog[]
 
@@ -426,6 +427,7 @@ model Routine {
   @@index([subjectId])
   @@index([instructorId])
   @@index([combinedGroupId])
+  @@unique([instructorId, dayOfWeek, startTime])
 }
 
 enum DayOfWeek {
@@ -509,4 +511,21 @@ model RefreshToken {
 
   @@index([userId])
   @@index([userId, revokedAt, expiresAt])
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+}
+
+model DeviceToken {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String         @unique
+  platform  DevicePlatform
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+  @@index([platform])
 }

@@ -2,6 +2,32 @@ const prisma = require('./prisma')
 
 const uniqueUserIds = (userIds = []) => [...new Set(userIds.filter(Boolean))]
 
+const loadPushTargets = async (userIds = []) => {
+  const recipients = uniqueUserIds(userIds)
+
+  if (!recipients.length || !prisma.deviceToken?.findMany) {
+    return []
+  }
+
+  return prisma.deviceToken.findMany({
+    where: {
+      userId: { in: recipients }
+    },
+    select: {
+      userId: true,
+      token: true,
+      platform: true
+    }
+  })
+}
+
+const dispatchPushNotifications = async ({ userIds }) => {
+  // Mobile groundwork: persist device tokens now and centralize the future
+  // FCM fan-out hook here after database notifications are saved.
+  const pushTargets = await loadPushTargets(userIds)
+  return { count: pushTargets.length }
+}
+
 const createNotification = async ({
   userId,
   type,
@@ -31,6 +57,12 @@ const createNotification = async ({
     }
 
     throw error
+  }).then(async (notification) => {
+    if (notification) {
+      await dispatchPushNotifications({ userIds: [userId] })
+    }
+
+    return notification
   })
 }
 
@@ -49,7 +81,7 @@ const createNotifications = async ({
     return { count: 0 }
   }
 
-  return prisma.notification.createMany({
+  const result = await prisma.notification.createMany({
     data: recipients.map((userId) => ({
       userId,
       type,
@@ -61,6 +93,9 @@ const createNotifications = async ({
     })),
     skipDuplicates: true
   })
+
+  await dispatchPushNotifications({ userIds: recipients })
+  return result
 }
 
 module.exports = {

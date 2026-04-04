@@ -115,6 +115,18 @@ const getOverlapFilter = ({ dayOfWeek, startTime, endTime, section, room, depart
   }
 }
 
+const respondToRoutineConflict = ({ res, conflict, room, instructorId }) => {
+  if (room && conflict.room === room) {
+    return res.status(400).json({ message: `Room ${room} is already booked at this time.` })
+  }
+
+  if (conflict.instructorId === instructorId) {
+    return res.status(400).json({ message: 'This instructor already has a class at this time.' })
+  }
+
+  return res.status(400).json({ message: 'This time slot is already taken for this semester and section.' })
+}
+
 const createRoutine = async (req, res) => {
   try {
     const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId } = req.body
@@ -129,15 +141,7 @@ const createRoutine = async (req, res) => {
     })
 
     if (conflict) {
-      if (room && conflict.room === room) {
-        return res.status(400).json({ message: `Room ${room} is already booked at this time.` })
-      }
-
-      if (conflict.instructorId === instructorId) {
-        return res.status(400).json({ message: 'This instructor already has a class at this time.' })
-      }
-
-      return res.status(400).json({ message: 'This time slot is already taken for this semester and section.' })
+      return respondToRoutineConflict({ res, conflict, room, instructorId })
     }
 
     const routine = await prisma.routine.create({
@@ -158,6 +162,10 @@ const createRoutine = async (req, res) => {
 
     res.status(201).json({ message: 'Routine created successfully!', routine })
   } catch (error) {
+    if (error?.code === 'P2002') {
+      return res.status(400).json({ message: 'This instructor already has a class at this time.' })
+    }
+
     res.internalError(error)
   }
 }
@@ -213,15 +221,7 @@ const updateRoutine = async (req, res) => {
     })
 
     if (conflict) {
-      if (room && conflict.room === room) {
-        return res.status(400).json({ message: `Room ${room} is already booked at this time.` })
-      }
-
-      if (conflict.instructorId === instructorId) {
-        return res.status(400).json({ message: 'This instructor already has a class at this time.' })
-      }
-
-      return res.status(400).json({ message: 'This time slot is already taken for this semester and section.' })
+      return respondToRoutineConflict({ res, conflict, room, instructorId })
     }
 
     const updated = await prisma.routine.update({
@@ -243,6 +243,10 @@ const updateRoutine = async (req, res) => {
 
     res.json({ message: 'Routine updated successfully!', routine: updated })
   } catch (error) {
+    if (error?.code === 'P2002') {
+      return res.status(400).json({ message: 'This instructor already has a class at this time.' })
+    }
+
     res.internalError(error)
   }
 }

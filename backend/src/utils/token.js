@@ -52,7 +52,7 @@ const getRefreshCookieOptions = () => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
-    path: '/api/auth',
+    path: '/api/v1/auth',
     expires: getRefreshTokenExpiry()
   }
 }

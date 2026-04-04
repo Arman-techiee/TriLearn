@@ -65,7 +65,7 @@ test('unknown routes return a JSON 404 response', async () => {
   assert.deepEqual(response.body, { message: 'Route not found' })
 })
 
-test('POST /api/auth/login returns the controller response through the real route', async () => {
+test('POST /api/v1/auth/login returns the controller response through the real route', async () => {
   const login = async (req, res) => {
     res.status(200).json({
       message: 'Login successful!',
@@ -113,10 +113,10 @@ test('POST /api/auth/login returns the controller response through the real rout
 
   const testApp = express()
   testApp.use(express.json())
-  testApp.use('/api/auth', authRoutes)
+  testApp.use('/api/v1/auth', authRoutes)
 
   const response = await request(testApp)
-    .post('/api/auth/login')
+    .post('/api/v1/auth/login')
     .send({
       email: 'admin@example.com',
       password: 'Password123'
@@ -127,7 +127,7 @@ test('POST /api/auth/login returns the controller response through the real rout
   assert.equal(response.body.user.email, 'admin@example.com')
 })
 
-test('GET /api/admin/stats denies instructors through the real admin route', async () => {
+test('GET /api/v1/admin/stats denies instructors through the real admin route', async () => {
   let statsCalled = false
 
   const adminRoutes = loadWithMocks(resolveFromTest('src', 'routes', 'admin.routes.js'), {
@@ -177,10 +177,10 @@ test('GET /api/admin/stats denies instructors through the real admin route', asy
 
   const testApp = express()
   testApp.use(express.json())
-  testApp.use('/api/admin', adminRoutes)
+  testApp.use('/api/v1/admin', adminRoutes)
 
   const response = await request(testApp)
-    .get('/api/admin/stats')
+    .get('/api/v1/admin/stats')
     .set('Authorization', 'Bearer fake-access-token')
 
   assert.equal(response.status, 403)

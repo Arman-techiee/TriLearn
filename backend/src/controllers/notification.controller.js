@@ -94,9 +94,51 @@ const markAllNotificationsRead = async (req, res) => {
   }
 }
 
+const registerDeviceToken = async (req, res) => {
+  try {
+    const { token, platform } = req.body
+
+    await prisma.deviceToken.upsert({
+      where: { token },
+      update: {
+        userId: req.user.id,
+        platform
+      },
+      create: {
+        userId: req.user.id,
+        token,
+        platform
+      }
+    })
+
+    res.status(201).json({ message: 'Device token registered successfully.' })
+  } catch (error) {
+    res.internalError(error)
+  }
+}
+
+const unregisterDeviceToken = async (req, res) => {
+  try {
+    const { token } = req.body
+
+    await prisma.deviceToken.deleteMany({
+      where: {
+        userId: req.user.id,
+        token
+      }
+    })
+
+    res.json({ message: 'Device token removed successfully.' })
+  } catch (error) {
+    res.internalError(error)
+  }
+}
+
 module.exports = {
   listNotifications,
   getUnreadNotificationCount,
   markNotificationRead,
-  markAllNotificationsRead
+  markAllNotificationsRead,
+  registerDeviceToken,
+  unregisterDeviceToken
 }

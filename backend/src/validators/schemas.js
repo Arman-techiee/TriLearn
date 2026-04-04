@@ -30,6 +30,7 @@ const examTypeEnum = z.enum(['INTERNAL', 'MIDTERM', 'FINAL', 'PREBOARD', 'PRACTI
 const exportFormatEnum = z.enum(['pdf', 'xlsx'])
 const applicationStatusEnum = z.enum(['PENDING', 'REVIEWED', 'CONVERTED'])
 const absenceTicketStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED'])
+const devicePlatformEnum = z.enum(['IOS', 'ANDROID'])
 
 const strongPasswordSchema = z.string()
   .min(8, 'Password must be at least 8 characters')
@@ -526,6 +527,19 @@ const schemas = {
     create: { body: materialBody },
     id: { params: uuidParam },
     bySubject: { params: z.object({ subjectId: z.string().uuid() }) }
+  },
+  notifications: {
+    registerDeviceToken: {
+      body: z.object({
+        token: z.string().trim().min(10).max(4096),
+        platform: devicePlatformEnum
+      })
+    },
+    unregisterDeviceToken: {
+      body: z.object({
+        token: z.string().trim().min(10).max(4096)
+      })
+    }
   }
 }
 

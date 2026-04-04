@@ -681,3 +681,46 @@ test('createRoutine allows combined classes sharing the same room and combinedGr
   assert.equal(findFirstCalls[0].where.OR[0].combinedGroupId.not, '123e4567-e89b-12d3-a456-426614174000')
   assert.equal(createCalls[0].data.combinedGroupId, '123e4567-e89b-12d3-a456-426614174000')
 })
+
+test('createRoutine returns a friendly error when the database uniqueness guard catches an instructor race', async () => {
+  const { createRoutine } = loadWithMocks(resolveFromTest('src', 'controllers', 'routine.controller.js'), {
+    '../utils/prisma': {
+      subject: {
+        findUnique: async () => ({ id: 'subject-1', semester: 3, department: 'BCA' })
+      },
+      instructor: {
+        findUnique: async () => ({ id: 'instructor-1' })
+      },
+      routine: {
+        findFirst: async () => null,
+        create: async () => {
+          const error = new Error('Unique constraint failed')
+          error.code = 'P2002'
+          throw error
+        }
+      }
+    }
+  })
+
+  const req = {
+    body: {
+      subjectId: 'subject-1',
+      instructorId: 'instructor-1',
+      department: 'BCA',
+      semester: 3,
+      section: 'A',
+      dayOfWeek: 'SUNDAY',
+      startTime: '10:00',
+      endTime: '11:00',
+      room: 'Room 101'
+    }
+  }
+  const res = createResponse()
+
+  await createRoutine(req, res)
+
+  assert.equal(res.statusCode, 400)
+  assert.deepEqual(res.body, {
+    message: 'This instructor already has a class at this time.'
+  })
+})
