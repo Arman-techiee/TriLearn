@@ -11,6 +11,7 @@ import StatusBadge from '../../components/StatusBadge'
 import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import logger from '../../utils/logger'
+import { canUseCameraQrScanner, detectQrFromVideo, getQrScanIntervalMs } from '../../utils/qrScanner'
 
 const ringTone = (percentage) => {
   if (percentage >= 75) return 'var(--color-role-instructor)'
@@ -55,17 +56,15 @@ const StudentAttendance = () => {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const intervalRef = useRef(null)
+  const detectorRef = useRef(null)
+  const canvasRef = useRef(null)
 
   useEffect(() => {
     fetchAttendance()
   }, [page])
 
   useEffect(() => {
-    setScannerSupported(
-      typeof window !== 'undefined' &&
-      'BarcodeDetector' in window &&
-      !!navigator.mediaDevices?.getUserMedia
-    )
+    setScannerSupported(canUseCameraQrScanner())
 
     return () => {
       stopScanner()
@@ -121,6 +120,8 @@ const StudentAttendance = () => {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
+
+    detectorRef.current = null
   }
 
   const submitDailyQr = async (qrData) => {
@@ -150,7 +151,7 @@ const StudentAttendance = () => {
 
   const startScanner = async () => {
     if (!scannerSupported) {
-      setScannerStatus('Live camera scanning is not supported on this device. Use the manual QR text box below.')
+      setScannerStatus('Camera scanning is not available on this device. Use the manual QR text box below.')
       return
     }
 
@@ -170,23 +171,27 @@ const StudentAttendance = () => {
         await videoRef.current.play()
       }
 
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
       setScannerStatus('Point your camera at the college QR.')
 
       intervalRef.current = window.setInterval(async () => {
         if (!videoRef.current || submittingScan) return
 
         try {
-          const codes = await detector.detect(videoRef.current)
-          if (codes.length > 0 && codes[0].rawValue) {
+          const qrValue = await detectQrFromVideo({
+            video: videoRef.current,
+            detectorRef,
+            canvasRef
+          })
+
+          if (qrValue) {
             stopScanner()
             setScannerStatus('QR detected. Submitting attendance...')
-            await submitDailyQr(codes[0].rawValue)
+            await submitDailyQr(qrValue)
           }
         } catch (detectError) {
           logger.error(detectError)
         }
-      }, 800)
+      }, getQrScanIntervalMs())
     } catch (cameraError) {
       logger.error(cameraError)
       setScannerStatus('Unable to access the camera. You can still paste the QR data manually.')

@@ -10,7 +10,6 @@ const {
   normalizeSemesterList,
   getEligibleGateAttendanceForStudent,
   upsertPresentAttendanceForRoutines,
-  syncClosedRoutineAbsences,
   getStudentByIdCardQr,
   recordAuditLog
 } = require('./shared')
@@ -64,26 +63,32 @@ const markAttendanceQR = async (req, res) => {
     if (!enrollment) return res.status(403).json({ message: 'You are not eligible to mark attendance for this subject' })
 
     const todayRange = getDayRange()
-    let attendance
-    try {
-      attendance = await prisma.attendance.create({
-        data: {
+    const attendance = await prisma.attendance.upsert({
+      where: {
+        studentId_subjectId_date: {
           studentId: student.id,
           subjectId,
-          instructorId,
-          status: 'PRESENT',
-          qrCode: qrData,
           date: todayRange.start
-        },
-        include: {
-          subject: { select: { name: true, code: true } },
-          student: { include: { user: { select: { name: true } } } }
         }
-      })
-    } catch (error) {
-      if (error.code === 'P2002') return res.status(400).json({ message: 'Attendance already marked for today' })
-      throw error
-    }
+      },
+      update: {
+        instructorId,
+        status: 'PRESENT',
+        qrCode: qrData
+      },
+      create: {
+        studentId: student.id,
+        subjectId,
+        instructorId,
+        status: 'PRESENT',
+        qrCode: qrData,
+        date: todayRange.start
+      },
+      include: {
+        subject: { select: { name: true, code: true } },
+        student: { include: { user: { select: { name: true } } } }
+      }
+    })
 
     res.status(201).json({
       message: 'Attendance marked successfully!',
@@ -114,8 +119,6 @@ const markDailyAttendanceQR = async (req, res) => {
     const { qrData } = req.body
     const student = req.student
     if (!student) return res.status(403).json({ message: 'Student profile not found' })
-
-    await syncClosedRoutineAbsences()
 
     const parsedQR = parseQrPayload(qrData)
     if (!parsedQR || parsedQR.type !== 'GATE_STUDENT_QR' || !Array.isArray(parsedQR.windowIds)) {
@@ -161,7 +164,6 @@ const markDailyAttendanceQR = async (req, res) => {
 }
 
 const getLiveGateAttendanceQrPayload = async (req) => {
-  await syncClosedRoutineAbsences()
   const now = new Date()
   const windows = await getDailyGateWindows(now)
 

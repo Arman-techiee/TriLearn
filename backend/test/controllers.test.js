@@ -258,7 +258,7 @@ test('submitStudentIntake upserts the application payload and returns success', 
 })
 
 test('markAttendanceQR creates a present attendance record for eligible students', async () => {
-  const createCalls = []
+  const upsertCalls = []
   const { markAttendanceQR } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {
     './shared': {
       QR_VALIDITY_MINUTES: 15,
@@ -270,12 +270,12 @@ test('markAttendanceQR creates a present attendance record for eligible students
           findUnique: async () => ({ id: 'enrollment-1' })
         },
         attendance: {
-          create: async (payload) => {
-            createCalls.push(payload)
+          upsert: async (payload) => {
+            upsertCalls.push(payload)
             return {
               id: 'attendance-1',
               status: 'PRESENT',
-              date: payload.data.date,
+              date: payload.create.date,
               subject: { name: 'Database Systems', code: 'DBS101' },
               student: { user: { name: 'Arman Dev' } }
             }
@@ -317,9 +317,36 @@ test('markAttendanceQR creates a present attendance record for eligible students
 
   assert.equal(res.statusCode, 201)
   assert.match(res.body.message, /attendance marked successfully/i)
-  assert.equal(createCalls.length, 1)
-  assert.equal(createCalls[0].data.studentId, 'student-1')
-  assert.equal(createCalls[0].data.subjectId, 'subject-1')
+  assert.equal(upsertCalls.length, 1)
+  assert.equal(upsertCalls[0].create.studentId, 'student-1')
+  assert.equal(upsertCalls[0].create.subjectId, 'subject-1')
+})
+
+test('getDayRange uses the configured attendance timezone for date boundaries', () => {
+  const previousTimezone = process.env.ATTENDANCE_TIMEZONE
+  process.env.ATTENDANCE_TIMEZONE = 'Asia/Kathmandu'
+  try {
+    const { getDayRange } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
+      '../../utils/prisma': {},
+      '../../utils/audit': {
+        recordAuditLog: async () => {}
+      },
+      '../../utils/security': {
+        getRequiredSecret: () => 'test-secret'
+      }
+    })
+
+    const range = getDayRange('2026-04-04')
+
+    assert.equal(range.start.toISOString(), '2026-04-03T18:15:00.000Z')
+    assert.equal(range.end.toISOString(), '2026-04-04T18:15:00.000Z')
+  } finally {
+    if (previousTimezone === undefined) {
+      delete process.env.ATTENDANCE_TIMEZONE
+    } else {
+      process.env.ATTENDANCE_TIMEZONE = previousTimezone
+    }
+  }
 })
 
 test('publishMarks publishes marks for a coordinator department and returns count', async () => {

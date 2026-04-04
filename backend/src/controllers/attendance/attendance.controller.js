@@ -8,7 +8,7 @@ const {
   getSubjectStudents,
   buildAttendanceSummary,
   buildStatusSummary,
-  syncClosedRoutineAbsences,
+  createZonedDate,
   formatDisplayDate,
   formatMonthLabel,
   getCoordinatorDepartmentReportPayload,
@@ -64,8 +64,6 @@ const getAttendanceBySubject = async (req, res) => {
     const { date, semester, section } = req.query
     const { page, limit, skip } = getPagination(req.query)
 
-    await syncClosedRoutineAbsences(date ? new Date(date) : new Date())
-
     const access = await getOwnedSubject(subjectId, req)
     if (access.error) return res.status(access.error.status).json({ message: access.error.message })
 
@@ -103,8 +101,6 @@ const getMyAttendance = async (req, res) => {
     const { page, limit, skip } = getPagination(req.query)
     const student = req.student
     if (!student) return res.status(403).json({ message: 'Student profile not found' })
-
-    await syncClosedRoutineAbsences()
 
     const [attendance, total, allAttendance] = await Promise.all([
       prisma.attendance.findMany({
@@ -151,8 +147,6 @@ const getSubjectRoster = async (req, res) => {
   try {
     const { subjectId } = req.params
     const { date, semester, section } = req.query
-    await syncClosedRoutineAbsences(date ? new Date(date) : new Date())
-
     const access = await getOwnedSubject(subjectId, req)
     if (access.error) return res.status(access.error.status).json({ message: access.error.message })
 
@@ -200,7 +194,6 @@ const getSubjectRoster = async (req, res) => {
 const getCoordinatorDepartmentAttendanceReport = async (req, res) => {
   try {
     const { month, semester, section } = req.query
-    await syncClosedRoutineAbsences()
     const report = await getCoordinatorDepartmentReportPayload({ coordinator: req.coordinator, month, semester, section })
     if (report.error) return res.status(report.error.status).json({ message: report.error.message })
     res.json(report)
@@ -213,13 +206,12 @@ const getMonthlyAttendanceReport = async (req, res) => {
   try {
     const { subjectId } = req.params
     const { month } = req.query
-    await syncClosedRoutineAbsences()
-
     const access = await getOwnedSubject(subjectId, req)
     if (access.error) return res.status(access.error.status).json({ message: access.error.message })
 
     const monthRange = getMonthRange(month)
     if (!monthRange) return res.status(400).json({ message: 'Please provide a valid month in YYYY-MM format' })
+    const [year, monthNumber] = month.split('-').map((value) => Number.parseInt(value, 10))
 
     const [students, attendance] = await Promise.all([
       getSubjectStudents(access.subject),
@@ -230,7 +222,7 @@ const getMonthlyAttendanceReport = async (req, res) => {
       })
     ])
 
-    const daysInMonth = new Date(monthRange.start.getFullYear(), monthRange.start.getMonth() + 1, 0).getDate()
+    const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
     const attendanceMap = new Map()
     attendance.forEach((record) => attendanceMap.set(`${record.studentId}:${formatDisplayDate(record.date)}`, record.status))
 
@@ -242,9 +234,7 @@ const getMonthlyAttendanceReport = async (req, res) => {
       let totalRecorded = 0
 
       for (let day = 1; day <= daysInMonth; day += 1) {
-        const currentDate = new Date(monthRange.start)
-        currentDate.setDate(day)
-        const dateKey = formatDisplayDate(currentDate)
+        const dateKey = formatDisplayDate(createZonedDate(year, monthNumber, day))
         const status = attendanceMap.get(`${student.id}:${dateKey}`) || null
 
         if (status) {
@@ -283,7 +273,7 @@ const getMonthlyAttendanceReport = async (req, res) => {
       totalRecords: attendance.length,
       days: Array.from({ length: daysInMonth }, (_, index) => ({
         day: index + 1,
-        date: formatDisplayDate(new Date(monthRange.start.getFullYear(), monthRange.start.getMonth(), index + 1))
+        date: formatDisplayDate(createZonedDate(year, monthNumber, index + 1))
       })),
       students: studentReports
     })

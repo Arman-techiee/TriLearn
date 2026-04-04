@@ -1,8 +1,7 @@
 const {
   prisma,
   hasAbsenceTicketDelegate,
-  respondAttendanceTicketUnavailable,
-  syncClosedRoutineAbsences
+  respondAttendanceTicketUnavailable
 } = require('./shared')
 const { createNotification } = require('../../utils/notifications')
 
@@ -16,8 +15,6 @@ const getMyAbsenceTickets = async (req, res) => {
     if (!hasAbsenceTicketDelegate()) {
       return res.json({ tickets: [], absencesWithoutTicket: [] })
     }
-
-    await syncClosedRoutineAbsences()
 
     const [tickets, absencesWithoutTicket] = await Promise.all([
       prisma.absenceTicket.findMany({

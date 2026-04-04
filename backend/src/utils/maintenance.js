@@ -1,9 +1,11 @@
 const logger = require('./logger')
 const { startTokenCleanupJob } = require('../jobs/cleanupTokens')
 const { createNotifications } = require('./notifications')
+const { syncClosedRoutineAbsences } = require('../controllers/attendance/shared')
 
 const DEFAULT_AUDIT_LOG_RETENTION_DAYS = 180
 const DEFAULT_AUDIT_LOG_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
+const DEFAULT_ATTENDANCE_SYNC_INTERVAL_MS = 5 * 60 * 1000
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(value, 10)
@@ -81,24 +83,47 @@ const runAssignmentDueNotifications = async (prisma) => {
   }
 }
 
+const runClosedRoutineAbsenceSync = async () => {
+  await syncClosedRoutineAbsences(new Date())
+}
+
 const scheduleMaintenance = (prisma) => {
   const auditLogCleanupInterval = parsePositiveInteger(
     process.env.AUDIT_LOG_CLEANUP_INTERVAL_MS,
     DEFAULT_AUDIT_LOG_CLEANUP_INTERVAL_MS
   )
+  const attendanceSyncInterval = parsePositiveInteger(
+    process.env.ATTENDANCE_SYNC_INTERVAL_MS,
+    DEFAULT_ATTENDANCE_SYNC_INTERVAL_MS
+  )
 
-  const safeRun = (taskName, task) => async () => {
-    try {
-      await task(prisma)
-    } catch (error) {
-      logger.error(`Maintenance task failed: ${taskName}`, { message: error.message, stack: error.stack })
+  const createScheduledTask = (taskName, task) => {
+    let running = false
+
+    return async () => {
+      if (running) {
+        logger.warn(`Skipping overlapping maintenance task: ${taskName}`)
+        return
+      }
+
+      running = true
+
+      try {
+        await task(prisma)
+      } catch (error) {
+        logger.error(`Maintenance task failed: ${taskName}`, { message: error.message, stack: error.stack })
+      } finally {
+        running = false
+      }
     }
   }
 
-  const auditLogTask = safeRun('audit-log-cleanup', runAuditLogCleanup)
-  const assignmentDueNotificationTask = safeRun('assignment-due-notifications', runAssignmentDueNotifications)
+  const auditLogTask = createScheduledTask('audit-log-cleanup', runAuditLogCleanup)
+  const assignmentDueNotificationTask = createScheduledTask('assignment-due-notifications', runAssignmentDueNotifications)
+  const closedRoutineAbsenceSyncTask = createScheduledTask('closed-routine-absence-sync', runClosedRoutineAbsenceSync)
   void auditLogTask()
   void assignmentDueNotificationTask()
+  void closedRoutineAbsenceSyncTask()
 
   const tokenCleanupJob = startTokenCleanupJob(prisma)
 
@@ -108,10 +133,16 @@ const scheduleMaintenance = (prisma) => {
   }, auditLogCleanupInterval)
   auditLogTimer.unref?.()
 
+  const attendanceSyncTimer = setInterval(() => {
+    void closedRoutineAbsenceSyncTask()
+  }, attendanceSyncInterval)
+  attendanceSyncTimer.unref?.()
+
   return {
     stop: () => {
       tokenCleanupJob.stop()
       clearInterval(auditLogTimer)
+      clearInterval(attendanceSyncTimer)
     }
   }
 }

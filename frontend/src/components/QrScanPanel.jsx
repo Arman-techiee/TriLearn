@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, Square, Upload } from 'lucide-react'
 import logger from '../utils/logger'
+import { canUseCameraQrScanner, detectQrFromVideo, getQrScanIntervalMs } from '../utils/qrScanner'
 
 const QrScanPanel = ({
   title,
@@ -18,6 +19,8 @@ const QrScanPanel = ({
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const intervalRef = useRef(null)
+  const detectorRef = useRef(null)
+  const canvasRef = useRef(null)
 
   function stopScanner() {
     if (intervalRef.current) {
@@ -29,14 +32,12 @@ const QrScanPanel = ({
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
+
+    detectorRef.current = null
   }
 
   useEffect(() => {
-    setScannerSupported(
-      typeof window !== 'undefined' &&
-      'BarcodeDetector' in window &&
-      !!navigator.mediaDevices?.getUserMedia
-    )
+    setScannerSupported(canUseCameraQrScanner())
 
     return () => {
       stopScanner()
@@ -53,7 +54,7 @@ const QrScanPanel = ({
 
   const startScanner = async () => {
     if (!scannerSupported) {
-      setScannerStatus('Live camera scanning is not supported on this device. Use the manual QR text box below.')
+      setScannerStatus('Camera scanning is not available on this device. Use the manual QR text box below.')
       return
     }
 
@@ -71,23 +72,27 @@ const QrScanPanel = ({
         await videoRef.current.play()
       }
 
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
       setScannerStatus('Point your camera at the student ID QR.')
 
       intervalRef.current = window.setInterval(async () => {
         if (!videoRef.current || busy) return
 
         try {
-          const codes = await detector.detect(videoRef.current)
-          if (codes.length > 0 && codes[0].rawValue) {
+          const qrValue = await detectQrFromVideo({
+            video: videoRef.current,
+            detectorRef,
+            canvasRef
+          })
+
+          if (qrValue) {
             stopScanner()
             setScannerStatus('QR detected. Submitting...')
-            await handleSubmit(codes[0].rawValue)
+            await handleSubmit(qrValue)
           }
         } catch (detectError) {
           logger.error(detectError)
         }
-      }, 800)
+      }, getQrScanIntervalMs())
     } catch (cameraError) {
       logger.error(cameraError)
       setScannerStatus('Unable to access the camera. You can still paste the QR data manually.')

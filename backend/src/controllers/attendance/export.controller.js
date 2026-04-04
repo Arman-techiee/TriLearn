@@ -3,7 +3,6 @@ const PDFDocument = require('pdfkit')
 const {
   getAttendanceExportPayload,
   getCoordinatorDepartmentReportPayload,
-  syncClosedRoutineAbsences,
   formatDisplayDate
 } = require('./shared')
 
@@ -247,8 +246,6 @@ const exportAttendanceBySubject = async (req, res) => {
   try {
     const { subjectId } = req.params
     const { date, month, format = 'xlsx' } = req.query
-
-    await syncClosedRoutineAbsences(date ? new Date(date) : new Date())
 
     const report = await getAttendanceExportPayload({
       subjectId,
