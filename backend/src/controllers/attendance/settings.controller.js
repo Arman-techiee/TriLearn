@@ -38,10 +38,8 @@ const createGateScanWindow = async (req, res) => {
     const conflict = await findConflictingGateWindow({ dayOfWeek, startTime, endTime, allowedSemesters: normalizedSemesters })
     if (conflict) return res.status(400).json({ message: 'This time window overlaps with another Student QR slot for one of the same semesters.' })
 
-    const sanitizedTitle = sanitizePlainText(title)
-
     const window = await prisma.gateScanWindow.create({
-      data: { title, dayOfWeek, startTime, endTime, allowedSemesters: normalizedSemesters, isActive }
+      data: { title: sanitizePlainText(title), dayOfWeek, startTime, endTime, allowedSemesters: normalizedSemesters, isActive }
     })
 
     res.status(201).json({

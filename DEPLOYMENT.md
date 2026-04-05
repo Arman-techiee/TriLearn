@@ -35,7 +35,7 @@ PGPOOL_MAX_USES=0
 You can also add connection parameters directly to `DATABASE_URL`, for example:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/edunexus?connection_limit=10&pool_timeout=20
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/trilearn?connection_limit=10&pool_timeout=20
 ```
 
 ## Health checks
@@ -50,8 +50,8 @@ The backend includes [backend/Dockerfile](backend/Dockerfile) for containerized 
 Example:
 
 ```bash
-docker build -t edunexus-backend ./backend
-docker run --env-file backend/.env -p 5000:5000 edunexus-backend
+docker build -t trilearn-backend ./backend
+docker run --env-file backend/.env -p 5000:5000 trilearn-backend
 ```
 
 ## File storage

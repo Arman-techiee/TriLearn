@@ -1,28 +1,28 @@
 const variants = {
-  PRESENT: 'bg-green-100 text-green-700',
-  ABSENT: 'bg-red-100 text-red-700',
-  LATE: 'bg-orange-100 text-orange-700',
-  SUBMITTED: 'bg-blue-100 text-blue-700',
-  GRADED: 'bg-green-100 text-green-700',
-  ADMIN: 'bg-blue-100 text-blue-700',
-  INSTRUCTOR: 'bg-purple-100 text-purple-700',
-  STUDENT: 'bg-green-100 text-green-700',
-  GATEKEEPER: 'bg-amber-100 text-amber-700',
-  GENERAL: 'bg-gray-100 text-gray-700',
-  EXAM: 'bg-red-100 text-red-700',
-  URGENT: 'bg-orange-100 text-orange-700',
-  EVENT: 'bg-blue-100 text-blue-700',
-  HOLIDAY: 'bg-green-100 text-green-700',
-  INTERNAL: 'bg-blue-100 text-blue-700',
-  MIDTERM: 'bg-purple-100 text-purple-700',
-  FINAL: 'bg-red-100 text-red-700',
-  PRACTICAL: 'bg-green-100 text-green-700',
-  ACTIVE: 'bg-green-100 text-green-700',
-  DISABLED: 'bg-red-100 text-red-700'
+  PRESENT: 'bg-primary-100 text-primary',
+  ABSENT: 'bg-accent-100 text-accent-700',
+  LATE: 'bg-accent-100 text-accent-700',
+  SUBMITTED: 'bg-primary-100 text-primary',
+  GRADED: 'bg-primary-100 text-primary',
+  ADMIN: 'bg-primary-100 text-primary',
+  INSTRUCTOR: 'bg-primary-100 text-primary',
+  STUDENT: 'bg-primary-100 text-primary',
+  GATEKEEPER: 'bg-accent-100 text-accent-700',
+  GENERAL: 'bg-[--color-bg] dark:bg-slate-800 text-gray-700',
+  EXAM: 'bg-accent-100 text-accent-700',
+  URGENT: 'bg-accent-100 text-accent-700',
+  EVENT: 'bg-primary-100 text-primary',
+  HOLIDAY: 'bg-primary-100 text-primary',
+  INTERNAL: 'bg-primary-100 text-primary',
+  MIDTERM: 'bg-primary-100 text-primary',
+  FINAL: 'bg-accent-100 text-accent-700',
+  PRACTICAL: 'bg-primary-100 text-primary',
+  ACTIVE: 'bg-primary-100 text-primary',
+  DISABLED: 'bg-accent-100 text-accent-700'
 }
 
 const StatusBadge = ({ status }) => (
-  <span className={`text-xs px-2 py-1 rounded-full font-medium ${variants[status] || 'bg-gray-100 text-gray-600'}`}>
+  <span className={`text-xs px-2 py-1 rounded-full font-medium ${variants[status] || 'bg-[--color-bg] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400'}`}>
     {status}
   </span>
 )

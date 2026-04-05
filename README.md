@@ -1,6 +1,6 @@
-# EduNexus
+# TriLearn
 
-EduNexus is a full-stack campus management system for semester-based colleges. It combines admissions intake, student onboarding, role-based academic operations, attendance tracking, study resources, notices, marks, in-app notifications, and profile/session management in one platform.
+TriLearn is a full-stack campus management system for semester-based colleges. It combines admissions intake, student onboarding, role-based academic operations, attendance tracking, study resources, notices, marks, in-app notifications, and profile/session management in one platform.
 
 ## Highlights
 
@@ -150,7 +150,7 @@ EduNexus is a full-stack campus management system for semester-based colleges. I
 
 ```bash
 git clone <your-repo-url>
-cd EduNexus
+cd TriLearn
 
 cd backend
 npm install
@@ -166,7 +166,7 @@ Create `backend/.env` from [`.env.example`](.env.example).
 Important backend values:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/edunexus?connection_limit=10&pool_timeout=20
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/trilearn?connection_limit=10&pool_timeout=20
 JWT_SECRET=change_this_to_a_long_random_string
 JWT_REFRESH_SECRET=change_this_to_a_different_long_random_string
 ACCESS_TOKEN_EXPIRES_IN=15m
@@ -182,7 +182,7 @@ RESEND_SMTP_HOST=smtp.resend.com
 RESEND_SMTP_PORT=465
 RESEND_SMTP_USER=resend
 RESEND_SMTP_PASS=
-MAIL_FROM=EduNexus <onboarding@resend.dev>
+MAIL_FROM=TriLearn <onboarding@resend.dev>
 ENABLE_PASSWORD_RESET=true
 UPLOAD_DIR=backend/uploads
 UPLOAD_PUBLIC_PATH=/uploads
@@ -193,7 +193,7 @@ Notes:
 
 - Leave `DEFAULT_STUDENT_PASSWORD` blank to auto-generate a strong temporary password.
 - Set `REDIS_URL` in production to enable shared rate limiting across instances.
-- `MAIL_FROM=EduNexus <onboarding@resend.dev>` works for Resend testing. Use a verified domain for real delivery.
+- `MAIL_FROM=TriLearn <onboarding@resend.dev>` works for Resend testing. Use a verified domain for real delivery.
 
 Create `frontend/.env` from [`frontend/.env.example`](frontend/.env.example):
 
@@ -281,7 +281,7 @@ To run the real-database backend suite:
 PowerShell example from `backend`:
 
 ```powershell
-$env:TEST_DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/edunexus_test?connection_limit=10&pool_timeout=20"
+$env:TEST_DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/trilearn_test?connection_limit=10&pool_timeout=20"
 $env:DATABASE_URL=$env:TEST_DATABASE_URL
 npx prisma migrate dev --skip-generate
 npm run test:db
@@ -298,7 +298,7 @@ GitHub Actions runs:
 - frontend lint
 - frontend build
 
-Workflow file: [.github/workflows/ci.yml](/C:/Users/arman/EduNexus/.github/workflows/ci.yml)
+Workflow file: [.github/workflows/ci.yml](/C:/Users/arman/TriLearn/.github/workflows/ci.yml)
 
 ## Security Notes
 

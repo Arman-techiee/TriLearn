@@ -55,25 +55,25 @@ const StudentIdCard = () => {
         {loading ? (
           <LoadingSkeleton rows={4} itemClassName="h-32" />
         ) : (
-          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 shadow-sm dark:shadow-slate-900/50">
             <div className="relative overflow-hidden bg-[linear-gradient(135deg,#0f172a_0%,#172554_58%,#4338ca_100%)] px-6 py-6 text-white md:px-8">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_26%)]" />
               <div className="relative flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
                 <div className="min-w-0 flex-1">
-                  <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-2 backdrop-blur">
+                  <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-[--color-bg-card] dark:bg-slate-800/10 px-4 py-2 backdrop-blur">
                     {avatarUrl ? (
                       <img
                         src={avatarUrl}
                         alt={`${profile?.name || 'Student'} avatar`}
-                        className="h-10 w-10 rounded-2xl border border-white/20 object-cover bg-white"
+                        className="h-10 w-10 rounded-2xl border border-white/20 object-cover bg-[--color-bg-card] dark:bg-slate-800"
                       />
                     ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-sm font-black text-slate-900">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 text-sm font-black text-slate-900">
                         {String(profile?.name || 'S').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                     )}
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">EduNexus</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">TriLearn</p>
                       <p className="text-sm font-medium text-white/90">Student Identity Card</p>
                     </div>
                   </div>
@@ -85,17 +85,17 @@ const StudentIdCard = () => {
                   </div>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-white/12 bg-white/10 px-4 py-3 backdrop-blur">
+                    <div className="rounded-2xl border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/10 px-4 py-3 backdrop-blur">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Department</p>
                       <p className="mt-2 text-sm font-semibold text-white">{profile?.student?.department || 'Not assigned'}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/12 bg-white/10 px-4 py-3 backdrop-blur">
+                    <div className="rounded-2xl border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/10 px-4 py-3 backdrop-blur">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Semester / Section</p>
                       <p className="mt-2 text-sm font-semibold text-white">
                         Semester {profile?.student?.semester || '--'}{profile?.student?.section ? ` • Section ${profile.student.section}` : ''}
                       </p>
                     </div>
-                    <div className="rounded-2xl border border-white/12 bg-white/10 px-4 py-3 backdrop-blur">
+                    <div className="rounded-2xl border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/10 px-4 py-3 backdrop-blur">
                       <div className="flex items-start gap-3">
                         <Phone className="mt-0.5 h-4 w-4 text-white/70" />
                         <div>
@@ -104,7 +104,7 @@ const StudentIdCard = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-white/12 bg-white/10 px-4 py-3 backdrop-blur">
+                    <div className="rounded-2xl border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/10 px-4 py-3 backdrop-blur">
                       <div className="flex items-start gap-3">
                         <MapPin className="mt-0.5 h-4 w-4 text-white/70" />
                         <div>
@@ -118,7 +118,7 @@ const StudentIdCard = () => {
                   </div>
                 </div>
 
-                <div className="relative flex w-full shrink-0 flex-col justify-between rounded-[26px] bg-white p-5 text-slate-900 shadow-2xl lg:w-[260px]">
+                <div className="relative flex w-full shrink-0 flex-col justify-between rounded-[26px] bg-[--color-bg-card] dark:bg-slate-800 p-5 text-slate-900 shadow-2xl dark:shadow-slate-900/50 lg:w-[260px]">
                   <div className="mb-5 flex items-center gap-3 rounded-3xl bg-slate-50 p-3">
                     {avatarUrl ? (
                       <img
@@ -149,9 +149,9 @@ const StudentIdCard = () => {
 
                   <div className="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-4">
                     {studentQrCode ? (
-                      <img src={studentQrCode} alt="Student identity QR" className="w-full rounded-2xl bg-white" />
+                      <img src={studentQrCode} alt="Student identity QR" className="w-full rounded-2xl bg-[--color-bg-card] dark:bg-slate-800" />
                     ) : (
-                      <div className="flex aspect-square items-center justify-center rounded-2xl bg-white text-sm text-slate-400">
+                      <div className="flex aspect-square items-center justify-center rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 text-sm text-slate-400">
                         Loading QR...
                       </div>
                     )}

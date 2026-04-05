@@ -20,7 +20,7 @@ const sendMail = async ({ to, subject, html, text }) => {
   const transporter = createTransport()
 
   await transporter.sendMail({
-    from: process.env.MAIL_FROM || 'EduNexus <no-reply@edunexus.app>',
+    from: process.env.MAIL_FROM || 'TriLearn <no-reply@trilearn.app>',
     to,
     subject,
     html,

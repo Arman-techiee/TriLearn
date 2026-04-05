@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-const STORAGE_KEY = 'edunexus_theme'
+const STORAGE_KEY = 'trilearn-theme'
+const LEGACY_STORAGE_KEYS = ['edunexus_theme', 'edunexus-theme']
 const ThemeContext = createContext(null)
 
 const getSystemTheme = () => (
@@ -10,7 +11,17 @@ const getSystemTheme = () => (
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     try {
-      return window.localStorage.getItem(STORAGE_KEY) || 'system'
+      const savedTheme = window.localStorage.getItem(STORAGE_KEY)
+
+      if (savedTheme) {
+        return savedTheme
+      }
+
+      const legacyTheme = LEGACY_STORAGE_KEYS
+        .map((key) => window.localStorage.getItem(key))
+        .find(Boolean)
+
+      return legacyTheme || 'system'
     } catch {
       return 'system'
     }
@@ -32,10 +43,12 @@ export const ThemeProvider = ({ children }) => {
   const resolvedTheme = theme === 'system' ? systemTheme : theme
 
   useEffect(() => {
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark')
     document.documentElement.dataset.theme = resolvedTheme
 
     try {
       window.localStorage.setItem(STORAGE_KEY, theme)
+      LEGACY_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key))
     } catch {
       // Ignore storage failures.
     }

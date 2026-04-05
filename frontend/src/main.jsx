@@ -5,7 +5,7 @@ import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
 const recoverFromChunkLoadError = () => {
-  const reloadKey = 'edunexus:chunk-reload-attempted'
+  const reloadKey = 'trilearn:chunk-reload-attempted'
 
   if (sessionStorage.getItem(reloadKey) === 'true') {
     sessionStorage.removeItem(reloadKey)

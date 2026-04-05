@@ -56,7 +56,7 @@ const ProfileSetup = () => {
         />
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
-        <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-2xl shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
             ['name', 'Full Name'],
             ['phone', 'Phone Number'],
@@ -72,9 +72,9 @@ const ProfileSetup = () => {
                 value={values[name]}
                 onChange={handleChange}
                 placeholder={placeholder}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              {errors[name] ? <p className="mt-1 text-xs text-red-600">{errors[name]}</p> : null}
+              {errors[name] ? <p className="mt-1 text-xs text-accent-600">{errors[name]}</p> : null}
             </div>
           ))}
           <div className="md:col-span-2">
@@ -84,15 +84,15 @@ const ProfileSetup = () => {
               onChange={handleChange}
               rows={4}
               placeholder="Address"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            {errors.address ? <p className="mt-1 text-xs text-red-600">{errors.address}</p> : null}
+            {errors.address ? <p className="mt-1 text-xs text-accent-600">{errors.address}</p> : null}
           </div>
           <div className="md:col-span-2">
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-purple-600 py-2 font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-primary py-2 font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
               {loading ? 'Submitting...' : 'Submit Profile'}
             </button>

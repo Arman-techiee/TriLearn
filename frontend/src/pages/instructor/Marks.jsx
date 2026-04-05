@@ -259,7 +259,7 @@ const Marks = () => {
 
         <Alert type="error" message={error} />
 
-        <div className="mb-6 grid gap-4 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-2">
+        <div className="mb-6 grid gap-4 rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-4 shadow-sm dark:shadow-slate-900/50 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm text-[var(--color-text-muted)]">{isCoordinator ? 'Module Filter' : 'Module'}</label>
             <select
@@ -299,19 +299,19 @@ const Marks = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6 lg:grid-cols-4">
-          <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-5">
             <p className="text-sm text-[var(--color-text-muted)]">Records</p>
             <p className="mt-1 text-2xl font-bold text-[var(--color-heading)]">{stats.total || total}</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-5">
             <p className="text-sm text-[var(--color-text-muted)]">Published</p>
             <p className="status-present mt-1 inline-flex rounded-lg px-3 py-1 text-2xl font-bold">{stats.published || 0}</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-5">
             <p className="text-sm text-[var(--color-text-muted)]">Unpublished</p>
             <p className="status-late mt-1 inline-flex rounded-lg px-3 py-1 text-2xl font-bold">{stats.unpublished || 0}</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm p-5">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-5">
             <p className="text-sm text-[var(--color-text-muted)]">Practical Visibility</p>
             <p className="mt-1 text-sm font-semibold text-[var(--color-heading)]">Staff only</p>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">Students never see practical marks</p>
@@ -319,7 +319,7 @@ const Marks = () => {
         </div>
 
         {stats.byExamType?.length > 0 && (
-          <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
+          <div className="mb-6 rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-5 shadow-sm dark:shadow-slate-900/50">
             <p className="mb-4 text-sm font-semibold text-[var(--color-heading)]">Exam Result Publishing Status</p>
             <div className="grid gap-3 md:grid-cols-4">
               {stats.byExamType.map((item) => (
@@ -334,7 +334,7 @@ const Marks = () => {
         )}
 
         {(!isCoordinator && !selectedSubject) ? (
-          <div className="rounded-2xl bg-white p-10 shadow-sm">
+          <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-10 shadow-sm dark:shadow-slate-900/50">
             <EmptyState
               icon="📝"
               title="Select a module first"
@@ -342,7 +342,7 @@ const Marks = () => {
             />
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 overflow-hidden">
             {loading ? (
               <div className="p-6">
                 <LoadingSkeleton rows={5} itemClassName="h-20" />

@@ -84,11 +84,11 @@ const Dashboard = () => {
 
         <PageHeader
           title="Dashboard"
-          subtitle="Welcome to EduNexus Admin Panel"
+          subtitle="Welcome to TriLearn Admin Panel"
           breadcrumbs={['Admin', 'Dashboard']}
         />
 
-        {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+        {error && <div className="bg-accent-50 text-accent-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         {/* Stats */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -103,7 +103,7 @@ const Dashboard = () => {
           <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-slate-900">Recent Users</h2>
           <div className="space-y-3">
             {recentUsers.map((user) => (
-              <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-4 transition hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
+              <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-4 transition hover:-translate-y-0.5 hover:shadow-md dark:shadow-slate-900/50 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="ui-role-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black text-white">
                     {initialsFromName(user.name)}
@@ -118,9 +118,9 @@ const Dashboard = () => {
                     {user.role}
                   </span>
                   <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                    user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                    user.isActive ? 'bg-primary-50 text-primary' : 'bg-accent-50 text-accent-700'
                   }`}>
-                    <span className={`h-2.5 w-2.5 rounded-full ${user.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                    <span className={`h-2.5 w-2.5 rounded-full ${user.isActive ? 'bg-primary-500' : 'bg-accent'}`} />
                     {user.isActive ? 'Active' : 'Disabled'}
                   </span>
                 </div>

@@ -224,24 +224,24 @@ const Subjects = () => {
 
         <PageHeader
           title="Subjects"
-          subtitle={isCoordinator ? 'Manage department subjects, instructor assignments, and student enrollments.' : 'Manage all subjects in EduNexus'}
+          subtitle={isCoordinator ? 'Manage department subjects, instructor assignments, and student enrollments.' : 'Manage all subjects in TriLearn'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Subjects']}
           actions={[{ label: 'Add Subject', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
         />
 
         {/* Success/Error */}
         {success && (
-          <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div className="bg-primary-50 text-primary px-4 py-3 rounded-lg mb-4 text-sm">
             {success}
           </div>
         )}
         {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div className="bg-accent-50 text-accent-600 px-4 py-3 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
 
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4 shadow-sm dark:shadow-slate-900/50">
           <label className="mb-2 block text-sm font-medium text-slate-700">Search subjects</label>
           <input
             type="text"
@@ -251,7 +251,7 @@ const Subjects = () => {
               setPage(1)
             }}
             placeholder="Search by subject name, code, department, description, or instructor"
-            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
@@ -269,24 +269,24 @@ const Subjects = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subjects.map((subject) => (
-              <div key={subject.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition">
+              <div key={subject.id} className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-6 hover:shadow-md dark:shadow-slate-900/50 transition">
 
                 {/* Subject header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    <span className="text-xs font-bold text-primary bg-primary-50 px-2 py-1 rounded">
                       {subject.code}
                     </span>
-                    <h3 className="font-semibold text-gray-800 mt-2">{subject.name}</h3>
+                    <h3 className="font-semibold text-[--color-text] dark:text-slate-100 mt-2">{subject.name}</h3>
                   </div>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span className="text-xs bg-[--color-bg] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 px-2 py-1 rounded">
                     Sem {subject.semester}
                   </span>
                 </div>
 
                 {/* Description */}
                 {subject.description && (
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{subject.description}</p>
+                  <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mb-4 line-clamp-2">{subject.description}</p>
                 )}
 
                 {/* Instructor */}
@@ -298,7 +298,7 @@ const Subjects = () => {
                 </div>
 
                 {/* Stats */}
-                <div className="flex gap-4 mb-4 text-xs text-gray-500">
+                <div className="flex gap-4 mb-4 text-xs text-[--color-text-muted] dark:text-slate-400">
                   <span>📝 {subject._count?.assignments} assignments</span>
                   <span>📋 {subject._count?.attendances} attendances</span>
                   <span>👥 {subject._count?.enrollments || 0} students</span>
@@ -307,7 +307,7 @@ const Subjects = () => {
                 {/* Department */}
                 {subject.department && (
                   <div className="mb-4">
-                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded">
+                    <span className="text-xs bg-primary-50 text-primary px-2 py-1 rounded">
                       {subject.department}
                     </span>
                   </div>
@@ -317,21 +317,21 @@ const Subjects = () => {
                 <div className="flex gap-2 pt-4 border-t">
                   <button
                     onClick={() => openEditModal(subject)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition hover:bg-blue-100"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary transition hover:bg-primary-100"
                     aria-label={`Edit ${subject.name}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => openEnrollmentModal(subject)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 text-xs bg-indigo-50 text-indigo-600 py-2 rounded-lg hover:bg-indigo-100 transition font-medium"
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-xs bg-primary-50 text-primary py-2 rounded-lg hover:bg-primary-100 transition font-medium"
                   >
                     <Users className="h-4 w-4" />
                     <span>Students</span>
                   </button>
                   <button
                     onClick={() => setSubjectToDelete(subject)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-600 py-2 transition hover:bg-red-100"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent-50 text-accent-600 py-2 transition hover:bg-accent-100"
                     aria-label={`Delete ${subject.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -351,7 +351,7 @@ const Subjects = () => {
                     <button
                       type="button"
                       onClick={openCreateModal}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary"
                     >
                       Add Subject
                     </button>
@@ -373,7 +373,7 @@ const Subjects = () => {
         <Modal title={editSubject ? 'Edit Subject' : 'Add Subject'} onClose={() => setShowModal(false)}>
 
             {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">
+              <div className="bg-accent-50 text-accent-600 px-4 py-3 rounded-lg mb-4 text-sm">
                 {error}
               </div>
             )}
@@ -459,13 +459,13 @@ const Subjects = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50"
+                  className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-400 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 font-medium"
+                  className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary font-medium"
                 >
                   {editSubject ? 'Update Subject' : 'Create Subject'}
                 </button>
@@ -476,17 +476,17 @@ const Subjects = () => {
 
       {enrollmentSubject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-4xl shadow-xl max-h-[85vh] flex flex-col">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl p-8 w-full max-w-4xl shadow-xl dark:shadow-slate-900/50 max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">Manage Enrollments</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-xl font-bold text-[--color-text] dark:text-slate-100">Manage Enrollments</h2>
+                <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mt-1">
                   {enrollmentSubject.name} ({enrollmentSubject.code})
                 </p>
               </div>
               <button
                 onClick={() => setEnrollmentSubject(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
+                className="text-gray-400 hover:text-[--color-text-muted] dark:text-slate-400 text-xl"
               >
                 ✕
               </button>
@@ -498,41 +498,41 @@ const Subjects = () => {
                 value={enrollmentSearch}
                 onChange={(e) => setEnrollmentSearch(e.target.value)}
                 placeholder="Search students by name, roll, email, section..."
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="flex-1 border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <button
                 type="button"
                 onClick={applySuggestedEnrollments}
-                className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100"
+                className="bg-primary-50 text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-100"
               >
                 Apply Suggested
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-[--color-text-muted] dark:text-slate-400 mb-4">
               Suggested students match the subject&apos;s semester and department. You can adjust the final class list manually.
             </p>
 
             {loadingEnrollments ? (
-              <div className="text-center text-gray-500 py-12">Loading students...</div>
+              <div className="text-center text-[--color-text-muted] dark:text-slate-400 py-12">Loading students...</div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {filteredEnrollmentStudents.map((student) => (
-                  <label key={student.id} className="flex items-start gap-3 border rounded-xl p-4 hover:bg-gray-50 cursor-pointer">
+                  <label key={student.id} className="flex items-start gap-3 border rounded-xl p-4 hover:bg-[--color-bg] dark:bg-slate-900 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={student.enrolled}
                       onChange={() => toggleEnrollment(student.id)}
-                      className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      className="mt-1 h-4 w-4 rounded border-[--color-border] dark:border-slate-700 text-primary focus:ring-primary"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-gray-800">{student.name}</p>
-                          <p className="text-sm text-gray-500 mt-1">{student.rollNumber} • {student.email}</p>
+                          <p className="font-semibold text-[--color-text] dark:text-slate-100">{student.name}</p>
+                          <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mt-1">{student.rollNumber} • {student.email}</p>
                         </div>
                         {student.suggested && (
-                          <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-medium">
+                          <span className="text-xs bg-primary-50 text-primary px-2 py-1 rounded-full font-medium">
                             Suggested
                           </span>
                         )}
@@ -557,7 +557,7 @@ const Subjects = () => {
               <button
                 type="button"
                 onClick={() => setEnrollmentSubject(null)}
-                className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50"
+                className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-400 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900"
               >
                 Cancel
               </button>
@@ -565,7 +565,7 @@ const Subjects = () => {
                 type="button"
                 onClick={saveEnrollments}
                 disabled={savingEnrollments || loadingEnrollments}
-                className="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm hover:bg-indigo-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingEnrollments ? (
                   <span className="inline-flex items-center gap-2">

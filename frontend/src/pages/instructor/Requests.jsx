@@ -121,7 +121,7 @@ const InstructorRequests = () => {
                   className={`rounded-2xl border p-4 text-left transition ${
                     statusFilter === status
                       ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white'
-                      : 'border-slate-200 bg-white text-slate-700'
+                      : 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-700'
                   }`}
                 >
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">{status}</p>
@@ -153,7 +153,7 @@ const InstructorRequests = () => {
 
                       if (isApproved) {
                         return (
-                          <div key={ticket.id} className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5">
+                          <div key={ticket.id} className="rounded-2xl border border-primary-200 bg-primary-50/70 p-5">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                               <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-3">
@@ -167,11 +167,11 @@ const InstructorRequests = () => {
                               </div>
 
                               <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
-                                <div className="rounded-xl bg-white px-4 py-3">
+                                <div className="rounded-xl bg-[--color-bg-card] dark:bg-slate-800 px-4 py-3">
                                   <p className="font-medium text-slate-700">Reviewed</p>
                                   <p>{ticket.reviewedAt ? new Date(ticket.reviewedAt).toLocaleString() : 'Not yet'}</p>
                                 </div>
-                                <div className="rounded-xl bg-white px-4 py-3">
+                                <div className="rounded-xl bg-[--color-bg-card] dark:bg-slate-800 px-4 py-3">
                                   <p className="font-medium text-slate-700">Final response</p>
                                   <p>{ticket.response || 'No response added'}</p>
                                 </div>
@@ -182,7 +182,7 @@ const InstructorRequests = () => {
                       }
 
                       return (
-                        <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                        <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-5">
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                             <div className="space-y-2">
                               <div className="flex flex-wrap items-center gap-3">
@@ -237,7 +237,7 @@ const InstructorRequests = () => {
                                   type="button"
                                   onClick={() => reviewTicket(ticket.id, 'APPROVED')}
                                   disabled={savingId === ticket.id}
-                                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                                 >
                                   <CheckCircle2 className="h-4 w-4" />
                                   <span>{savingId === ticket.id ? 'Saving...' : 'Approve'}</span>
@@ -246,7 +246,7 @@ const InstructorRequests = () => {
                                   type="button"
                                   onClick={() => reviewTicket(ticket.id, 'REJECTED')}
                                   disabled={savingId === ticket.id}
-                                  className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                                  className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                                 >
                                   <XCircle className="h-4 w-4" />
                                   <span>{savingId === ticket.id ? 'Saving...' : 'Reject'}</span>

@@ -20,7 +20,7 @@ const roleThemeClasses = {
 }
 
 const AppShell = ({
-  brand = 'EduNexus',
+  brand = 'TriLearn',
   roleLabel,
   roleTheme = 'admin',
   user,
@@ -167,7 +167,7 @@ const AppShell = ({
 
       <div className="mx-auto flex h-screen max-w-[1700px] gap-4 p-4 md:gap-6 md:p-6">
         <aside
-          className={`ui-sidebar-shell fixed inset-y-4 left-4 z-40 flex h-[calc(100vh-2rem)] w-[260px] flex-col overflow-hidden rounded-[1.75rem] border shadow-sm transition-[width,transform] duration-300 ease-out md:static md:h-[calc(100vh-3rem)] md:translate-x-0 ${
+          className={`ui-sidebar-shell fixed inset-y-4 left-4 z-40 flex h-[calc(100vh-2rem)] w-[260px] flex-col overflow-hidden rounded-[1.75rem] border shadow-sm dark:shadow-slate-900/50 transition-[width,transform] duration-300 ease-out md:static md:h-[calc(100vh-3rem)] md:translate-x-0 ${
             mobileOpen ? 'translate-x-0' : '-translate-x-[120%]'
           } ${sidebarCollapsed ? 'md:w-[72px]' : 'md:w-[260px]'}`}
         >
@@ -191,7 +191,7 @@ const AppShell = ({
                 <button
                   type="button"
                   onClick={() => setSidebarCollapsed((value) => !value)}
-                  className={`hidden h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/8 text-slate-100 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)] transition hover:bg-white/14 hover:text-white md:inline-flex ${
+                  className={`hidden h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/8 text-slate-100 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)] transition hover:bg-[--color-bg-card] dark:bg-slate-800/14 hover:text-white md:inline-flex ${
                     isDesktopCollapsed ? 'ring-1 ring-white/10' : ''
                   }`}
                   aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -202,7 +202,7 @@ const AppShell = ({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/8 text-slate-100 transition hover:bg-white/14 hover:text-white md:hidden"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/8 text-slate-100 transition hover:bg-[--color-bg-card] dark:bg-slate-800/14 hover:text-white md:hidden"
                   aria-label="Close sidebar"
                 >
                   <X className="h-4 w-4" />
@@ -221,19 +221,19 @@ const AppShell = ({
                   className={`flex rounded-xl border border-transparent transition ${
                     isActive
                       ? isDesktopCollapsed
-                        ? 'justify-center bg-white text-[var(--color-role-accent)] shadow-[0_16px_38px_-24px_rgba(15,23,42,0.7)]'
-                        : 'items-center gap-3 border-l-4 border-l-[var(--color-role-accent)] bg-white px-3 py-3 text-[var(--color-role-accent)] shadow-[0_16px_38px_-24px_rgba(15,23,42,0.7)]'
+                        ? 'justify-center bg-[--color-bg-card] dark:bg-slate-800 text-[var(--color-role-accent)] shadow-[0_16px_38px_-24px_rgba(15,23,42,0.7)]'
+                        : 'items-center gap-3 border-l-4 border-l-[var(--color-role-accent)] bg-[--color-bg-card] dark:bg-slate-800 px-3 py-3 text-[var(--color-role-accent)] shadow-[0_16px_38px_-24px_rgba(15,23,42,0.7)]'
                       : item.disabled
                         ? isDesktopCollapsed
                           ? 'justify-center py-3 text-slate-500'
                           : 'items-center gap-3 px-3 py-3 text-slate-500'
                         : isDesktopCollapsed
-                          ? 'justify-center py-3 text-slate-200 hover:bg-white/8 hover:text-white'
-                          : 'items-center gap-3 px-3 py-3 text-slate-200 hover:bg-white/8 hover:text-white'
+                          ? 'justify-center py-3 text-slate-200 hover:bg-[--color-bg-card] dark:bg-slate-800/8 hover:text-white'
+                          : 'items-center gap-3 px-3 py-3 text-slate-200 hover:bg-[--color-bg-card] dark:bg-slate-800/8 hover:text-white'
                   }`}
                 >
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    isActive ? 'bg-slate-100' : 'bg-white/8'
+                    isActive ? 'bg-slate-100' : 'bg-[--color-bg-card] dark:bg-slate-800/8'
                   }`}>
                     <Icon className="h-5 w-5" />
                   </div>
@@ -270,7 +270,7 @@ const AppShell = ({
           </nav>
 
           <div className="border-t border-white/10 p-3">
-            <div className={`mb-3 flex items-center gap-3 rounded-2xl bg-white/8 px-3 py-3 transition ${
+            <div className={`mb-3 flex items-center gap-3 rounded-2xl bg-[--color-bg-card] dark:bg-slate-800/8 px-3 py-3 transition ${
               isDesktopCollapsed ? 'justify-center px-2' : ''
             }`}>
               {avatarUrl ? (
@@ -295,7 +295,7 @@ const AppShell = ({
             <button
               type="button"
               onClick={onLogout}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/8 hover:text-white ${
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-200 transition hover:bg-[--color-bg-card] dark:bg-slate-800/8 hover:text-white ${
                 isDesktopCollapsed ? 'justify-center px-2' : ''
               }`}
               title={sidebarCollapsed ? 'Logout' : undefined}
@@ -360,14 +360,14 @@ const AppShell = ({
                     >
                       <Bell className="h-5 w-5" />
                       {unreadCount > 0 ? (
-                        <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                       ) : null}
                     </button>
 
                     {notificationsOpen ? (
-                      <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-[340px] rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+                      <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-[340px] rounded-[1.5rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-3 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">Notifications</p>
@@ -400,8 +400,8 @@ const AppShell = ({
                                 }}
                                 className={`block w-full rounded-2xl border px-4 py-3 text-left transition ${
                                   notification.isRead
-                                    ? 'border-slate-200 bg-white'
-                                    : 'border-amber-200 bg-amber-50'
+                                    ? 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800'
+                                    : 'border-accent-200 bg-accent-50'
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
@@ -410,7 +410,7 @@ const AppShell = ({
                                     <p className="mt-1 text-xs leading-5 text-slate-500">{notification.message}</p>
                                   </div>
                                   {!notification.isRead ? (
-                                    <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500" />
+                                    <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-accent" />
                                   ) : null}
                                 </div>
                               </button>
@@ -421,7 +421,7 @@ const AppShell = ({
                     ) : null}
                   </div>
 
-                <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2 shadow-sm">
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2 shadow-sm dark:shadow-slate-900/50">
                   <div className="text-right">
                     <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
                     <p className="text-xs text-slate-500">{user?.email}</p>
@@ -467,14 +467,14 @@ const AppShell = ({
                       className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
                         isActive
                           ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                          : 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
                       {item.badge ? (
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          isActive ? 'bg-white/15 text-white' : 'bg-rose-100 text-rose-700'
+                          isActive ? 'bg-[--color-bg-card] dark:bg-slate-800/15 text-white' : 'bg-accent-100 text-accent-700'
                         }`}>
                           {item.badge}
                         </span>

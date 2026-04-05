@@ -71,7 +71,7 @@ const InstructorDashboard = () => {
     <InstructorLayout>
       <div className="p-4 md:p-8">
         {error ? (
-          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+          <div className="mb-6 rounded-lg bg-accent-50 px-4 py-3 text-sm text-accent-600">{error}</div>
         ) : null}
         <LoadingSkeleton rows={5} itemClassName="h-24" />
       </div>
@@ -89,7 +89,7 @@ const InstructorDashboard = () => {
         />
 
         {error ? (
-          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+          <div className="mb-6 rounded-lg bg-accent-50 px-4 py-3 text-sm text-accent-600">{error}</div>
         ) : null}
 
         {/* Stats */}
@@ -102,16 +102,16 @@ const InstructorDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* My Subjects */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">My Subjects</h2>
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-6">
+            <h2 className="text-lg font-semibold text-[--color-text] dark:text-slate-100 mb-4">My Subjects</h2>
             <div className="space-y-3">
               {subjects.map((subject) => (
-                <div key={subject.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <div key={subject.id} className="flex items-center justify-between p-3 bg-[--color-bg] dark:bg-slate-900 rounded-xl">
                   <div>
-                    <p className="font-medium text-gray-800 text-sm">{subject.name}</p>
-                    <p className="text-xs text-gray-500">{subject.code} · Sem {subject.semester}</p>
+                    <p className="font-medium text-[--color-text] dark:text-slate-100 text-sm">{subject.name}</p>
+                    <p className="text-xs text-[--color-text-muted] dark:text-slate-400">{subject.code} · Sem {subject.semester}</p>
                   </div>
-                  <div className="text-right text-xs text-gray-500">
+                  <div className="text-right text-xs text-[--color-text-muted] dark:text-slate-400">
                     <p>{subject._count?.assignments} assignments</p>
                     <p>{subject._count?.attendances} attendance</p>
                   </div>
@@ -128,25 +128,25 @@ const InstructorDashboard = () => {
           </div>
 
           {/* Recent Notices */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Notices</h2>
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-6">
+            <h2 className="text-lg font-semibold text-[--color-text] dark:text-slate-100 mb-4">Recent Notices</h2>
             <div className="space-y-3">
               {notices.map((notice) => (
-                <div key={notice.id} className="p-3 bg-gray-50 rounded-xl">
+                <div key={notice.id} className="p-3 bg-[--color-bg] dark:bg-slate-900 rounded-xl">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium
-                      ${notice.type === 'EXAM' ? 'bg-red-100 text-red-700' :
-                        notice.type === 'URGENT' ? 'bg-orange-100 text-orange-700' :
-                        notice.type === 'EVENT' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'}`}>
+                      ${notice.type === 'EXAM' ? 'bg-accent-100 text-accent-700' :
+                        notice.type === 'URGENT' ? 'bg-accent-100 text-accent-700' :
+                        notice.type === 'EVENT' ? 'bg-primary-100 text-primary' :
+                        'bg-[--color-bg] dark:bg-slate-800 text-gray-700'}`}>
                       {notice.type}
                     </span>
                     <span className="text-xs text-gray-400">
                       {new Date(notice.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="font-medium text-gray-800 text-sm">{notice.title}</p>
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-1">{notice.content}</p>
+                  <p className="font-medium text-[--color-text] dark:text-slate-100 text-sm">{notice.title}</p>
+                  <p className="text-xs text-[--color-text-muted] dark:text-slate-400 mt-1 line-clamp-1">{notice.content}</p>
                 </div>
               ))}
               {notices.length === 0 && (

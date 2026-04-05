@@ -47,10 +47,10 @@ const ChangePassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Change Password</h1>
-        <p className="text-sm text-gray-500 mb-6">You must change your default password before continuing.</p>
+    <div className="min-h-screen bg-[--color-bg] dark:bg-slate-800 flex items-center justify-center p-4">
+      <div className="bg-[--color-bg-card] dark:bg-slate-800 p-8 rounded-2xl shadow-md dark:shadow-slate-900/50 w-full max-w-md">
+        <h1 className="text-2xl font-bold text-[--color-text] dark:text-slate-100 mb-2">Change Password</h1>
+        <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mb-6">You must change your default password before continuing.</p>
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
@@ -92,7 +92,7 @@ const ChangePassword = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded-lg bg-primary py-2 font-medium text-white hover:bg-primary disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Change Password'}
           </button>

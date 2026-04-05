@@ -90,16 +90,16 @@ const Login = () => {
 
   return (
     <AuthSplitLayout
-      title="One portal for every EduNexus role."
+      title="One portal for every TriLearn role."
       subtitle="Sign in to manage operations, teach with confidence, and keep students connected to everything happening across campus."
       formTitle="Welcome back"
-      formSubtitle="Use your institutional credentials to access your EduNexus workspace."
+      formSubtitle="Use your institutional credentials to access your TriLearn workspace."
       features={features}
       footer={(
         <button
           type="button"
           onClick={() => navigate('/forgot-password')}
-          className="font-medium text-blue-600 transition hover:text-blue-700"
+          className="font-medium text-primary transition hover:text-primary"
         >
           Forgot your password?
         </button>
@@ -138,7 +138,7 @@ const Login = () => {
             <button
               type="button"
               onClick={() => navigate('/forgot-password')}
-              className="text-xs font-medium text-blue-600 transition hover:text-blue-700"
+              className="text-xs font-medium text-primary transition hover:text-primary"
             >
               Forgot password?
             </button>
@@ -166,7 +166,7 @@ const Login = () => {
               ? 'Logging in...'
               : retryCountdown > 0
                 ? `Try again in ${retryCountdown}s`
-                : 'Login to EduNexus'}
+                : 'Login to TriLearn'}
           </span>
         </button>
       </form>

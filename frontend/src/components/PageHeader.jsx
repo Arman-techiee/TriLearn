@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 
 const buttonVariants = {
-  primary: 'border border-transparent bg-[var(--color-role-accent)] text-white shadow-sm hover:brightness-95',
-  secondary: 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-  danger: 'border border-red-100 bg-red-50 text-red-600 hover:bg-red-100'
+  primary: 'border border-transparent bg-[var(--color-role-accent)] text-white shadow-sm dark:shadow-slate-900/50 hover:brightness-95',
+  secondary: 'border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-600 hover:bg-slate-50',
+  danger: 'border border-accent-100 bg-accent-50 text-accent-600 hover:bg-accent-100'
 }
 
 const renderAction = (action, index) => {

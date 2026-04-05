@@ -21,7 +21,7 @@ const normalizeApiBaseUrl = (rawValue) => {
 
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 export const API_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '')
-const AUTH_USER_STORAGE_KEY = 'edunexus.auth.user'
+const AUTH_USER_STORAGE_KEY = 'trilearn.auth.user'
 
 const readStoredUser = () => {
   if (typeof window === 'undefined') {

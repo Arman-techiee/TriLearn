@@ -96,7 +96,7 @@ const Learnings = () => {
                 <motion.section
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"
+                  className="rounded-[1.75rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50"
                 >
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-2xl">
@@ -130,7 +130,7 @@ const Learnings = () => {
                 </div>
 
                 {filteredModules.length === 0 ? (
-                  <div className="rounded-[1.8rem] border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-slate-600">
+                  <div className="rounded-[1.8rem] border border-dashed border-slate-300 bg-[--color-bg-card] dark:bg-slate-800 px-6 py-12 text-center text-slate-600">
                     No modules matched <span className="font-semibold text-slate-900">{deferredQuery}</span>.
                   </div>
                 ) : null}
@@ -140,7 +140,7 @@ const Learnings = () => {
                 <motion.aside
                   initial={{ opacity: 0, x: 16 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm"
+                  className="rounded-[1.75rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50"
                 >
                   <div className="flex flex-col items-center text-center">
                     <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-slate-900 text-2xl font-black text-white">
@@ -161,7 +161,7 @@ const Learnings = () => {
                         <Mail className="h-4 w-4 text-slate-500" />
                         <div>
                           <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Email</p>
-                          <p className="mt-1 text-sm font-medium text-slate-900">{user?.email || 'student@edunexus.edu'}</p>
+                          <p className="mt-1 text-sm font-medium text-slate-900">{user?.email || 'student@trilearn.edu'}</p>
                         </div>
                       </div>
                     </div>

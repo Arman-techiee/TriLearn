@@ -261,7 +261,7 @@ const Notices = () => {
           <>
             <div className="space-y-4">
               {notices.map((notice) => (
-                <div key={notice.id} className={`ui-card rounded-2xl border-l-4 p-6 transition hover:shadow-md ${noticeToneClasses[notice.type] || noticeToneClasses.GENERAL}`}>
+                <div key={notice.id} className={`ui-card rounded-2xl border-l-4 p-6 transition hover:shadow-md dark:shadow-slate-900/50 ${noticeToneClasses[notice.type] || noticeToneClasses.GENERAL}`}>
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="mb-3 flex items-center gap-3">

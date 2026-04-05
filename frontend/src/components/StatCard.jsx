@@ -6,7 +6,7 @@ const StatCard = ({
   trend = '+4.6%',
   trendLabel = 'from last week'
 }) => (
-  <article className="ui-card ui-card-hover group overflow-hidden rounded-2xl hover:-translate-y-0.5 hover:shadow-lg">
+  <article className="ui-card ui-card-hover group overflow-hidden rounded-2xl hover:-translate-y-0.5 hover:shadow-lg dark:shadow-slate-900/50">
     <div className={`h-1.5 w-full bg-gradient-to-r ${iconClassName}`} />
     <div className="p-6">
       <div className="flex items-start justify-between gap-4">
@@ -14,7 +14,7 @@ const StatCard = ({
           <p className="text-sm font-medium text-slate-500">{title}</p>
           <p className="mt-3 text-3xl font-black tracking-tight text-slate-900">{value}</p>
         </div>
-        <div className={`flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg transition duration-200 group-hover:-translate-y-0.5 ${iconClassName}`}>
+        <div className={`flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg dark:shadow-slate-900/50 transition duration-200 group-hover:-translate-y-0.5 ${iconClassName}`}>
           <Icon className="h-6 w-6" />
         </div>
       </div>

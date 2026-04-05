@@ -111,7 +111,7 @@ app.get('/ping', (_req, res) => {
 })
 
 app.get('/', (req, res) => {
-  res.json({ message: 'EduNexus backend is running! 🚀' })
+  res.json({ message: 'TriLearn backend is running! 🚀' })
 })
 
 app.use((req, res) => {
@@ -137,7 +137,7 @@ const startServer = () => {
 
   maintenance = scheduleMaintenance(prisma)
   server = app.listen(PORT, () => {
-    logger.info('EduNexus server running', { port: PORT })
+    logger.info('TriLearn server running', { port: PORT })
   })
 
   return server

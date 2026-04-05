@@ -32,36 +32,36 @@ const UserTopNavbar = ({
 
   const accentStyles = {
     emerald: {
-      shell: 'border-emerald-200 bg-white/90',
-      icon: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-      active: 'border-emerald-700 bg-emerald-700 text-white shadow-[0_12px_30px_rgba(5,150,105,0.16)]',
-      idle: 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-700',
+      shell: 'border-primary-200 bg-[--color-bg-card] dark:bg-slate-800/90',
+      icon: 'border-primary-200 bg-primary-50 text-primary',
+      active: 'border-primary-700 bg-primary text-white shadow-[0_12px_30px_rgba(26,60,110,0.16)]',
+      idle: 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-700 hover:border-primary-300 hover:text-primary',
       profile: 'from-emerald-600 to-emerald-800 text-white',
-      badge: 'bg-emerald-50 text-emerald-700'
+      badge: 'bg-primary-50 text-primary'
     },
     blue: {
-      shell: 'border-blue-200 bg-white/90',
-      icon: 'border-blue-200 bg-blue-50 text-blue-700',
-      active: 'border-blue-700 bg-blue-700 text-white shadow-[0_12px_30px_rgba(29,78,216,0.16)]',
-      idle: 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:text-blue-700',
+      shell: 'border-primary-200 bg-[--color-bg-card] dark:bg-slate-800/90',
+      icon: 'border-primary-200 bg-primary-50 text-primary',
+      active: 'border-primary-700 bg-primary text-white shadow-[0_12px_30px_rgba(29,78,216,0.16)]',
+      idle: 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-700 hover:border-primary-300 hover:text-primary',
       profile: 'from-blue-600 to-blue-800 text-white',
-      badge: 'bg-blue-50 text-blue-700'
+      badge: 'bg-primary-50 text-primary'
     },
     purple: {
-      shell: 'border-purple-200 bg-white/90',
-      icon: 'border-purple-200 bg-purple-50 text-purple-700',
-      active: 'border-purple-700 bg-purple-700 text-white shadow-[0_12px_30px_rgba(126,34,206,0.16)]',
-      idle: 'border-slate-200 bg-white text-slate-700 hover:border-purple-300 hover:text-purple-700',
+      shell: 'border-primary-200 bg-[--color-bg-card] dark:bg-slate-800/90',
+      icon: 'border-primary-200 bg-primary-50 text-primary',
+      active: 'border-primary-700 bg-primary-700 text-white shadow-[0_12px_30px_rgba(126,34,206,0.16)]',
+      idle: 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-700 hover:border-primary-300 hover:text-primary',
       profile: 'from-purple-600 to-purple-800 text-white',
-      badge: 'bg-purple-50 text-purple-700'
+      badge: 'bg-primary-50 text-primary'
     },
     amber: {
-      shell: 'border-amber-200 bg-white/90',
-      icon: 'border-amber-200 bg-amber-50 text-amber-700',
-      active: 'border-amber-600 bg-amber-600 text-white shadow-[0_12px_30px_rgba(217,119,6,0.18)]',
-      idle: 'border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:text-amber-700',
+      shell: 'border-accent-200 bg-[--color-bg-card] dark:bg-slate-800/90',
+      icon: 'border-accent-200 bg-accent-50 text-accent-700',
+      active: 'border-accent-600 bg-accent-600 text-white shadow-[0_12px_30px_rgba(212,137,26,0.18)]',
+      idle: 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-700 hover:border-accent-300 hover:text-accent-700',
       profile: 'from-amber-500 to-amber-700 text-white',
-      badge: 'bg-amber-50 text-amber-700'
+      badge: 'bg-accent-50 text-accent-700'
     }
   }
 
@@ -115,7 +115,7 @@ const UserTopNavbar = ({
                   disabled
                   className="flex min-w-[150px] shrink-0 items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-left text-slate-400"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-[11px] font-black tracking-[0.16em]">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-[--color-bg-card] dark:bg-slate-800 text-[11px] font-black tracking-[0.16em]">
                     SC
                   </span>
                   <span className="flex flex-col">
@@ -132,7 +132,7 @@ const UserTopNavbar = ({
                 to={path}
                 className={`flex min-w-[150px] shrink-0 items-center gap-3 rounded-2xl border px-4 py-3 transition ${isActive ? styles.active : styles.idle}`}
               >
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl border text-[11px] font-black tracking-[0.16em] ${isActive ? 'border-white/20 bg-white/15 text-white' : styles.icon}`}>
+                <span className={`flex h-10 w-10 items-center justify-center rounded-xl border text-[11px] font-black tracking-[0.16em] ${isActive ? 'border-white/20 bg-[--color-bg-card] dark:bg-slate-800/15 text-white' : styles.icon}`}>
                   SC
                 </span>
                 <span className="flex flex-col">

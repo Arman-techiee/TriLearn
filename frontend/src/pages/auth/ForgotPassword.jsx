@@ -16,7 +16,7 @@ const ForgotPassword = () => {
     {
       icon: KeyRound,
       title: 'Recover access quickly',
-      description: 'Start the reset flow with the email linked to your EduNexus profile.'
+      description: 'Start the reset flow with the email linked to your TriLearn profile.'
     },
     {
       icon: ShieldEllipsis,
@@ -52,7 +52,7 @@ const ForgotPassword = () => {
   return (
     <AuthSplitLayout
       title="Reset account access without the usual friction."
-      subtitle="EduNexus keeps the reset flow simple for students, instructors, and admins while staying ready for secure email delivery."
+      subtitle="TriLearn keeps the reset flow simple for students, instructors, and admins while staying ready for secure email delivery."
       formTitle="Forgot password"
       formSubtitle="Enter your personal or institutional email address to begin the password reset flow."
       features={features}

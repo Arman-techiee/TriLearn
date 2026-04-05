@@ -144,7 +144,7 @@ const StudentTickets = () => {
               ) : (
                 <div className="space-y-4">
                   {tickets.map((ticket) => (
-                    <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                           <p className="font-semibold text-slate-900">{ticket.attendance?.subject?.name}</p>

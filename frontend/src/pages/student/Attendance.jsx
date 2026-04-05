@@ -37,7 +37,7 @@ const AttendanceRing = ({ percentage }) => {
         background: `conic-gradient(${tone} ${numericPercentage * 3.6}deg, rgba(226,232,240,0.9) 0deg)`
       }}
     >
-      <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-white text-sm font-black text-slate-900 shadow-inner">
+      <div className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-[--color-bg-card] dark:bg-slate-800 text-sm font-black text-slate-900 shadow-inner">
         {percentage}
       </div>
     </div>
@@ -268,7 +268,7 @@ const StudentAttendance = () => {
           <div className="status-late mb-6 rounded-2xl border px-5 py-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-start gap-3">
-                <div className="ui-card mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm">
+                <div className="ui-card mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm dark:shadow-slate-900/50">
                   <AlertCircle className="h-5 w-5" />
                 </div>
                 <div>

@@ -412,7 +412,7 @@ const exportMyMarksheetPdf = async (req, res) => {
     const doc = new PDFDocument({ margin: 40, size: 'A4' })
     doc.pipe(res)
 
-    doc.fontSize(20).text('EduNexus Semester Marksheet', { align: 'center' })
+    doc.fontSize(20).text('TriLearn Semester Marksheet', { align: 'center' })
     doc.moveDown(0.3)
     doc.fontSize(11).text(`${payload.examLabel} Result`, { align: 'center' })
     doc.moveDown(1)

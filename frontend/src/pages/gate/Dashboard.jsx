@@ -164,7 +164,7 @@ const GateDashboard = () => {
         />
 
         {error ? (
-          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="mb-6 rounded-2xl border border-accent-100 bg-accent-50 px-4 py-3 text-sm text-accent-600">
             {error}
           </div>
         ) : null}
@@ -191,7 +191,7 @@ const GateDashboard = () => {
             <section className="ui-card rounded-3xl p-6 md:p-8">
               <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-accent-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
                     <Clock3 className="h-4 w-4" />
                     <span>{statusText}</span>
                   </div>
@@ -247,7 +247,7 @@ const GateDashboard = () => {
                     ))}
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-[28px] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-5 shadow-sm dark:shadow-slate-900/50">
                     <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                       <span>Live QR</span>
                       <QrCode className="h-4 w-4" />
@@ -262,7 +262,7 @@ const GateDashboard = () => {
                 </div>
               ) : (
                 <div className="mt-8 rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 p-8 text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[var(--color-role-gate)] shadow-sm">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 text-[var(--color-role-gate)] shadow-sm dark:shadow-slate-900/50">
                     <CalendarDays className="h-8 w-8" />
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-slate-900">

@@ -13,7 +13,7 @@ const NotFound = () => (
       <div className="mt-6 flex justify-center">
         <Link
           to="/"
-          className="inline-flex items-center rounded-xl bg-[var(--color-role-accent)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+          className="inline-flex items-center rounded-xl bg-[var(--color-role-accent)] px-5 py-3 text-sm font-semibold text-white shadow-sm dark:shadow-slate-900/50 transition hover:opacity-95"
         >
           Back to home
         </Link>

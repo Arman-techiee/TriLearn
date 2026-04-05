@@ -675,7 +675,7 @@ const Attendance = () => {
                 submitLabel="Mark From ID Card"
                 onSubmit={scanStudentIdCard}
                 busy={scanningStudentId}
-                accentClassName="focus:ring-green-500"
+                accentClassName="focus:ring-primary"
               />
             </div>
 

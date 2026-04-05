@@ -37,20 +37,20 @@ const TopNav = ({ user, noticesCount = 0, links = {}, onOpenSidebar, onLogout })
   const avatarUrl = resolveFileUrl(user?.avatar)
 
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.07] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+    <div className="rounded-[2rem] border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/[0.07] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onOpenSidebar}
-              className="rounded-2xl border border-white/10 bg-white/8 p-3 text-slate-100 transition hover:bg-white/14 md:hidden"
+              className="rounded-2xl border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/8 p-3 text-slate-100 transition hover:bg-[--color-bg-card] dark:bg-slate-800/14 md:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
             </button>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200/80">Student Workspace</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary-200/80">Student Workspace</p>
               <h1 className="text-xl font-black tracking-tight text-white md:text-2xl">My Learnings</h1>
             </div>
           </div>
@@ -59,7 +59,7 @@ const TopNav = ({ user, noticesCount = 0, links = {}, onOpenSidebar, onLogout })
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-3 py-2 text-left text-white transition hover:bg-white/14"
+              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/8 px-3 py-2 text-left text-white transition hover:bg-[--color-bg-card] dark:bg-slate-800/14"
             >
               {avatarUrl ? (
                 <img
@@ -74,7 +74,7 @@ const TopNav = ({ user, noticesCount = 0, links = {}, onOpenSidebar, onLogout })
               )}
               <div className="hidden sm:block">
                 <p className="text-sm font-semibold">{user?.name || 'Student User'}</p>
-                <p className="text-xs text-slate-300">{user?.email || 'student@edunexus.edu'}</p>
+                <p className="text-xs text-slate-300">{user?.email || 'student@trilearn.edu'}</p>
               </div>
               <ChevronDown className="h-4 w-4 text-slate-300" />
             </button>
@@ -87,23 +87,23 @@ const TopNav = ({ user, noticesCount = 0, links = {}, onOpenSidebar, onLogout })
                   exit={{ opacity: 0, y: -8, scale: 0.98 }}
                   className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-64 rounded-[1.5rem] border border-white/10 bg-slate-950/88 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl"
                 >
-                  <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-3">
+                  <div className="rounded-[1.2rem] border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/[0.04] p-3">
                     <p className="text-sm font-semibold text-white">{user?.name || 'Student User'}</p>
-                    <p className="mt-1 text-xs text-slate-400">{user?.email || 'student@edunexus.edu'}</p>
-                    <p className="mt-2 text-[11px] uppercase tracking-[0.24em] text-violet-200/70">Student Account</p>
+                    <p className="mt-1 text-xs text-slate-400">{user?.email || 'student@trilearn.edu'}</p>
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.24em] text-primary-200/70">Student Account</p>
                   </div>
                   <div className="mt-3 grid gap-2">
                     <Link
                       to="/student/profile"
                       onClick={() => setMenuOpen(false)}
-                      className="rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
+                      className="rounded-xl border border-white/8 bg-[--color-bg-card] dark:bg-slate-800/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-[--color-bg-card] dark:bg-slate-800/[0.08]"
                     >
                       Open Profile
                     </Link>
                     <button
                       type="button"
                       onClick={onLogout}
-                      className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-left text-sm text-rose-200 transition hover:bg-rose-500/16"
+                      className="rounded-xl border border-accent-400/20 bg-accent/10 px-3 py-2 text-left text-sm text-accent-200 transition hover:bg-accent/16"
                     >
                       Sign Out
                     </button>
@@ -127,7 +127,7 @@ const TopNav = ({ user, noticesCount = 0, links = {}, onOpenSidebar, onLogout })
                   key={item.key}
                   type="button"
                   disabled
-                  className="inline-flex shrink-0 items-center gap-2 rounded-full border border-dashed border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-slate-400"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full border border-dashed border-white/10 bg-[--color-bg-card] dark:bg-slate-800/[0.04] px-4 py-2.5 text-sm font-medium text-slate-400"
                 >
                   <Icon className="h-4 w-4" />
                   <span>{item.label}</span>
@@ -141,14 +141,14 @@ const TopNav = ({ user, noticesCount = 0, links = {}, onOpenSidebar, onLogout })
                 to={path}
                 className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
                   isActive
-                    ? 'border-violet-400/40 bg-[linear-gradient(135deg,rgba(139,92,246,0.32)_0%,rgba(37,99,235,0.26)_100%)] text-white shadow-[0_16px_34px_rgba(76,29,149,0.22)]'
-                    : 'border-white/10 bg-white/[0.05] text-slate-200 hover:bg-white/[0.09]'
+                    ? 'border-primary-400/40 bg-[linear-gradient(135deg,rgba(139,92,246,0.32)_0%,rgba(37,99,235,0.26)_100%)] text-white shadow-[0_16px_34px_rgba(76,29,149,0.22)]'
+                    : 'border-white/10 bg-[--color-bg-card] dark:bg-slate-800/[0.05] text-slate-200 hover:bg-[--color-bg-card] dark:bg-slate-800/[0.09]'
                 }`}
               >
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
                 {badgeCount ? (
-                  <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">
                     {badgeCount}
                   </span>
                 ) : null}

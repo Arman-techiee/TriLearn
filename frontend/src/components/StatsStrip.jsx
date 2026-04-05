@@ -12,7 +12,7 @@ const StatsStrip = ({ items }) => (
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: index * 0.06 }}
           whileHover={{ y: -4 }}
-          className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm"
+          className="rounded-[1.5rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4 shadow-sm dark:shadow-slate-900/50"
         >
           <div className="flex items-center justify-between gap-3">
             <div>

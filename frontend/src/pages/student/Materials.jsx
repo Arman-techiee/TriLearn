@@ -215,7 +215,7 @@ const StudentMaterials = () => {
 
       {previewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="ui-card flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl shadow-xl">
+          <div className="ui-card flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl shadow-xl dark:shadow-slate-900/50">
             <div className="flex items-center justify-between border-b border-[var(--color-card-border)] px-6 py-4">
               <h2 className="text-lg font-semibold text-[var(--color-heading)]">{previewFile.title}</h2>
               <div className="flex items-center gap-3">

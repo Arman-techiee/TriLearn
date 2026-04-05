@@ -104,25 +104,25 @@ const StudentAssignments = () => {
               const overdue = isOverdue(assignment.dueDate)
 
               return (
-                <div key={assignment.id} className="bg-white rounded-2xl shadow-sm p-6">
+                <div key={assignment.id} className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-6">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-gray-800">{assignment.title}</h3>
+                        <h3 className="font-semibold text-[--color-text] dark:text-slate-100">{assignment.title}</h3>
                         {overdue && !submission && (
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Overdue</span>
+                          <span className="text-xs bg-accent-100 text-accent-700 px-2 py-0.5 rounded-full">Overdue</span>
                         )}
                         {submission && (
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium
-                            ${submission.status === 'GRADED' ? 'bg-green-100 text-green-700' :
-                              submission.status === 'LATE' ? 'bg-orange-100 text-orange-700' :
-                              'bg-blue-100 text-blue-700'}`}>
+                            ${submission.status === 'GRADED' ? 'bg-primary-100 text-primary' :
+                              submission.status === 'LATE' ? 'bg-accent-100 text-accent-700' :
+                              'bg-primary-100 text-primary'}`}>
                             {submission.status}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 mb-3">{assignment.description}</p>
-                      <div className="flex gap-4 text-xs text-gray-500">
+                      <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mb-3">{assignment.description}</p>
+                      <div className="flex gap-4 text-xs text-[--color-text-muted] dark:text-slate-400">
                         <span>📚 {assignment.subject?.name}</span>
                         <span>📅 Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
                         <span>🎯 Total: {assignment.totalMarks} marks</span>
@@ -130,13 +130,13 @@ const StudentAssignments = () => {
                           <button
                             type="button"
                             onClick={() => openPreview(`${assignment.title} - Question PDF`, assignment.questionPdfUrl)}
-                            className="text-blue-600 font-medium hover:underline"
+                            className="text-primary font-medium hover:underline"
                           >
                             View Question PDF
                           </button>
                         )}
                         {submission?.feedback && (
-                          <span className="text-green-600 font-medium">
+                          <span className="text-primary font-medium">
                             Feedback available
                           </span>
                         )}
@@ -155,27 +155,27 @@ const StudentAssignments = () => {
                             rows={2}
                             value={submitForm.note}
                             onChange={(e) => setSubmitForm({ ...submitForm, note: e.target.value })}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                           <div>
-                            <label className="block text-sm text-gray-600 mb-1">Answer PDF</label>
+                            <label className="block text-sm text-[--color-text-muted] dark:text-slate-400 mb-1">Answer PDF</label>
                             <input
                               type="file"
                               accept="application/pdf,.pdf"
                               onChange={(e) => setAnswerPdf(e.target.files?.[0] || null)}
-                              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm"
+                              className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm"
                             />
                           </div>
                           <div className="flex gap-3">
                             <button
                               onClick={() => { setSubmittingId(null); setAnswerPdf(null); setSubmitError('') }}
-                              className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50"
+                              className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-400 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900"
                             >
                               Cancel
                             </button>
                             <button
                               onClick={() => handleSubmit(assignment.id)}
-                              className="flex-1 bg-purple-600 text-white py-2 rounded-lg text-sm hover:bg-purple-700 font-medium"
+                              className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary-700 font-medium"
                             >
                               Submit Assignment
                             </button>
@@ -184,7 +184,7 @@ const StudentAssignments = () => {
                       ) : (
                         <button
                           onClick={() => { setSubmittingId(assignment.id); setSubmitError('') }}
-                          className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 transition"
+                          className="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700 transition"
                         >
                           Submit Assignment
                         </button>
@@ -194,15 +194,15 @@ const StudentAssignments = () => {
 
                   {/* Already submitted */}
                   {submission && (
-                    <div className="mt-4 pt-4 border-t bg-gray-50 rounded-xl p-3">
-                      <p className="text-xs text-gray-500">
+                    <div className="mt-4 pt-4 border-t bg-[--color-bg] dark:bg-slate-900 rounded-xl p-3">
+                      <p className="text-xs text-[--color-text-muted] dark:text-slate-400">
                         Submitted on {new Date(submission.submittedAt).toLocaleDateString()}
                       </p>
                       {submission.fileUrl && (
                         <button
                           type="button"
                           onClick={() => openPreview(`${assignment.title} - Submitted PDF`, submission.fileUrl)}
-                          className="text-sm text-purple-600 hover:underline mt-1 inline-block"
+                          className="text-sm text-primary hover:underline mt-1 inline-block"
                         >
                           View Submitted PDF
                         </button>
@@ -211,7 +211,7 @@ const StudentAssignments = () => {
                         <p className="text-sm text-gray-700 mt-1">Note: {submission.note}</p>
                       )}
                       {submission.feedback && (
-                        <div className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+                        <div className="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-700">
                           Instructor feedback: {submission.feedback}
                         </div>
                       )}
@@ -233,22 +233,22 @@ const StudentAssignments = () => {
 
       {previewFile && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] shadow-xl flex flex-col overflow-hidden">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] shadow-xl dark:shadow-slate-900/50 flex flex-col overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">{previewFile.title}</h2>
+              <h2 className="text-lg font-semibold text-[--color-text] dark:text-slate-100">{previewFile.title}</h2>
               <div className="flex items-center gap-3">
                 <a
                   href={previewFile.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm text-purple-600 hover:underline"
+                  className="text-sm text-primary hover:underline"
                 >
                   Open in new tab
                 </a>
                 <button
                   type="button"
                   onClick={() => setPreviewFile(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl"
+                  className="text-gray-400 hover:text-[--color-text-muted] dark:text-slate-400 text-xl"
                 >
                   ✕
                 </button>
@@ -264,14 +264,14 @@ const StudentAssignments = () => {
               />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-[--color-text-muted] dark:text-slate-400">
                   This file can be opened in a new tab, but embedded preview is only available for PDFs stored in this app.
                 </p>
                 <a
                   href={previewFile.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
                 >
                   Open PDF
                 </a>

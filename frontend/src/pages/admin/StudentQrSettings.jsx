@@ -273,7 +273,7 @@ const StudentQrSettings = () => {
                     ) : (
                       <div className="space-y-3">
                         {items.map((windowItem) => (
-                          <div key={windowItem.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div key={windowItem.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4">
                             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                               <div>
                                 <p className="font-semibold text-slate-900">{windowItem.title || `${windowItem.startTime} - ${windowItem.endTime}`}</p>
@@ -288,11 +288,11 @@ const StudentQrSettings = () => {
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => openEditWindow(windowItem)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                                <button type="button" onClick={() => openEditWindow(windowItem)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
                                   <Pencil className="h-4 w-4" />
                                   <span>Edit</span>
                                 </button>
-                                <button type="button" onClick={() => confirmDeleteWindow(windowItem)} className="inline-flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600 hover:bg-red-100">
+                                <button type="button" onClick={() => confirmDeleteWindow(windowItem)} className="inline-flex items-center gap-2 rounded-lg border border-accent-100 bg-accent-50 px-3 py-2 text-sm text-accent-600 hover:bg-accent-100">
                                   <Trash2 className="h-4 w-4" />
                                   <span>Delete</span>
                                 </button>
@@ -326,14 +326,14 @@ const StudentQrSettings = () => {
                 ) : (
                   <div className="space-y-3">
                     {holidays.map((holiday) => (
-                      <div key={holiday.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={holiday.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-semibold text-slate-900">{holiday.title}</p>
                             <p className="mt-1 text-sm text-slate-500">{new Date(holiday.date).toLocaleDateString()}</p>
                             {holiday.description ? <p className="mt-3 text-sm text-slate-600">{holiday.description}</p> : null}
                           </div>
-                          <button type="button" onClick={() => confirmDeleteHoliday(holiday)} className="inline-flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600 hover:bg-red-100">
+                          <button type="button" onClick={() => confirmDeleteHoliday(holiday)} className="inline-flex items-center gap-2 rounded-lg border border-accent-100 bg-accent-50 px-3 py-2 text-sm text-accent-600 hover:bg-accent-100">
                             <Trash2 className="h-4 w-4" />
                             <span>Delete</span>
                           </button>
@@ -346,7 +346,7 @@ const StudentQrSettings = () => {
 
               <div className="ui-card rounded-3xl p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-600">
                     <QrCode className="h-6 w-6" />
                   </div>
                   <div>
@@ -404,7 +404,7 @@ const StudentQrSettings = () => {
                       key={semester}
                       type="button"
                       onClick={() => toggleSemester(semester)}
-                      className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${selected ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                      className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${selected ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white' : 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-600 hover:bg-slate-50'}`}
                     >
                       Semester {semester}
                     </button>
@@ -423,7 +423,7 @@ const StudentQrSettings = () => {
             </label>
 
             <div className="ui-modal-footer">
-              <button type="button" onClick={() => setWindowModalOpen(false)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              <button type="button" onClick={() => setWindowModalOpen(false)} className="rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
                 Cancel
               </button>
               <button type="submit" disabled={savingWindow} className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
@@ -450,7 +450,7 @@ const StudentQrSettings = () => {
               <textarea rows={3} value={holidayForm.description} onChange={(event) => setHolidayForm((current) => ({ ...current, description: event.target.value }))} className="ui-form-input" placeholder="Optional note for this holiday" />
             </div>
             <div className="ui-modal-footer">
-              <button type="button" onClick={() => setHolidayModalOpen(false)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              <button type="button" onClick={() => setHolidayModalOpen(false)} className="rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
                 Cancel
               </button>
               <button type="submit" disabled={savingHoliday} className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">

@@ -129,11 +129,11 @@ const InstructorMaterials = () => {
 
   const fileTypeTone = (url = '') => {
     const ext = (url.split('.').pop() || '').toLowerCase()
-    if (ext === 'pdf') return 'bg-rose-50 text-rose-700'
-    if (['doc', 'docx'].includes(ext)) return 'bg-blue-50 text-blue-700'
-    if (['ppt', 'pptx'].includes(ext)) return 'bg-amber-50 text-amber-700'
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return 'bg-emerald-50 text-emerald-700'
-    if (['mp4', 'mov', 'avi'].includes(ext)) return 'bg-violet-50 text-violet-700'
+    if (ext === 'pdf') return 'bg-accent-50 text-accent-700'
+    if (['doc', 'docx'].includes(ext)) return 'bg-primary-50 text-primary'
+    if (['ppt', 'pptx'].includes(ext)) return 'bg-accent-50 text-accent-700'
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return 'bg-primary-50 text-primary'
+    if (['mp4', 'mov', 'avi'].includes(ext)) return 'bg-primary-50 text-primary'
     return 'bg-slate-100 text-slate-700'
   }
 
@@ -177,7 +177,7 @@ const InstructorMaterials = () => {
           <button
             onClick={() => setFilterSubject('')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition
-              ${!filterSubject ? 'bg-green-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}
+              ${!filterSubject ? 'bg-primary text-white' : 'bg-[--color-bg-card] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 border hover:bg-[--color-bg] dark:bg-slate-900'}`}
           >
             All Modules
           </button>
@@ -186,7 +186,7 @@ const InstructorMaterials = () => {
               key={s.id}
               onClick={() => setFilterSubject(s.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition
-                ${filterSubject === s.id ? 'bg-green-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}
+                ${filterSubject === s.id ? 'bg-primary text-white' : 'bg-[--color-bg-card] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 border hover:bg-[--color-bg] dark:bg-slate-900'}`}
             >
               {s.code}
             </button>
@@ -207,21 +207,21 @@ const InstructorMaterials = () => {
                     </div>
                     <div className="text-center">
                       <div className="mb-3 text-5xl">{getFileIcon(mat.fileUrl)}</div>
-                      <h3 className="font-semibold text-gray-800 mb-1">{mat.title}</h3>
+                      <h3 className="font-semibold text-[--color-text] dark:text-slate-100 mb-1">{mat.title}</h3>
                     </div>
                   </div>
                   <button
                     onClick={() => setMaterialToDelete(mat)}
-                    className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg hover:bg-red-100 transition"
+                    className="text-xs bg-accent-50 text-accent-600 px-2 py-1 rounded-lg hover:bg-accent-100 transition"
                   >
                     Delete
                   </button>
                 </div>
                 {mat.description && (
-                  <p className="text-xs text-gray-500 mb-3 line-clamp-2">{mat.description}</p>
+                  <p className="text-xs text-[--color-text-muted] dark:text-slate-400 mb-3 line-clamp-2">{mat.description}</p>
                 )}
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full font-medium">
+                  <span className="text-xs bg-primary-50 text-primary px-2 py-1 rounded-full font-medium">
                     {mat.subject?.code}
                   </span>
                   <span className="text-xs text-gray-400">
@@ -232,7 +232,7 @@ const InstructorMaterials = () => {
                   <button
                     type="button"
                     onClick={() => openPreview(mat.title, mat.fileUrl)}
-                    className="mt-3 block w-full text-center text-xs bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium"
+                    className="mt-3 block w-full text-center text-xs bg-primary text-white py-2 rounded-lg hover:bg-primary-700 transition font-medium"
                   >
                     View PDF
                   </button>
@@ -257,7 +257,7 @@ const InstructorMaterials = () => {
                         href={materialUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-3 block text-center text-xs bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium"
+                        className="mt-3 block text-center text-xs bg-primary text-white py-2 rounded-lg hover:bg-primary-700 transition font-medium"
                       >
                         Open / Download
                       </a>
@@ -287,34 +287,34 @@ const InstructorMaterials = () => {
               <input
                 type="text" placeholder="Material Title" required
                 value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <textarea
                 placeholder="Description (optional)" rows={3}
                 value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Upload PDF</label>
+                <label className="block text-sm text-[--color-text-muted] dark:text-slate-400 mb-1">Upload PDF</label>
                 <input
                   type="file"
                   accept="application/pdf,.pdf"
                   onChange={(e) => setMaterialPdf(e.target.files?.[0] || null)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm"
+                  className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm"
                 />
                 <p className="text-xs text-gray-400 mt-1">Optional. Upload a PDF directly from your device.</p>
               </div>
               <input
                 type="url" placeholder="Or paste a file URL (Google Drive, Dropbox, etc.)"
                 value={form.fileUrl} onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
               <p className="text-xs text-gray-400 -mt-2">
                 Use either an uploaded PDF or an external file link.
               </p>
               <select
                 required value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">Select Module</option>
                 {subjects.map(s => (
@@ -323,11 +323,11 @@ const InstructorMaterials = () => {
               </select>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">
+                  className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-400 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900">
                   Cancel
                 </button>
                 <button type="submit"
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 font-medium">
+                  className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary-700 font-medium">
                   Upload
                 </button>
               </div>
@@ -337,22 +337,22 @@ const InstructorMaterials = () => {
 
       {previewFile && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] shadow-xl flex flex-col overflow-hidden">
+          <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] shadow-xl dark:shadow-slate-900/50 flex flex-col overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">{previewFile.title}</h2>
+              <h2 className="text-lg font-semibold text-[--color-text] dark:text-slate-100">{previewFile.title}</h2>
               <div className="flex items-center gap-3">
                 <a
                   href={previewFile.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sm text-green-600 hover:underline"
+                  className="text-sm text-primary hover:underline"
                 >
                   Open in new tab
                 </a>
                 <button
                   type="button"
                   onClick={() => setPreviewFile(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl"
+                  className="text-gray-400 hover:text-[--color-text-muted] dark:text-slate-400 text-xl"
                 >
                   ✕
                 </button>
@@ -368,14 +368,14 @@ const InstructorMaterials = () => {
               />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-[--color-text-muted] dark:text-slate-400">
                   This file can be opened in a new tab, but embedded preview is only available for PDFs stored in this app.
                 </p>
                 <a
                   href={previewFile.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
                 >
                   Open PDF
                 </a>

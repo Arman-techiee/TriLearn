@@ -15,7 +15,7 @@ const ModuleCard = ({ module, index = 0 }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: index * 0.05 }}
       whileHover={{ y: -6, scale: 1.01 }}
-      className="group rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm transition"
+      className="group rounded-[1.5rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-5 shadow-sm dark:shadow-slate-900/50 transition"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -57,7 +57,7 @@ const ModuleCard = ({ module, index = 0 }) => {
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
         >
           Open
           <ChevronRight className="h-4 w-4" />

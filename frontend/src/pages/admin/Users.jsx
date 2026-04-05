@@ -245,7 +245,7 @@ const Users = () => {
 
         <PageHeader
           title="Users"
-          subtitle="Manage all users in EduNexus"
+          subtitle="Manage all users in TriLearn"
           breadcrumbs={['Admin', 'Users']}
           actions={[
             ...(!isCoordinator ? [
@@ -262,14 +262,14 @@ const Users = () => {
 
         {/* Filter */}
         <div className="mb-6 space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4 shadow-sm dark:shadow-slate-900/50">
             <label className="mb-2 block text-sm font-medium text-slate-700">Search users</label>
             <input
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search by name, email, phone, roll number, or department"
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <div className="flex flex-wrap gap-3">
@@ -280,8 +280,8 @@ const Users = () => {
                 onClick={() => setFilterRole(role)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition
                   ${filterRole === role
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border'
+                    ? 'bg-primary text-white'
+                    : 'bg-[--color-bg-card] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 hover:bg-[--color-bg] dark:bg-slate-900 border'
                   }`}
               >
                 {role || 'All'}
@@ -291,7 +291,7 @@ const Users = () => {
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 overflow-hidden">
           {loading ? (
             <div className="p-6">
               <LoadingSkeleton rows={6} itemClassName="h-16" />
@@ -328,7 +328,7 @@ const Users = () => {
               <div className="overflow-x-auto max-h-[720px]">
               <table className="w-full min-w-[840px]">
                 <thead className="sticky top-0 z-10 bg-slate-50">
-                  <tr className="text-left text-sm text-gray-500">
+                  <tr className="text-left text-sm text-[--color-text-muted] dark:text-slate-400">
                     <th scope="col" className="px-6 py-4">Name</th>
                     <th scope="col" className="px-6 py-4">Email</th>
                     <th scope="col" className="px-6 py-4">Role</th>
@@ -339,16 +339,16 @@ const Users = () => {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} className="border-t border-slate-200 transition-colors hover:bg-blue-50/30">
+                    <tr key={user.id} className="border-t border-slate-200 transition-colors hover:bg-primary-50/30">
                       <td className="px-6 py-4">
                         <p className="font-semibold text-slate-900">{user.name}</p>
                         <p className="mt-1 text-xs text-slate-500">{user.phone || user.email}</p>
                       </td>
-                      <td className="px-6 py-4 text-gray-500 text-sm">{user.email}</td>
+                      <td className="px-6 py-4 text-[--color-text-muted] dark:text-slate-400 text-sm">{user.email}</td>
                       <td className="px-6 py-4">
                         <StatusBadge status={user.role} />
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-[--color-text-muted] dark:text-slate-400">
                         {user.student && `Sem ${user.student.semester} · ${user.student.rollNumber}`}
                         {user.instructor && `${user.instructor.department || 'No dept'}`}
                         {user.coordinator && `${user.coordinator.department || 'No dept'} coordinator`}
@@ -367,8 +367,8 @@ const Users = () => {
                               onClick={() => handleToggleStatus(user.id, user.isActive)}
                               className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition
                                 ${user.isActive
-                                  ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  ? 'bg-accent-100 text-accent-700 hover:bg-accent-200'
+                                  : 'bg-primary-100 text-primary hover:bg-primary-200'
                                 }`}
                               aria-label={user.isActive ? `Disable ${user.name}` : `Enable ${user.name}`}
                             >
@@ -379,7 +379,7 @@ const Users = () => {
                             <button
                               type="button"
                               onClick={() => setUserToDelete(user)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-700 transition hover:bg-red-200"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent-100 text-accent-700 transition hover:bg-accent-200"
                               aria-label={`Delete ${user.name}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -448,7 +448,7 @@ const Users = () => {
                     />
                     {errors.studentId && <p className="ui-form-helper-error">{errors.studentId}</p>}
                   </div>
-                  <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                  <div className="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary">
                     The student will sign in using their personal email address and will be forced to change the default password on first login.
                   </div>
                 </>
@@ -478,7 +478,7 @@ const Users = () => {
                     />
                     {errors.password && <p className="ui-form-helper-error">{errors.password}</p>}
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[--color-text-muted] dark:text-slate-400">
                     Use at least 8 characters with uppercase, lowercase, and a number.
                   </p>
                 </>
@@ -547,13 +547,13 @@ const Users = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50"
+                  className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-400 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 font-medium"
+                  className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary font-medium"
                 >
                   Create {modalType === 'coordinator' ? 'Coordinator' : modalType === 'instructor' ? 'Instructor' : modalType === 'gatekeeper' ? 'Gate Account' : 'Student'}
                 </button>

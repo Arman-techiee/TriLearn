@@ -44,7 +44,7 @@ describe('Login', () => {
     expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/enter your email/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /login to edunexus/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /login to trilearn/i })).toBeInTheDocument()
   })
 
   test('submits the login form and routes to the user home page', async () => {
@@ -67,7 +67,7 @@ describe('Login', () => {
     fireEvent.change(screen.getByPlaceholderText(/enter your password/i), {
       target: { value: 'password123' }
     })
-    fireEvent.click(screen.getByRole('button', { name: /login to edunexus/i }))
+    fireEvent.click(screen.getByRole('button', { name: /login to trilearn/i }))
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/auth/login', {

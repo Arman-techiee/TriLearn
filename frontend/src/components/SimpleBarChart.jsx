@@ -20,7 +20,7 @@ const SimpleBarChart = ({ data = [] }) => {
               {item.percentage}%
             </div>
             <div
-              className="flex h-44 w-full items-end rounded-2xl px-2 py-2 shadow-sm"
+              className="flex h-44 w-full items-end rounded-2xl px-2 py-2 shadow-sm dark:shadow-slate-900/50"
               style={{ background: 'var(--color-card-surface)' }}
             >
               <div

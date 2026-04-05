@@ -55,7 +55,7 @@ const StudentSubjects = () => {
         />
 
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <div className="text-center text-[--color-text-muted] dark:text-slate-400 py-8">Loading...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subjects.map((subject) => (
@@ -63,18 +63,18 @@ const StudentSubjects = () => {
                 <div className={`h-1.5 bg-gradient-to-r ${departmentBar(subject.department)}`} />
                 <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                  <span className="text-xs font-bold text-primary bg-primary-50 px-2 py-1 rounded">
                     {subject.code}
                   </span>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  <span className="text-xs bg-[--color-bg] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 px-2 py-1 rounded">
                     Sem {subject.semester}
                   </span>
                 </div>
-                <h3 className="font-semibold text-gray-800 mb-2">{subject.name}</h3>
+                <h3 className="font-semibold text-[--color-text] dark:text-slate-100 mb-2">{subject.name}</h3>
                 {subject.description && (
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{subject.description}</p>
+                  <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mb-4 line-clamp-2">{subject.description}</p>
                 )}
-                <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-500">
+                <div className="mb-4 flex flex-wrap gap-2 text-xs text-[--color-text-muted] dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1">
                     <ClipboardList className="h-3.5 w-3.5" />
                     <span>{subject._count?.assignments} assignments</span>
@@ -90,7 +90,7 @@ const StudentSubjects = () => {
                 </div>
                 {subject.department && (
                   <div className="mt-3">
-                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-1 rounded">
+                    <span className="text-xs bg-primary-50 text-primary px-2 py-1 rounded">
                       {subject.department}
                     </span>
                   </div>

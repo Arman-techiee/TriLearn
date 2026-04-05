@@ -107,7 +107,7 @@ const InstructorNotices = () => {
           <>
             <div className="space-y-4">
               {notices.map((notice) => (
-                <div key={notice.id} className="bg-white rounded-2xl shadow-sm p-6">
+                <div key={notice.id} className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl shadow-sm dark:shadow-slate-900/50 p-6">
                   <div className="flex items-center gap-3 mb-2">
                     <StatusBadge status={notice.type} />
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
@@ -116,8 +116,8 @@ const InstructorNotices = () => {
                     <span className="text-xs text-gray-400">{new Date(notice.createdAt).toLocaleDateString()}</span>
                     <span className="text-xs text-gray-400">by {notice.user?.name}</span>
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-1">{notice.title}</h3>
-                  <p className="text-sm text-gray-500">{notice.content}</p>
+                  <h3 className="font-semibold text-[--color-text] dark:text-slate-100 mb-1">{notice.title}</h3>
+                  <p className="text-sm text-[--color-text-muted] dark:text-slate-400">{notice.content}</p>
                 </div>
               ))}
               {notices.length === 0 && (
@@ -139,14 +139,14 @@ const InstructorNotices = () => {
             <form onSubmit={handleSubmit(saveNotice)} className="space-y-4">
               <input name="title" type="text" placeholder="Title" required value={values.title}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              {errors.title && <p className="text-xs text-red-600 -mt-2">{errors.title}</p>}
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              {errors.title && <p className="text-xs text-accent-600 -mt-2">{errors.title}</p>}
               <textarea name="content" placeholder="Content" required rows={4} value={values.content}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              {errors.content && <p className="text-xs text-red-600 -mt-2">{errors.content}</p>}
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              {errors.content && <p className="text-xs text-accent-600 -mt-2">{errors.content}</p>}
               <select name="type" value={values.type} onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                 <option value="GENERAL">General</option>
                 <option value="EXAM">Exam</option>
                 <option value="HOLIDAY">Holiday</option>
@@ -157,7 +157,7 @@ const InstructorNotices = () => {
                 name="audience"
                 value={values.audience}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="STUDENTS">Students</option>
                 <option value="ALL">Everyone</option>
@@ -166,20 +166,20 @@ const InstructorNotices = () => {
                 name="targetSemester"
                 value={values.targetSemester}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-[--color-border] dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">All Semesters</option>
                 {Array.from({ length: 12 }, (_, index) => index + 1).map((semester) => (
                   <option key={semester} value={semester}>{`Semester ${semester}`}</option>
                 ))}
               </select>
-              {errors.targetSemester && <p className="text-xs text-red-600 -mt-2">{errors.targetSemester}</p>}
+              {errors.targetSemester && <p className="text-xs text-accent-600 -mt-2">{errors.targetSemester}</p>}
               <p className="text-xs text-slate-500 -mt-1">Your department will be applied automatically to student-facing notices.</p>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-400 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900">Cancel</button>
                 <button type="submit"
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 font-medium">Post</button>
+                  className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary-700 font-medium">Post</button>
               </div>
             </form>
         </Modal>

@@ -106,7 +106,7 @@ const StudentNotices = () => {
           <>
             <div className="space-y-4">
               {notices.map((notice) => (
-                <div key={notice.id} className={`ui-card rounded-2xl border-l-4 p-6 hover:shadow-md transition ${noticeToneClasses[notice.type] || noticeToneClasses.GENERAL}`}>
+                <div key={notice.id} className={`ui-card rounded-2xl border-l-4 p-6 hover:shadow-md dark:shadow-slate-900/50 transition ${noticeToneClasses[notice.type] || noticeToneClasses.GENERAL}`}>
                   <div className="mb-3 flex items-center gap-3">
                     <div className="ui-role-fill flex h-10 w-10 items-center justify-center rounded-full text-xs font-black text-white">
                       {initialsFromName(notice.user?.name)}
@@ -125,8 +125,8 @@ const StudentNotices = () => {
                       {new Date(notice.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-gray-800 mb-2">{notice.title}</h3>
-                  <p className={`text-sm text-gray-600 ${expandedNoticeIds.includes(notice.id) ? '' : 'line-clamp-2'}`}>{notice.content}</p>
+                  <h3 className="font-semibold text-[--color-text] dark:text-slate-100 mb-2">{notice.title}</h3>
+                  <p className={`text-sm text-[--color-text-muted] dark:text-slate-400 ${expandedNoticeIds.includes(notice.id) ? '' : 'line-clamp-2'}`}>{notice.content}</p>
                   {notice.content.length > 140 ? (
                     <button
                       type="button"

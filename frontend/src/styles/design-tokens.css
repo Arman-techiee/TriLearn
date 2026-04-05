@@ -2,68 +2,73 @@
   --font-sans-base: Inter, system-ui, sans-serif;
   --tracking-heading-tight: -0.03em;
 
-  --color-page-bg: #f1f5f9;
-  --color-page-text: #0f172a;
-  --color-surface-muted: #f8fafc;
-  --color-surface-subtle: #f1f5f9;
-  --color-border-muted: #cbd5e1;
-  --color-heading: #0f172a;
-  --color-text-muted: #64748b;
-  --color-text-soft: #94a3b8;
+  --color-page-bg: #F3F6FB;
+  --color-page-text: #1A1A2E;
+  --color-surface-muted: #EEF2F9;
+  --color-surface-subtle: #E5ECF6;
+  --color-border-muted: #D4E0F0;
+  --color-heading: #0F2447;
+  --color-text-muted: #4B5563;
+  --color-text-soft: #7A8798;
 
-  --color-sidebar-primary: #0f172a;
-  --color-sidebar-overlay-top: rgba(59, 130, 246, 0.14);
-  --color-sidebar-overlay-bottom: rgba(99, 102, 241, 0.18);
-  --color-sidebar-border: rgba(148, 163, 184, 0.16);
+  --color-sidebar-primary: #0F2447;
+  --color-sidebar-overlay-top: rgba(42, 82, 152, 0.18);
+  --color-sidebar-overlay-bottom: rgba(244, 166, 35, 0.18);
+  --color-sidebar-border: rgba(212, 224, 240, 0.2);
 
-  --color-nav-active: #4f46e5;
-  --color-nav-active-strong: #4338ca;
-  --color-nav-active-glow: rgba(99, 102, 241, 0.42);
+  --color-nav-active: #2A5298;
+  --color-nav-active-strong: #1A3C6E;
+  --color-nav-active-glow: rgba(42, 82, 152, 0.32);
   --color-nav-active-text: #ffffff;
 
-  --color-card-surface: #ffffff;
-  --color-card-border: #e2e8f0;
-  --shadow-card-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.08), 0 10px 24px -18px rgba(15, 23, 42, 0.3);
-  --shadow-card-md: 0 12px 28px -18px rgba(15, 23, 42, 0.28), 0 4px 10px -6px rgba(15, 23, 42, 0.12);
+  --color-card-surface: #FFFFFF;
+  --color-card-border: #E5E7EB;
+  --shadow-card-sm: 0 1px 2px 0 rgba(15, 36, 71, 0.08), 0 10px 24px -18px rgba(15, 36, 71, 0.22);
+  --shadow-card-md: 0 18px 36px -24px rgba(15, 36, 71, 0.28), 0 8px 18px -12px rgba(15, 36, 71, 0.16);
   --radius-card: 1rem;
   --transition-card: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
 
-  --color-badge-bg: #f8fafc;
-  --color-badge-text: #334155;
-  --color-badge-dot: #64748b;
+  --color-badge-bg: #EEF2F9;
+  --color-badge-text: #1A3C6E;
+  --color-badge-dot: #2A5298;
 
-  --color-role-admin: #2563eb;
-  --color-role-instructor: #16a34a;
-  --color-role-student: #9333ea;
-  --color-role-gate: #d97706;
+  --color-role-admin: #1A3C6E;
+  --color-role-instructor: #2A5298;
+  --color-role-student: #5483C3;
+  --color-role-gate: #F4A623;
   --color-role-accent: var(--color-role-admin);
 }
 
+.dark,
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  --color-page-bg: #020617;
-  --color-page-text: #e2e8f0;
-  --color-surface-muted: #0f172a;
-  --color-surface-subtle: #111827;
-  --color-border-muted: rgba(148, 163, 184, 0.22);
-  --color-heading: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-text-soft: #64748b;
+  --color-page-bg: #0F172A;
+  --color-page-text: #F1F5F9;
+  --color-surface-muted: #111C33;
+  --color-surface-subtle: #16213D;
+  --color-border-muted: rgba(84, 131, 195, 0.24);
+  --color-heading: #F8FAFC;
+  --color-text-muted: #94A3B8;
+  --color-text-soft: #64748B;
 
-  --color-sidebar-primary: #020617;
-  --color-sidebar-overlay-top: rgba(59, 130, 246, 0.18);
-  --color-sidebar-overlay-bottom: rgba(99, 102, 241, 0.2);
-  --color-sidebar-border: rgba(148, 163, 184, 0.14);
+  --color-sidebar-primary: #091729;
+  --color-sidebar-overlay-top: rgba(84, 131, 195, 0.2);
+  --color-sidebar-overlay-bottom: rgba(244, 166, 35, 0.16);
+  --color-sidebar-border: rgba(84, 131, 195, 0.18);
 
-  --color-card-surface: #0f172a;
-  --color-card-border: rgba(148, 163, 184, 0.18);
-  --shadow-card-sm: 0 16px 42px -28px rgba(2, 6, 23, 0.92), 0 6px 16px -10px rgba(15, 23, 42, 0.55);
-  --shadow-card-md: 0 24px 54px -30px rgba(2, 6, 23, 0.98), 0 10px 24px -12px rgba(15, 23, 42, 0.62);
+  --color-nav-active: #5483C3;
+  --color-nav-active-strong: #2A5298;
+  --color-nav-active-glow: rgba(84, 131, 195, 0.34);
 
-  --color-badge-bg: #111827;
-  --color-badge-text: #cbd5e1;
-  --color-badge-dot: #64748b;
+  --color-card-surface: #1E293B;
+  --color-card-border: rgba(148, 163, 184, 0.24);
+  --shadow-card-sm: 0 18px 42px -28px rgba(4, 11, 20, 0.92), 0 6px 16px -10px rgba(15, 23, 42, 0.55);
+  --shadow-card-md: 0 28px 56px -34px rgba(4, 11, 20, 0.98), 0 10px 24px -12px rgba(15, 23, 42, 0.62);
+
+  --color-badge-bg: #16213D;
+  --color-badge-text: #D4E0F0;
+  --color-badge-dot: #5483C3;
 }
 
 [data-role-theme="admin"] {
@@ -190,15 +195,15 @@ html[data-theme="dark"] {
 }
 
 @utility ui-status-warning {
-  --color-badge-bg: #fff7ed;
-  --color-badge-text: #c2410c;
-  --color-badge-dot: #f97316;
+  --color-badge-bg: #FEF9EC;
+  --color-badge-text: #A86A12;
+  --color-badge-dot: #F4A623;
 }
 
 @utility ui-status-info {
-  --color-badge-bg: #eff6ff;
-  --color-badge-text: #1d4ed8;
-  --color-badge-dot: #3b82f6;
+  --color-badge-bg: #EEF2F9;
+  --color-badge-text: #1A3C6E;
+  --color-badge-dot: #2A5298;
 }
 
 @utility ui-status-neutral {
@@ -220,15 +225,15 @@ html[data-theme="dark"] {
 }
 
 @utility status-late {
-  background: color-mix(in srgb, #f97316 14%, var(--color-card-surface));
-  color: color-mix(in srgb, #c2410c 82%, var(--color-heading));
-  border-color: color-mix(in srgb, #f97316 34%, var(--color-card-border));
+  background: color-mix(in srgb, #F4A623 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #A86A12 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #F4A623 34%, var(--color-card-border));
 }
 
 @utility status-info {
-  background: color-mix(in srgb, #3b82f6 14%, var(--color-card-surface));
-  color: color-mix(in srgb, #1d4ed8 82%, var(--color-heading));
-  border-color: color-mix(in srgb, #3b82f6 34%, var(--color-card-border));
+  background: color-mix(in srgb, #2A5298 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #1A3C6E 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #2A5298 34%, var(--color-card-border));
 }
 
 @utility grade-pass {
@@ -238,15 +243,15 @@ html[data-theme="dark"] {
 }
 
 @utility grade-merit {
-  background: color-mix(in srgb, #3b82f6 14%, var(--color-card-surface));
-  color: color-mix(in srgb, #1d4ed8 82%, var(--color-heading));
-  border-color: color-mix(in srgb, #3b82f6 34%, var(--color-card-border));
+  background: color-mix(in srgb, #2A5298 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #1A3C6E 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #2A5298 34%, var(--color-card-border));
 }
 
 @utility grade-average {
-  background: color-mix(in srgb, #f59e0b 14%, var(--color-card-surface));
-  color: color-mix(in srgb, #b45309 82%, var(--color-heading));
-  border-color: color-mix(in srgb, #f59e0b 34%, var(--color-card-border));
+  background: color-mix(in srgb, #F4A623 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #A86A12 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #F4A623 34%, var(--color-card-border));
 }
 
 @utility grade-fail {
@@ -256,9 +261,9 @@ html[data-theme="dark"] {
 }
 
 @utility routine-tone-1 {
-  background: color-mix(in srgb, #3b82f6 14%, var(--color-card-surface));
-  border-color: color-mix(in srgb, #3b82f6 34%, var(--color-card-border));
-  color: color-mix(in srgb, #1d4ed8 82%, var(--color-heading));
+  background: color-mix(in srgb, #2A5298 14%, var(--color-card-surface));
+  border-color: color-mix(in srgb, #2A5298 34%, var(--color-card-border));
+  color: color-mix(in srgb, #1A3C6E 82%, var(--color-heading));
 }
 
 @utility routine-tone-2 {
@@ -268,15 +273,15 @@ html[data-theme="dark"] {
 }
 
 @utility routine-tone-3 {
-  background: color-mix(in srgb, #8b5cf6 14%, var(--color-card-surface));
-  border-color: color-mix(in srgb, #8b5cf6 34%, var(--color-card-border));
-  color: color-mix(in srgb, #6d28d9 82%, var(--color-heading));
+  background: color-mix(in srgb, #5483C3 14%, var(--color-card-surface));
+  border-color: color-mix(in srgb, #5483C3 34%, var(--color-card-border));
+  color: color-mix(in srgb, #2A5298 82%, var(--color-heading));
 }
 
 @utility routine-tone-4 {
-  background: color-mix(in srgb, #f97316 14%, var(--color-card-surface));
-  border-color: color-mix(in srgb, #f97316 34%, var(--color-card-border));
-  color: color-mix(in srgb, #c2410c 82%, var(--color-heading));
+  background: color-mix(in srgb, #F4A623 14%, var(--color-card-surface));
+  border-color: color-mix(in srgb, #F4A623 34%, var(--color-card-border));
+  color: color-mix(in srgb, #A86A12 82%, var(--color-heading));
 }
 
 @utility routine-tone-5 {
@@ -425,24 +430,24 @@ html[data-theme="dark"] {
   justify-content: center;
   gap: 0.75rem;
   border-radius: 0.875rem;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #2A5298, #1A3C6E);
   padding: 0.875rem 1.25rem;
   font-size: 0.9375rem;
   font-weight: 600;
   color: white;
-  box-shadow: 0 14px 28px -18px rgba(37, 99, 235, 0.7);
+  box-shadow: 0 14px 28px -18px rgba(26, 60, 110, 0.7);
   transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 18px 30px -20px rgba(29, 78, 216, 0.78);
+    box-shadow: 0 18px 30px -20px rgba(26, 60, 110, 0.78);
   }
 
   &:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 3px rgba(191, 219, 254, 0.9),
-      0 18px 30px -20px rgba(29, 78, 216, 0.78);
+      0 0 0 3px rgba(170, 193, 225, 0.9),
+      0 18px 30px -20px rgba(26, 60, 110, 0.78);
   }
 
   &:disabled {

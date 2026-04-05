@@ -1,173 +1,138 @@
+@config "../tailwind.config.js";
 @import "tailwindcss";
 @import "./styles/design-tokens.css";
 
-:root {
-  color: var(--color-page-text);
-  background: var(--color-page-bg);
+@layer base {
+  :root {
+    --color-primary: #1A3C6E;
+    --color-primary-light: #2A5298;
+    --color-primary-dark: #0F2447;
+    --color-accent: #F4A623;
+    --color-accent-light: #F7BC57;
+    --color-accent-dark: #D4891A;
+    --color-bg: #F3F6FB;
+    --color-bg-card: #FFFFFF;
+    --color-text: #1A1A2E;
+    --color-text-muted: #4B5563;
+    --color-border: #E5E7EB;
+  }
+
+  .dark {
+    --color-primary: #2A5298;
+    --color-primary-light: #5483C3;
+    --color-primary-dark: #1A3C6E;
+    --color-accent: #F4A623;
+    --color-accent-light: #F7BC57;
+    --color-accent-dark: #D4891A;
+    --color-bg: #0F172A;
+    --color-bg-card: #1E293B;
+    --color-text: #F1F5F9;
+    --color-text-muted: #94A3B8;
+    --color-border: #334155;
+  }
+
+  body {
+    @apply bg-[--color-bg] text-[--color-text] transition-colors duration-300;
+    min-width: 320px;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
 }
 
-body {
-  min-width: 320px;
-  background: var(--color-page-bg);
-  color: var(--color-page-text);
-  font-family: var(--font-sans-base);
-  transition: background-color 180ms ease, color 180ms ease;
-}
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-primary-500 active:bg-primary-700
+           dark:bg-primary-500 dark:hover:bg-primary-400
+           transition-colors duration-200;
+  }
 
-#root {
-  min-height: 100vh;
-}
+  .btn-accent {
+    @apply bg-accent text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-accent-600 active:bg-accent-700
+           dark:bg-accent dark:hover:bg-accent-400
+           transition-colors duration-200;
+  }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  letter-spacing: var(--tracking-heading-tight);
-}
+  .btn-outline {
+    @apply border border-primary text-primary px-4 py-2 rounded-lg font-medium
+           hover:bg-primary hover:text-white
+           dark:border-primary-400 dark:text-primary-400
+           dark:hover:bg-primary-600 dark:hover:text-white
+           transition-colors duration-200;
+  }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
-}
+  .card {
+    @apply bg-[--color-bg-card] border border-[--color-border]
+           rounded-xl shadow-sm dark:shadow-slate-900/50 p-6
+           dark:bg-[--color-bg-card] dark:border-[--color-border];
+  }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+  .input {
+    @apply w-full px-4 py-2 rounded-lg border border-[--color-border]
+           bg-[--color-bg-card] text-[--color-text]
+           focus:outline-none focus:ring-2 focus:ring-primary
+           dark:bg-slate-800 dark:border-slate-600
+           dark:text-slate-100 dark:focus:ring-primary-400
+           transition-colors duration-200;
+  }
 
-*::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.35);
-}
+  .navbar {
+    @apply bg-primary-600 dark:bg-primary-800
+           text-white shadow-md dark:shadow-slate-900/50;
+  }
 
-html[data-theme="dark"] * {
-  scrollbar-color: rgba(100, 116, 139, 0.65) transparent;
-}
+  .sidebar {
+    @apply bg-primary-600 dark:bg-primary-900
+           text-white min-h-screen;
+  }
 
-html[data-theme="dark"] *::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.55);
-}
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg
+           text-white/80 hover:text-white hover:bg-[--color-bg-card] dark:bg-slate-800/10
+           dark:hover:bg-[--color-bg-card] dark:bg-slate-800/5
+           transition-colors duration-200;
+  }
 
-html[data-theme="dark"] .bg-white,
-html[data-theme="dark"] .ui-card,
-html[data-theme="dark"] .bg-slate-50,
-html[data-theme="dark"] .bg-slate-50\/70,
-html[data-theme="dark"] .bg-slate-100,
-html[data-theme="dark"] .bg-gray-50,
-html[data-theme="dark"] .bg-gray-100 {
-  background-color: var(--color-card-surface) !important;
-}
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg
+           text-white bg-[--color-bg-card] dark:bg-slate-800/20 font-medium
+           dark:bg-[--color-bg-card] dark:bg-slate-800/10;
+  }
 
-html[data-theme="dark"] .bg-slate-200,
-html[data-theme="dark"] .bg-slate-200\/80,
-html[data-theme="dark"] .bg-slate-300,
-html[data-theme="dark"] .bg-gray-200 {
-  background-color: var(--color-surface-subtle) !important;
-}
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full
+           text-xs font-medium;
+  }
 
-html[data-theme="dark"] .border,
-html[data-theme="dark"] .border-slate-50,
-html[data-theme="dark"] .border-slate-100,
-html[data-theme="dark"] .border-slate-200,
-html[data-theme="dark"] .border-slate-300,
-html[data-theme="dark"] .border-gray-200,
-html[data-theme="dark"] .border-gray-300 {
-  border-color: var(--color-card-border) !important;
-}
+  .badge-primary {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full
+           text-xs font-medium bg-primary-100 text-primary-700
+           dark:bg-primary-900 dark:text-primary-300;
+  }
 
-html[data-theme="dark"] .text-slate-950,
-html[data-theme="dark"] .text-slate-900,
-html[data-theme="dark"] .text-slate-800,
-html[data-theme="dark"] .text-gray-900,
-html[data-theme="dark"] .text-gray-800,
-html[data-theme="dark"] .text-gray-700,
-html[data-theme="dark"] .text-gray-600,
-html[data-theme="dark"] .text-black {
-  color: var(--color-heading) !important;
-}
+  .badge-accent {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full
+           text-xs font-medium bg-accent-100 text-accent-700
+           dark:bg-accent-900 dark:text-accent-300;
+  }
 
-html[data-theme="dark"] .text-slate-700,
-html[data-theme="dark"] .text-slate-600,
-html[data-theme="dark"] .text-slate-500,
-html[data-theme="dark"] .text-slate-400,
-html[data-theme="dark"] .text-gray-500,
-html[data-theme="dark"] .text-gray-400,
-html[data-theme="dark"] .text-gray-300 {
-  color: var(--color-text-muted) !important;
-}
+  .section-heading {
+    @apply text-2xl font-semibold text-[--color-text]
+           border-b border-[--color-border] pb-3 mb-6;
+  }
 
-html[data-theme="dark"] .hover\:bg-slate-50:hover,
-html[data-theme="dark"] .hover\:bg-slate-100:hover,
-html[data-theme="dark"] .hover\:bg-gray-50:hover,
-html[data-theme="dark"] .hover\:bg-gray-100:hover {
-  background-color: var(--color-surface-subtle) !important;
-}
+  .table-header {
+    @apply bg-primary-50 dark:bg-primary-900/30
+           text-primary-700 dark:text-primary-300
+           text-sm font-medium;
+  }
 
-html[data-theme="dark"] .hover\:text-white:hover {
-  color: #ffffff !important;
-}
-
-html[data-theme="dark"] .bg-red-50,
-html[data-theme="dark"] .bg-orange-50,
-html[data-theme="dark"] .bg-amber-50,
-html[data-theme="dark"] .bg-yellow-50,
-html[data-theme="dark"] .bg-green-50,
-html[data-theme="dark"] .bg-emerald-50,
-html[data-theme="dark"] .bg-blue-50,
-html[data-theme="dark"] .bg-indigo-50,
-html[data-theme="dark"] .bg-violet-50,
-html[data-theme="dark"] .bg-purple-50,
-html[data-theme="dark"] .bg-rose-50 {
-  background-color: color-mix(in srgb, var(--color-card-surface) 82%, white 18%) !important;
-}
-
-html[data-theme="dark"] .bg-red-100,
-html[data-theme="dark"] .bg-orange-100,
-html[data-theme="dark"] .bg-amber-100,
-html[data-theme="dark"] .bg-green-100,
-html[data-theme="dark"] .bg-emerald-100,
-html[data-theme="dark"] .bg-blue-100,
-html[data-theme="dark"] .bg-indigo-100,
-html[data-theme="dark"] .bg-violet-100,
-html[data-theme="dark"] .bg-purple-100,
-html[data-theme="dark"] .bg-rose-100 {
-  background-color: color-mix(in srgb, var(--color-card-surface) 70%, white 30%) !important;
-}
-
-html[data-theme="dark"] .shadow-sm,
-html[data-theme="dark"] .shadow,
-html[data-theme="dark"] .shadow-md,
-html[data-theme="dark"] .shadow-lg,
-html[data-theme="dark"] .shadow-xl {
-  box-shadow: var(--shadow-card-sm) !important;
-}
-
-html[data-theme="dark"] .ui-form-input,
-html[data-theme="dark"] input,
-html[data-theme="dark"] textarea,
-html[data-theme="dark"] select {
-  background-color: var(--color-card-surface);
-  color: var(--color-page-text);
-  border-color: var(--color-card-border);
-}
-
-html[data-theme="dark"] input::placeholder,
-html[data-theme="dark"] textarea::placeholder {
-  color: var(--color-text-soft);
-}
-
-html[data-theme="dark"] .bg-black\/50,
-html[data-theme="dark"] .bg-black\/60,
-html[data-theme="dark"] .bg-slate-950\/40 {
-  background-color: rgba(2, 6, 23, 0.72) !important;
-}
-
-html[data-theme="dark"] table thead {
-  background-color: var(--color-surface-subtle) !important;
-}
-
-html[data-theme="dark"] tr:hover {
-  background-color: color-mix(in srgb, var(--color-surface-subtle) 86%, white 14%) !important;
+  .table-row {
+    @apply border-b border-[--color-border]
+           hover:bg-primary-50/50 dark:hover:bg-primary-900/20
+           transition-colors duration-150;
+  }
 }

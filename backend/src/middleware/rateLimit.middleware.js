@@ -31,7 +31,7 @@ const getRedisStore = () => {
   if (!redisStore) {
     redisStore = new RedisStore({
       sendCommand: (...args) => redisClient.sendCommand(args),
-      prefix: 'edunexus-rate-limit:'
+      prefix: 'trilearn-rate-limit:'
     })
   }
 

@@ -49,7 +49,7 @@ const sectionMeta = [
     title: 'Identity and contact',
     description: 'Start with the personal details the institution will use for your first student record.',
     toneClassName: 'bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_70%)]',
-    iconClassName: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
+    iconClassName: 'bg-accent-100 text-accent-700 ring-1 ring-amber-200',
     icon: ShieldCheck
   },
   {
@@ -58,7 +58,7 @@ const sectionMeta = [
     title: 'Family and guardian information',
     description: 'Add trusted contact details so communication stays clear from the start.',
     toneClassName: 'bg-[linear-gradient(135deg,#ecfdf5_0%,#ffffff_70%)]',
-    iconClassName: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
+    iconClassName: 'bg-primary-100 text-primary ring-1 ring-primary-200',
     icon: Users
   },
   {
@@ -67,7 +67,7 @@ const sectionMeta = [
     title: 'Academic preference',
     description: 'Choose the department you are applying to and share any optional health detail.',
     toneClassName: 'bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_70%)]',
-    iconClassName: 'bg-sky-100 text-sky-700 ring-1 ring-sky-200',
+    iconClassName: 'bg-primary-100 text-primary ring-1 ring-primary-200',
     icon: BookOpenCheck
   },
   {
@@ -76,7 +76,7 @@ const sectionMeta = [
     title: 'Address details',
     description: 'Complete the final record with your permanent and current address information.',
     toneClassName: 'bg-[linear-gradient(135deg,#faf5ff_0%,#ffffff_70%)]',
-    iconClassName: 'bg-violet-100 text-violet-700 ring-1 ring-violet-200',
+    iconClassName: 'bg-primary-100 text-primary ring-1 ring-primary-200',
     icon: Home
   }
 ]
@@ -195,7 +195,7 @@ const StudentIntakeForm = () => {
     return (
       <div className={`rounded-[1.1rem] px-4 py-4 sm:px-5 ${section.toneClassName}`}>
         <div className="flex items-start gap-3 sm:gap-4">
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/90 ${section.iconClassName}`}>
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[--color-bg-card] dark:bg-slate-800/90 ${section.iconClassName}`}>
             <Icon className="h-4 w-4" />
           </div>
           <div>
@@ -219,7 +219,7 @@ const StudentIntakeForm = () => {
           value={values[name]}
           onChange={handleChange}
           placeholder={placeholder}
-          className={`ui-form-input border-slate-200 bg-white pl-11 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)] ${errors[name] ? 'ui-form-input-error' : ''}`}
+          className={`ui-form-input border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 pl-11 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)] ${errors[name] ? 'ui-form-input-error' : ''}`}
         />
       </div>
       {errors[name] ? <p className="ui-form-helper-error">{errors[name]}</p> : null}
@@ -235,7 +235,7 @@ const StudentIntakeForm = () => {
         onChange={handleChange}
         placeholder={placeholder}
         rows={4}
-        className={`ui-form-input min-h-28 border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)] ${errors[name] ? 'ui-form-input-error' : ''}`}
+        className={`ui-form-input min-h-28 border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)] ${errors[name] ? 'ui-form-input-error' : ''}`}
       />
       {errors[name] ? <p className="ui-form-helper-error">{errors[name]}</p> : null}
     </div>
@@ -255,7 +255,7 @@ const StudentIntakeForm = () => {
       hideAside
     >
       <div className="space-y-6 sm:space-y-8">
-        <div className="rounded-[1.35rem] border border-slate-200 bg-white px-5 py-6 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.28)] sm:rounded-[1.5rem] sm:px-8 sm:py-7">
+        <div className="rounded-[1.35rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-5 py-6 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.28)] sm:rounded-[1.5rem] sm:px-8 sm:py-7">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-600">
@@ -294,7 +294,7 @@ const StudentIntakeForm = () => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="xl:sticky xl:top-8 xl:self-start">
-            <div className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_18px_45px_-38px_rgba(15,23,42,0.24)] sm:rounded-[1.5rem]">
+            <div className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.24)] sm:rounded-[1.5rem]">
               <div className="border-b border-slate-100 px-5 py-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Form outline</p>
                 <h4 className="ui-heading-tight mt-2 text-xl font-semibold text-slate-950">Sections included</h4>
@@ -323,7 +323,7 @@ const StudentIntakeForm = () => {
           </aside>
 
           <div className="space-y-6">
-            <section className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_18px_45px_-38px_rgba(15,23,42,0.24)] sm:rounded-[1.5rem]">
+            <section className="overflow-hidden rounded-[1.35rem] border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.24)] sm:rounded-[1.5rem]">
               <div className="border-b border-slate-100 px-6 py-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
@@ -366,7 +366,7 @@ const StudentIntakeForm = () => {
                           value={values.preferredDepartment}
                           onChange={handleChange}
                           disabled={loadingDepartments}
-                          className={`ui-form-input border-slate-200 bg-white pl-11 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)] ${errors.preferredDepartment ? 'ui-form-input-error' : ''}`}
+                          className={`ui-form-input border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 pl-11 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)] ${errors.preferredDepartment ? 'ui-form-input-error' : ''}`}
                         >
                           <option value="">{loadingDepartments ? 'Loading departments...' : 'Select department'}</option>
                           {departments.map((department) => (
@@ -381,13 +381,13 @@ const StudentIntakeForm = () => {
                     <div>
                       <label className="ui-form-label text-slate-700">Blood Group</label>
                       <div className="relative">
-                        <HeartPulse className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-rose-400" />
+                        <HeartPulse className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-accent-400" />
                         <input
                           name="bloodGroup"
                           value={values.bloodGroup}
                           onChange={handleChange}
                           placeholder="Optional blood group"
-                          className="ui-form-input border-slate-200 bg-white pl-11 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)]"
+                          className="ui-form-input border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 pl-11 shadow-[0_1px_2px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.9)]"
                         />
                       </div>
                     </div>

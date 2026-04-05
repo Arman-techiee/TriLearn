@@ -163,7 +163,7 @@ const StudentDashboard = () => {
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <section className="space-y-6">
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Today&apos;s Routine</h2>
@@ -206,7 +206,7 @@ const StudentDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Upcoming Assignments</h2>
@@ -245,7 +245,7 @@ const StudentDashboard = () => {
           </section>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Attendance Snapshot</h2>
@@ -271,12 +271,12 @@ const StudentDashboard = () => {
                           <p className="text-sm font-semibold text-slate-900">{subject.name}</p>
                           <p className="mt-1 text-xs text-slate-500">{subject.code}</p>
                         </div>
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subject.percentage >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${subject.percentage >= 80 ? 'bg-primary-100 text-primary' : 'bg-accent-100 text-accent-700'}`}>
                           {subject.percentage.toFixed(0)}%
                         </span>
                       </div>
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className={`h-full rounded-full ${subject.percentage >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(subject.percentage, 100)}%` }} />
+                        <div className={`h-full rounded-full ${subject.percentage >= 80 ? 'bg-primary-500' : 'bg-accent'}`} style={{ width: `${Math.min(subject.percentage, 100)}%` }} />
                       </div>
                       <p className="mt-2 text-xs text-slate-500">{subject.present} present out of {subject.total} records</p>
                     </div>
@@ -285,7 +285,7 @@ const StudentDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Recent Notices</h2>
@@ -322,7 +322,7 @@ const StudentDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5 shadow-sm dark:shadow-slate-900/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-role-accent)]/10 text-[var(--color-role-accent)]">
                   <BookOpenText className="h-5 w-5" />

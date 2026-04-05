@@ -8,7 +8,7 @@ const QrScanPanel = ({
   description,
   submitLabel = 'Submit QR',
   onSubmit,
-  accentClassName = 'focus:ring-green-500',
+  accentClassName = 'focus:ring-primary',
   busy = false
 }) => {
   const [scannerOpen, setScannerOpen] = useState(false)
@@ -101,11 +101,11 @@ const QrScanPanel = ({
   }
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-sm">
+    <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
+          <h2 className="text-lg font-semibold text-[--color-text] dark:text-slate-100">{title}</h2>
+          <p className="mt-1 text-sm text-[--color-text-muted] dark:text-slate-400">{description}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -124,7 +124,7 @@ const QrScanPanel = ({
               setScannerOpen(false)
               setScannerStatus('Scanner stopped.')
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2 text-sm font-medium text-[--color-text-muted] dark:text-slate-400 transition hover:bg-[--color-bg] dark:bg-slate-900"
           >
             <Square className="h-4 w-4" />
             <span>Stop</span>
@@ -132,7 +132,7 @@ const QrScanPanel = ({
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-gray-500">{scannerStatus}</p>
+      <p className="mt-4 text-xs text-[--color-text-muted] dark:text-slate-400">{scannerStatus}</p>
 
       {scannerOpen ? (
         <div className="mt-4 overflow-hidden rounded-2xl border bg-black">
@@ -141,19 +141,19 @@ const QrScanPanel = ({
       ) : null}
 
       <div className="mt-5 border-t pt-5">
-        <label className="mb-2 block text-sm text-gray-600">Manual QR Data</label>
+        <label className="mb-2 block text-sm text-[--color-text-muted] dark:text-slate-400">Manual QR Data</label>
         <textarea
           rows={4}
           value={manualQrData}
           onChange={(event) => setManualQrData(event.target.value)}
           placeholder="Paste the student ID QR payload here if camera scanning is unavailable."
-          className={`w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 ${accentClassName}`}
+          className={`w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-3 text-sm focus:outline-none focus:ring-2 ${accentClassName}`}
         />
         <button
           type="button"
           onClick={() => handleSubmit(manualQrData)}
           disabled={!manualQrData.trim() || busy}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary disabled:opacity-50"
         >
           <Upload className="h-4 w-4" />
           <span>{busy ? 'Submitting...' : submitLabel}</span>

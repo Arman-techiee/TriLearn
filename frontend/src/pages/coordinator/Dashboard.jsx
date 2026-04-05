@@ -235,7 +235,7 @@ const CoordinatorDashboard = () => {
         />
 
         {error ? (
-          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+          <div className="mb-6 rounded-lg bg-accent-50 px-4 py-3 text-sm text-accent-600">{error}</div>
         ) : null}
 
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -254,7 +254,7 @@ const CoordinatorDashboard = () => {
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <section className="space-y-6">
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Coordinator Action Board</h2>
@@ -276,7 +276,7 @@ const CoordinatorDashboard = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Department Attendance Pulse</h2>
@@ -286,7 +286,7 @@ const CoordinatorDashboard = () => {
                   <select
                     value={selectedSemester}
                     onChange={(event) => setSelectedSemester(event.target.value)}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    className="rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-3 py-2 text-sm text-slate-700"
                   >
                     {availableSemesters.length === 0 ? (
                       <option value="">No semesters</option>
@@ -321,12 +321,12 @@ const CoordinatorDashboard = () => {
                           <p className="text-sm font-semibold text-slate-900">Semester {report.semester}</p>
                           <p className="mt-1 text-xs text-slate-500">{report.totalStudents} students in report</p>
                         </div>
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${report.monthlyAverage >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${report.monthlyAverage >= 80 ? 'bg-primary-100 text-primary' : 'bg-accent-100 text-accent-700'}`}>
                           {report.monthlyAverage}%
                         </span>
                       </div>
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className={`h-full rounded-full ${report.monthlyAverage >= 80 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(report.monthlyAverage, 100)}%` }} />
+                        <div className={`h-full rounded-full ${report.monthlyAverage >= 80 ? 'bg-primary-500' : 'bg-accent'}`} style={{ width: `${Math.min(report.monthlyAverage, 100)}%` }} />
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
                         {report.summary.present} present • {report.summary.absent} absent • {report.summary.late} late
@@ -337,7 +337,7 @@ const CoordinatorDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Semester Delivery Map</h2>
@@ -364,10 +364,10 @@ const CoordinatorDashboard = () => {
                           <p className="mt-1 text-xs text-slate-500">{entry.subjectCount} modules configured</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                          <span className="rounded-full bg-[--color-bg-card] dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm dark:shadow-slate-900/50">
                             {entry.assignmentCount} assignments
                           </span>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${entry.unpublishedCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${entry.unpublishedCount > 0 ? 'bg-accent-100 text-accent-700' : 'bg-primary-100 text-primary'}`}>
                             {entry.unpublishedCount} unpublished results
                           </span>
                         </div>
@@ -378,7 +378,7 @@ const CoordinatorDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Pending Absence Requests</h2>
@@ -410,7 +410,7 @@ const CoordinatorDashboard = () => {
           </section>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Result Publishing Queue</h2>
@@ -440,7 +440,7 @@ const CoordinatorDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Recent Notices</h2>
@@ -477,7 +477,7 @@ const CoordinatorDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Assignment Watchlist</h2>
@@ -507,7 +507,7 @@ const CoordinatorDashboard = () => {
               )}
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Deadline Pressure</h2>
@@ -526,13 +526,13 @@ const CoordinatorDashboard = () => {
                 />
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Due This Week</p>
+                  <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Due This Week</p>
                     <p className="mt-3 text-3xl font-black text-slate-900">{upcomingAssignments.length}</p>
                     <p className="mt-2 text-sm text-slate-600">Assignments approaching their due date in the next 7 days.</p>
                   </div>
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-700">Overdue</p>
+                  <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Overdue</p>
                     <p className="mt-3 text-3xl font-black text-slate-900">{overdueAssignments.length}</p>
                     <p className="mt-2 text-sm text-slate-600">Department assignments whose due date has already passed.</p>
                   </div>

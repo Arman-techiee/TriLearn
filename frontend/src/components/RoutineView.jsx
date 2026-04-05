@@ -82,7 +82,7 @@ const RoutineView = ({
                   className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-role-accent)] focus-visible:ring-offset-2 ${
                     activeDay === day
                       ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      : 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {DAY_SHORT[day]}
@@ -94,8 +94,8 @@ const RoutineView = ({
               {DAYS.map((day) => (
                 <div
                   key={day}
-                  className={`rounded-2xl border p-4 shadow-sm ${
-                    day === today ? 'border-[var(--color-role-accent)]/30 bg-[var(--color-role-soft)]' : 'border-slate-200 bg-white'
+                  className={`rounded-2xl border p-4 shadow-sm dark:shadow-slate-900/50 ${
+                    day === today ? 'border-[var(--color-role-accent)]/30 bg-[var(--color-role-soft)]' : 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800'
                   } ${activeDay === day ? 'ring-2 ring-[var(--color-role-accent)]/20' : ''}`}
                 >
                   <div className="mb-4 flex items-center justify-between">
@@ -114,7 +114,7 @@ const RoutineView = ({
                     ) : (
                       byDay[day].map((routine) => (
                         <div key={routine.id} className={`rounded-2xl border p-4 ${subjectColorMap[routine.subjectId]}`}>
-                          <span className="mb-3 inline-flex rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
+                          <span className="mb-3 inline-flex rounded-full bg-[--color-bg-card] dark:bg-slate-800/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
                             {timeRange(routine.startTime, routine.endTime)}
                           </span>
                           <h3 className="font-semibold text-slate-900">{routine.subject?.name}</h3>

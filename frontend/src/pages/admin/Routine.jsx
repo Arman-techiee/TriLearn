@@ -233,7 +233,7 @@ const AdminRoutine = () => {
                     {byDay[day].map(r => (
                       <div
                         key={r.id}
-                        className={`border rounded-xl p-2 cursor-pointer hover:shadow-md transition ${subjectColorMap[r.subjectId]}`}
+                        className={`border rounded-xl p-2 cursor-pointer hover:shadow-md dark:shadow-slate-900/50 transition ${subjectColorMap[r.subjectId]}`}
                         onClick={() => openEdit(r)}
                       >
                         <p className="text-xs font-bold truncate">{r.subject?.code}</p>

@@ -6,21 +6,21 @@ const ToastContext = createContext({ showToast: () => {} })
 const toastStyles = {
   success: {
     icon: CheckCircle2,
-    card: 'border-emerald-200 bg-white text-slate-900',
-    iconWrap: 'bg-emerald-50 text-emerald-600',
-    progress: 'bg-emerald-500'
+    card: 'border-primary-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-900',
+    iconWrap: 'bg-primary-50 text-primary',
+    progress: 'bg-primary-500'
   },
   error: {
     icon: CircleAlert,
-    card: 'border-rose-200 bg-white text-slate-900',
-    iconWrap: 'bg-rose-50 text-rose-600',
-    progress: 'bg-rose-500'
+    card: 'border-accent-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-900',
+    iconWrap: 'bg-accent-50 text-accent-600',
+    progress: 'bg-accent'
   },
   info: {
     icon: Info,
-    card: 'border-blue-200 bg-white text-slate-900',
-    iconWrap: 'bg-blue-50 text-blue-600',
-    progress: 'bg-blue-500'
+    card: 'border-primary-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-900',
+    iconWrap: 'bg-primary-50 text-primary',
+    progress: 'bg-primary-500'
   }
 }
 
@@ -76,7 +76,7 @@ const Toast = ({ toast, onDismiss }) => {
   }, [toast.duration, toast.id])
 
   return (
-    <div className={`pointer-events-auto relative overflow-hidden rounded-2xl border shadow-2xl shadow-slate-900/10 ${tone.card}`}>
+    <div className={`pointer-events-auto relative overflow-hidden rounded-2xl border shadow-2xl dark:shadow-slate-900/50 shadow-slate-900/10 ${tone.card}`}>
       <div className="flex items-start gap-3 px-4 py-4">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.iconWrap}`}>
           <Icon className="h-5 w-5" />

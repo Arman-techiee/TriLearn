@@ -1,11 +1,11 @@
 const base = (content) => `
 <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1e293b">
-  <h2 style="color:#0f172a;margin-bottom:8px">EduNexus</h2>
+  <h2 style="color:#0f172a;margin-bottom:8px">TriLearn</h2>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
   ${content}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
   <p style="font-size:12px;color:#94a3b8">
-    This email was sent by EduNexus. Do not reply.
+    This email was sent by TriLearn. Do not reply.
   </p>
 </div>`
 
@@ -17,7 +17,7 @@ const btn = (url, label) => (
 )
 
 const passwordResetTemplate = ({ name, resetUrl }) => ({
-  subject: 'Reset your EduNexus password',
+  subject: 'Reset your TriLearn password',
   html: base(`
     <p>Hi ${name},</p>
     <p>You requested a password reset. Click the button below.
@@ -30,10 +30,10 @@ const passwordResetTemplate = ({ name, resetUrl }) => ({
 })
 
 const welcomeTemplate = ({ name, email, tempPassword }) => ({
-  subject: 'Welcome to EduNexus - your account is ready',
+  subject: 'Welcome to TriLearn - your account is ready',
   html: base(`
     <p>Hi ${name},</p>
-    <p>Your EduNexus account has been created. Here are your login details:</p>
+    <p>Your TriLearn account has been created. Here are your login details:</p>
     <table style="border-collapse:collapse;width:100%;margin:12px 0">
       <tr><td style="padding:8px;color:#64748b">Email</td>
           <td style="padding:8px;font-weight:600">${email}</td></tr>
@@ -48,7 +48,7 @@ const welcomeTemplate = ({ name, email, tempPassword }) => ({
 })
 
 const noticeTemplate = ({ title, content, audience, type }) => ({
-  subject: `[EduNexus Notice] ${title}`,
+  subject: `[TriLearn Notice] ${title}`,
   html: base(`
     <span style="background:#f1f5f9;color:#475569;font-size:12px;
                  padding:3px 10px;border-radius:20px">${type}${audience ? ` - ${audience}` : ''}</span>

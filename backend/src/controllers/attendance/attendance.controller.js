@@ -230,7 +230,7 @@ const exportMyAttendancePdf = async (req, res) => {
     const doc = new PDFDocument({ margin: 40, size: 'A4' })
     doc.pipe(res)
 
-    doc.fontSize(20).text('EduNexus Attendance Report', { align: 'center' })
+    doc.fontSize(20).text('TriLearn Attendance Report', { align: 'center' })
     doc.moveDown(0.5)
     doc.fontSize(11).text(`Student: ${studentProfile.user.name}`)
     doc.text(`Roll Number: ${studentProfile.rollNumber}`)

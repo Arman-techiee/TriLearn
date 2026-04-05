@@ -11,16 +11,16 @@ const Sidebar = ({
   onMobileClose
 }) => {
   const sidebarBody = (
-    <div className="flex h-full flex-col rounded-[2rem] border border-white/10 bg-white/8 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-      <div className="mb-5 flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-white/8 px-4 py-4">
+    <div className="flex h-full flex-col rounded-[2rem] border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/8 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+      <div className="mb-5 flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/8 px-4 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6d28d9_0%,#312e81_100%)] shadow-[0_18px_45px_rgba(109,40,217,0.35)]">
             <GraduationCap className="h-6 w-6 text-white" />
           </div>
           {!isDesktopCollapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-violet-200/80">
-                EduNexus
+              <p className="truncate text-sm font-semibold uppercase tracking-[0.28em] text-primary-200/80">
+                TriLearn
               </p>
               <p className="truncate text-lg font-black tracking-tight text-white">Student Hub</p>
             </div>
@@ -29,7 +29,7 @@ const Sidebar = ({
         <button
           type="button"
           onClick={onDesktopToggle}
-          className="hidden rounded-2xl border border-white/10 bg-white/8 p-2 text-slate-200 transition hover:bg-white/15 md:block"
+          className="hidden rounded-2xl border border-white/10 bg-[--color-bg-card] dark:bg-slate-800/8 p-2 text-slate-200 transition hover:bg-[--color-bg-card] dark:bg-slate-800/15 md:block"
           aria-label={isDesktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isDesktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -41,14 +41,14 @@ const Sidebar = ({
           const Icon = item.icon
           const isActive = currentPath === item.path
           const itemClasses = isActive
-            ? 'border-violet-400/40 bg-[linear-gradient(135deg,rgba(139,92,246,0.35)_0%,rgba(37,99,235,0.28)_100%)] text-white shadow-[0_18px_40px_rgba(76,29,149,0.28)]'
+            ? 'border-primary-400/40 bg-[linear-gradient(135deg,rgba(139,92,246,0.35)_0%,rgba(37,99,235,0.28)_100%)] text-white shadow-[0_18px_40px_rgba(76,29,149,0.28)]'
             : item.disabled
-              ? 'border-white/5 bg-white/[0.03] text-slate-500'
-              : 'border-white/6 bg-white/[0.05] text-slate-200 hover:border-violet-300/20 hover:bg-white/[0.09]'
+              ? 'border-white/5 bg-[--color-bg-card] dark:bg-slate-800/[0.03] text-slate-500'
+              : 'border-white/6 bg-[--color-bg-card] dark:bg-slate-800/[0.05] text-slate-200 hover:border-primary-300/20 hover:bg-[--color-bg-card] dark:bg-slate-800/[0.09]'
 
           const content = (
             <div className={`group flex items-center gap-3 rounded-[1.35rem] border px-3 py-3.5 transition duration-300 ${itemClasses}`}>
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${isActive ? 'bg-white/16 text-white' : 'bg-slate-950/30 text-violet-200'}`}>
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${isActive ? 'bg-[--color-bg-card] dark:bg-slate-800/16 text-white' : 'bg-slate-950/30 text-primary-200'}`}>
                 <Icon className="h-5 w-5" />
               </div>
               {!isDesktopCollapsed && (
@@ -60,7 +60,7 @@ const Sidebar = ({
                 </div>
               )}
               {!isDesktopCollapsed && item.badge && (
-                <span className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">
+                <span className="rounded-full bg-[--color-bg-card] dark:bg-slate-800/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">
                   {item.badge}
                 </span>
               )}

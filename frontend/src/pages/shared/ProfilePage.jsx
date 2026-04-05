@@ -234,7 +234,7 @@ const ProfilePage = () => {
       <Alert type="success" message={success} />
       <Alert type="error" message={error} />
 
-      <form onSubmit={saveProfile} className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
+      <form onSubmit={saveProfile} className="rounded-3xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50 md:p-8">
         <div className="mb-8 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl bg-slate-200 text-slate-500">
@@ -250,7 +250,7 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               <Camera className="h-4 w-4" />
               <span>{selectedAvatarFile ? 'Change photo' : 'Choose photo'}</span>
               <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleAvatarFileChange} />
@@ -268,97 +268,97 @@ const ProfilePage = () => {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-600">Full Name</label>
-            <input value={profile?.name || ''} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-gray-500" />
+            <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Full Name</label>
+            <input value={profile?.name || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-600">Email Address</label>
-            <input value={profile?.email || ''} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-gray-500" />
+            <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Email Address</label>
+            <input value={profile?.email || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
           </div>
           {profile?.role === 'STUDENT' ? (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-600">Student ID</label>
-              <input value={profile.student?.rollNumber || ''} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-gray-500" />
+              <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Student ID</label>
+              <input value={profile.student?.rollNumber || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
             </div>
           ) : null}
           {(profile?.role === 'INSTRUCTOR' || profile?.role === 'COORDINATOR') ? (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-600">Department</label>
-              <input value={profile?.instructor?.department || profile?.coordinator?.department || ''} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-gray-500" />
+              <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Department</label>
+              <input value={profile?.instructor?.department || profile?.coordinator?.department || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
             </div>
           ) : null}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-600">Phone Number</label>
-            <input value={form.phone} onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+            <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Phone Number</label>
+            <input value={form.phone} onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
           </div>
           {profile?.role === 'STUDENT' ? (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-600">Section</label>
-              <input value={form.section} onChange={(e) => setForm((current) => ({ ...current, section: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+              <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Section</label>
+              <input value={form.section} onChange={(e) => setForm((current) => ({ ...current, section: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
             </div>
           ) : null}
           {profile?.role === 'STUDENT' ? (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Father Name</label>
-                <input value={form.fatherName} onChange={(e) => setForm((current) => ({ ...current, fatherName: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Father Name</label>
+                <input value={form.fatherName} onChange={(e) => setForm((current) => ({ ...current, fatherName: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Father Contact Number</label>
-                <input value={form.fatherPhone} onChange={(e) => setForm((current) => ({ ...current, fatherPhone: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Father Contact Number</label>
+                <input value={form.fatherPhone} onChange={(e) => setForm((current) => ({ ...current, fatherPhone: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Mother Name</label>
-                <input value={form.motherName} onChange={(e) => setForm((current) => ({ ...current, motherName: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Mother Name</label>
+                <input value={form.motherName} onChange={(e) => setForm((current) => ({ ...current, motherName: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Mother Contact Number</label>
-                <input value={form.motherPhone} onChange={(e) => setForm((current) => ({ ...current, motherPhone: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Mother Contact Number</label>
+                <input value={form.motherPhone} onChange={(e) => setForm((current) => ({ ...current, motherPhone: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Date of Birth</label>
-                <input type="date" value={form.dateOfBirth} onChange={(e) => setForm((current) => ({ ...current, dateOfBirth: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Date of Birth</label>
+                <input type="date" value={form.dateOfBirth} onChange={(e) => setForm((current) => ({ ...current, dateOfBirth: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Blood Group</label>
-                <input value={form.bloodGroup} onChange={(e) => setForm((current) => ({ ...current, bloodGroup: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Blood Group</label>
+                <input value={form.bloodGroup} onChange={(e) => setForm((current) => ({ ...current, bloodGroup: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Local Guardian Name</label>
-                <input value={form.localGuardianName} onChange={(e) => setForm((current) => ({ ...current, localGuardianName: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Local Guardian Name</label>
+                <input value={form.localGuardianName} onChange={(e) => setForm((current) => ({ ...current, localGuardianName: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-600">Local Guardian Contact Number</label>
-                <input value={form.localGuardianPhone} onChange={(e) => setForm((current) => ({ ...current, localGuardianPhone: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Local Guardian Contact Number</label>
+                <input value={form.localGuardianPhone} onChange={(e) => setForm((current) => ({ ...current, localGuardianPhone: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
             </>
           ) : null}
           <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-600">{profile?.role === 'STUDENT' ? 'Temporary Address' : 'Address'}</label>
-            <textarea rows={4} value={profile?.role === 'STUDENT' ? form.temporaryAddress : form.address} onChange={(e) => setForm((current) => ({ ...current, [profile?.role === 'STUDENT' ? 'temporaryAddress' : 'address']: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+            <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">{profile?.role === 'STUDENT' ? 'Temporary Address' : 'Address'}</label>
+            <textarea rows={4} value={profile?.role === 'STUDENT' ? form.temporaryAddress : form.address} onChange={(e) => setForm((current) => ({ ...current, [profile?.role === 'STUDENT' ? 'temporaryAddress' : 'address']: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
           </div>
           {profile?.role === 'STUDENT' ? (
             <>
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-600">Permanent Address</label>
-                <textarea rows={4} value={form.permanentAddress} onChange={(e) => setForm((current) => ({ ...current, permanentAddress: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Permanent Address</label>
+                <textarea rows={4} value={form.permanentAddress} onChange={(e) => setForm((current) => ({ ...current, permanentAddress: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-600">Local Guardian Address</label>
-                <textarea rows={4} value={form.localGuardianAddress} onChange={(e) => setForm((current) => ({ ...current, localGuardianAddress: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-4 py-2" />
+                <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Local Guardian Address</label>
+                <textarea rows={4} value={form.localGuardianAddress} onChange={(e) => setForm((current) => ({ ...current, localGuardianAddress: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
               </div>
             </>
           ) : null}
         </div>
 
         <div className="mt-6">
-          <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+          <button type="submit" disabled={saving} className="rounded-lg bg-primary px-5 py-2 font-medium text-white hover:bg-primary disabled:opacity-50">
             {saving ? 'Saving...' : profile?.role === 'STUDENT' && !profile?.profileCompleted ? 'Complete Profile' : 'Save Profile'}
           </button>
         </div>
       </form>
 
-      <section className="mt-8 rounded-3xl bg-white p-6 shadow-sm md:p-8">
+      <section className="mt-8 rounded-3xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50 md:p-8">
         <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Recent activity</h2>
@@ -368,7 +368,7 @@ const ProfilePage = () => {
             type="button"
             onClick={revokeAllSessions}
             disabled={revokingSessions || sessions.length === 0}
-            className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-accent-200 bg-accent-50 px-4 py-2 text-sm font-semibold text-accent-700 transition hover:bg-accent-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {revokingSessions ? 'Signing out...' : 'Sign out all devices'}
           </button>
@@ -395,7 +395,7 @@ const ProfilePage = () => {
                         </p>
                       </div>
                       {item.metadata?.ipAddress ? (
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500">{item.metadata.ipAddress}</span>
+                        <span className="rounded-full bg-[--color-bg-card] dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-500">{item.metadata.ipAddress}</span>
                       ) : null}
                     </div>
                     {item.metadata?.userAgent ? (
@@ -416,11 +416,11 @@ const ProfilePage = () => {
             ) : (
               <div className="mt-4 space-y-3">
                 {sessions.map((session) => (
-                  <div key={session.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                  <div key={session.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-4 shadow-sm dark:shadow-slate-900/50">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-slate-900">{getSessionLabel(session.userAgent)}</p>
                       {session.current ? (
-                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Current</span>
+                        <span className="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary">Current</span>
                       ) : null}
                     </div>
                     <p className="mt-2 text-xs text-slate-500">IP: {session.ipAddress || 'Unknown'}</p>
