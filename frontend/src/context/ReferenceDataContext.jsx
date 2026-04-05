@@ -18,7 +18,10 @@ export const ReferenceDataProvider = ({ children }) => {
       return subjectRequestRef.current
     }
 
-    subjectRequestRef.current = api.get('/subjects', { signal })
+    subjectRequestRef.current = api.get('/subjects', {
+      signal,
+      params: { limit: 100 }
+    })
       .then((response) => {
         if (signal?.aborted) {
           return subjects

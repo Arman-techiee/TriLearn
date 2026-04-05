@@ -52,6 +52,10 @@ const Login = () => {
   }, [retryCountdown])
 
   const handleLogin = async (formValues) => {
+    if (loading || retryCountdown > 0) {
+      return
+    }
+
     setLoading(true)
     setError('')
 

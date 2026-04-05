@@ -59,7 +59,15 @@ app.use((req, res, next) => {
 })
 app.use(apiLimiter)
 app.use(csrfProtection)
-app.use(uploadPublicPath, express.static(uploadPath))
+app.use(uploadPublicPath, express.static(uploadPath, {
+  setHeaders: (res) => {
+    // Uploaded PDFs are previewed inside the frontend modal iframe, so the
+    // default frame protections from helmet would block them when the
+    // frontend and API run on different local origins in development.
+    res.removeHeader('X-Frame-Options')
+    res.removeHeader('Content-Security-Policy')
+  }
+}))
 
 // Routes
 const authRoutes = require('./routes/auth.routes')

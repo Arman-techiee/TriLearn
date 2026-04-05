@@ -939,6 +939,65 @@ test('getAllAssignments returns paginated metadata', async () => {
   assert.equal(res.body.total, 42)
 })
 
+test('createAssignment blocks instructors from creating assignments for subjects they do not own', async () => {
+  const { createAssignment } = loadWithMocks(resolveFromTest('src', 'controllers', 'assignment.controller.js'), {
+    '../utils/prisma': {
+      subject: {
+        findUnique: async () => ({
+          id: 'subject-1',
+          instructorId: 'other-instructor',
+          instructor: {
+            id: 'other-instructor',
+            user: {
+              name: 'Instructor Two',
+              email: 'two@example.com'
+            }
+          }
+        })
+      },
+      assignment: {
+        create: async () => {
+          throw new Error('assignment.create should not be called')
+        }
+      }
+    },
+    '../utils/fileStorage': {
+      buildUploadedFileUrl: () => '/uploads/questions/test.pdf'
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    '../utils/sanitize': {
+      sanitizePlainText: (value) => value
+    },
+    exceljs: {
+      Workbook: class MockWorkbook {}
+    },
+    pdfkit: class MockPdfDocument {}
+  })
+
+  const req = {
+    body: {
+      title: 'Assignment 1',
+      description: 'Solve all questions carefully.',
+      subjectId: 'subject-1',
+      dueDate: '2026-04-10T10:00',
+      totalMarks: '100'
+    },
+    file: { filename: 'test.pdf' },
+    user: { role: 'INSTRUCTOR' },
+    instructor: { id: 'instructor-1' }
+  }
+  const res = createResponse()
+
+  await createAssignment(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'You can only manage assignments for your assigned subjects'
+  })
+})
+
 test('getAllMaterials returns paginated metadata', async () => {
   const findManyCalls = []
   const { getAllMaterials } = loadWithMocks(resolveFromTest('src', 'controllers', 'studyMaterial.controller.js'), {

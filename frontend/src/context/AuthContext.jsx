@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let isMounted = true
+    const currentAuthState = getAuthState()
     const unsubscribe = subscribeToAuthState((nextState) => {
       if (!isMounted) {
         return
@@ -38,8 +39,6 @@ export const AuthProvider = ({ children }) => {
     })
 
     if (isPublicAuthRoute) {
-      const currentAuthState = getAuthState()
-
       // Public auth pages should not silently refresh in the background.
       // If we only have a cached user and no live access token, clear the
       // stale client session so React dev effect replays do not bounce into
@@ -48,6 +47,24 @@ export const AuthProvider = ({ children }) => {
         clearClientSession()
       }
 
+      setLoading(false)
+      return () => {
+        isMounted = false
+        unsubscribe()
+        unregisterUnauthorizedHandler()
+      }
+    }
+
+    if (currentAuthState.token) {
+      setLoading(false)
+      return () => {
+        isMounted = false
+        unsubscribe()
+        unregisterUnauthorizedHandler()
+      }
+    }
+
+    if (!currentAuthState.token && !currentAuthState.user) {
       setLoading(false)
       return () => {
         isMounted = false

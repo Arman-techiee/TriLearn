@@ -22,6 +22,7 @@ const normalizeApiBaseUrl = (rawValue) => {
 export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 export const API_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '')
 const AUTH_USER_STORAGE_KEY = 'trilearn.auth.user'
+const REFRESH_COOLDOWN_STORAGE_KEY = 'trilearn.auth.refresh.cooldownUntil'
 
 const readStoredUser = () => {
   if (typeof window === 'undefined') {
@@ -52,11 +53,42 @@ const writeStoredUser = (user) => {
   }
 }
 
+const readStoredRefreshCooldownUntil = () => {
+  if (typeof window === 'undefined') {
+    return 0
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(REFRESH_COOLDOWN_STORAGE_KEY)
+    const parsedValue = Number.parseInt(rawValue || '', 10)
+    return Number.isFinite(parsedValue) ? parsedValue : 0
+  } catch {
+    return 0
+  }
+}
+
+const writeStoredRefreshCooldownUntil = (value) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    if (value > Date.now()) {
+      window.sessionStorage.setItem(REFRESH_COOLDOWN_STORAGE_KEY, String(value))
+    } else {
+      window.sessionStorage.removeItem(REFRESH_COOLDOWN_STORAGE_KEY)
+    }
+  } catch {
+    // Ignore storage failures so auth remains functional in restricted environments.
+  }
+}
+
 let authState = {
   token: null,
   user: readStoredUser()
 }
 let unauthorizedHandler = null
+let refreshCooldownUntil = readStoredRefreshCooldownUntil()
 
 const authSubscribers = new Set()
 
@@ -96,6 +128,41 @@ export const setAuthState = ({ token = null, user = null } = {}) => {
 
 const clearAuthState = () => {
   setAuthState({ token: null, user: null })
+}
+
+const getRetryAfterMs = (error, fallbackMs = 60_000) => {
+  const rawRetryAfter = error?.response?.headers?.['retry-after']
+  const parsedRetryAfterSeconds = Number.parseInt(rawRetryAfter, 10)
+
+  if (Number.isFinite(parsedRetryAfterSeconds) && parsedRetryAfterSeconds > 0) {
+    return parsedRetryAfterSeconds * 1000
+  }
+
+  return fallbackMs
+}
+
+const setRefreshCooldown = (cooldownUntil) => {
+  refreshCooldownUntil = cooldownUntil
+  writeStoredRefreshCooldownUntil(cooldownUntil)
+}
+
+const clearRefreshCooldown = () => {
+  setRefreshCooldown(0)
+}
+
+const buildRefreshRateLimitError = () => {
+  const retryAfterSeconds = Math.max(1, Math.ceil((refreshCooldownUntil - Date.now()) / 1000))
+  const error = new Error('Session refresh is temporarily rate-limited')
+  error.response = {
+    status: 429,
+    data: {
+      message: `Too many session refresh attempts. Please wait about ${retryAfterSeconds} seconds and try again.`
+    },
+    headers: {
+      'retry-after': String(retryAfterSeconds)
+    }
+  }
+  return error
 }
 
 const handleUnauthorizedRedirect = () => {
@@ -208,14 +275,22 @@ api.interceptors.request.use((config) => {
 })
 
 export const refreshSession = async () => {
+  if (refreshCooldownUntil > Date.now()) {
+    throw buildRefreshRateLimitError()
+  }
+
   if (!refreshPromise) {
     refreshPromise = refreshClient.post('/auth/refresh')
       .then((response) => {
         const { token, user } = response.data
+        clearRefreshCooldown()
         setAuthState({ token, user })
         return response.data
       })
       .catch((error) => {
+        if (error?.response?.status === 429) {
+          setRefreshCooldown(Date.now() + getRetryAfterMs(error))
+        }
         clearAuthState()
         throw error
       })

@@ -241,7 +241,6 @@ const StudentMaterials = () => {
                 src={previewFile.url}
                 title={previewFile.title}
                 className="w-full flex-1"
-                sandbox="allow-downloads"
                 referrerPolicy="no-referrer"
               />
             ) : (

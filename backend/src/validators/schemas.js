@@ -537,6 +537,7 @@ const schemas = {
     id: { params: uuidParam },
     getAll: {
       query: z.object({
+        ...paginationQuery,
         subjectId: z.preprocess(emptyToUndefined, z.string().uuid().optional())
       })
     },

@@ -8,7 +8,14 @@ const { sanitizePlainText } = require('../utils/sanitize')
 const resolveAssignmentManager = async (req, subjectId) => {
   const { user, instructor } = req
   const subject = await prisma.subject.findUnique({
-    where: { id: subjectId }
+    where: { id: subjectId },
+    include: {
+      instructor: {
+        include: {
+          user: { select: { name: true, email: true } }
+        }
+      }
+    }
   })
 
   if (!subject) {
@@ -25,6 +32,14 @@ const resolveAssignmentManager = async (req, subjectId) => {
 
   if (!instructor) {
     return { error: { status: 403, message: 'Instructor profile not found' } }
+  }
+
+  if (!subject.instructorId) {
+    return { error: { status: 403, message: 'Assign an instructor to this subject before managing assignments' } }
+  }
+
+  if (subject.instructorId !== instructor.id) {
+    return { error: { status: 403, message: 'You can only manage assignments for your assigned subjects' } }
   }
 
   return { subject, instructorId: instructor.id }

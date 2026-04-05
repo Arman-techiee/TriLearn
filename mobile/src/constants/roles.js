@@ -1,0 +1,15 @@
+export const ROLES = {
+  STUDENT: 'STUDENT',
+  INSTRUCTOR: 'INSTRUCTOR',
+  GATEKEEPER: 'GATEKEEPER',
+  ADMIN: 'ADMIN',
+  COORDINATOR: 'COORDINATOR'
+}
+
+export const ROLE_LABELS = {
+  [ROLES.STUDENT]: 'Student',
+  [ROLES.INSTRUCTOR]: 'Instructor',
+  [ROLES.GATEKEEPER]: 'Gatekeeper',
+  [ROLES.ADMIN]: 'Admin',
+  [ROLES.COORDINATOR]: 'Coordinator'
+}

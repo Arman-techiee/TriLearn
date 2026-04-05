@@ -27,6 +27,12 @@ const statusClasses = {
   LATE: 'status-late'
 }
 
+const getOptionalSignal = (value) => (
+  value && typeof value === 'object' && typeof value.addEventListener === 'function'
+    ? value
+    : undefined
+)
+
 const Attendance = () => {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
@@ -67,13 +73,15 @@ const Attendance = () => {
   }, [])
 
   const fetchAttendanceWorkspace = useCallback(async (signal) => {
+    const requestSignal = getOptionalSignal(signal)
+
     try {
       setLoading(true)
       setError('')
 
       const [rosterRes, attendanceRes] = await Promise.all([
         api.get(`/attendance/subject/${selectedSubject}/roster`, {
-          signal,
+          signal: requestSignal,
           params: {
             date: selectedDate,
             semester: selectedSemester,
@@ -81,7 +89,7 @@ const Attendance = () => {
           }
         }),
         api.get(`/attendance/subject/${selectedSubject}`, {
-          signal,
+          signal: requestSignal,
           params: {
             date: selectedDate,
             semester: selectedSemester,
@@ -98,13 +106,15 @@ const Attendance = () => {
       logger.error(fetchError)
       setError(getFriendlyErrorMessage(fetchError, 'Unable to load attendance data.'))
     } finally {
-      if (!signal?.aborted) {
+      if (!requestSignal?.aborted) {
         setLoading(false)
       }
     }
   }, [selectedDate, selectedSection, selectedSemester, selectedSubject])
 
   const fetchCoordinatorDepartmentReport = useCallback(async (signal) => {
+    const requestSignal = getOptionalSignal(signal)
+
     if (!selectedSemester) {
       setError('Please select a semester to load the department report.')
       return
@@ -115,7 +125,7 @@ const Attendance = () => {
       setError('')
 
       const res = await api.get('/attendance/coordinator/department-report', {
-        signal,
+        signal: requestSignal,
         params: {
           month: selectedMonth,
           semester: selectedSemester,
@@ -141,7 +151,7 @@ const Attendance = () => {
       logger.error(fetchError)
       setError(getFriendlyErrorMessage(fetchError, 'Unable to load the department attendance report.'))
     } finally {
-      if (!signal?.aborted) {
+      if (!requestSignal?.aborted) {
         setLoading(false)
       }
     }
@@ -399,7 +409,14 @@ const Attendance = () => {
             label: isCoordinator ? 'Load Department Report' : 'Refresh Attendance',
             icon: RefreshCw,
             variant: 'secondary',
-            onClick: isCoordinator ? fetchCoordinatorDepartmentReport : fetchAttendanceWorkspace,
+            onClick: () => {
+              if (isCoordinator) {
+                void fetchCoordinatorDepartmentReport()
+                return
+              }
+
+              void fetchAttendanceWorkspace()
+            },
             disabled: isCoordinator ? !selectedSemester : !selectedSubject || !selectedSemester || !selectedSection
           }]}
         />
@@ -514,7 +531,14 @@ const Attendance = () => {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={isCoordinator ? fetchCoordinatorDepartmentReport : fetchAttendanceWorkspace}
+                onClick={() => {
+                  if (isCoordinator) {
+                    void fetchCoordinatorDepartmentReport()
+                    return
+                  }
+
+                  void fetchAttendanceWorkspace()
+                }}
                 disabled={isCoordinator ? !selectedSemester : !selectedSubject || !selectedSemester || !selectedSection}
                 className="w-full ui-role-fill py-2.5 rounded-lg transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >

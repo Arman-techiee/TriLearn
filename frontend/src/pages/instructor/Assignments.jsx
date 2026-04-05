@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import Alert from '../../components/Alert'
@@ -10,17 +10,21 @@ import Modal from '../../components/Modal'
 import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
-import useApi from '../../hooks/useApi'
+import { useReferenceData } from '../../context/ReferenceDataContext'
 import api, { isEmbeddablePdfUrl, resolveFileUrl } from '../../utils/api'
+import { isRequestCanceled } from '../../utils/http'
+import logger from '../../utils/logger'
 
 const Assignments = () => {
   const { user } = useAuth()
   const isCoordinator = user?.role === 'COORDINATOR'
   const Layout = isCoordinator ? CoordinatorLayout : InstructorLayout
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialSubjectRef = useRef(searchParams.get('subject') || '')
+  const assignmentRequestRef = useRef(null)
   const [showModal, setShowModal] = useState(false)
   const [showSubmissions, setShowSubmissions] = useState(null)
-  const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '')
+  const [selectedSubject, setSelectedSubject] = useState(initialSubjectRef.current)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -32,55 +36,191 @@ const Assignments = () => {
   const [error, setError] = useState('')
   const [previewFile, setPreviewFile] = useState(null)
   const [exportingAssignmentId, setExportingAssignmentId] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [submissionsLoadingId, setSubmissionsLoadingId] = useState('')
+  const [assignments, setAssignments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [assignmentsError, setAssignmentsError] = useState('')
   const { showToast } = useToast()
-  const {
-    data: assignments = [],
-    loading,
-    execute: executeAssignments
-  } = useApi({ initialData: [], initialLoading: true })
-  const {
-    data: subjects = [],
-    execute: executeSubjects
-  } = useApi({ initialData: [] })
+  const { subjects, loadSubjects } = useReferenceData()
 
-  const openPreview = (title, fileUrl) => {
+  const syncSubjectInUrl = useCallback((nextSubjectId) => {
+    const nextParams = new URLSearchParams(searchParams)
+
+    if (nextSubjectId) {
+      nextParams.set('subject', nextSubjectId)
+    } else {
+      nextParams.delete('subject')
+    }
+
+    const currentQuery = searchParams.toString()
+    const nextQuery = nextParams.toString()
+
+    if (currentQuery !== nextQuery) {
+      setSearchParams(nextParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
+  const handleSubjectChange = useCallback((nextSubjectId) => {
+    setSelectedSubject(nextSubjectId)
+    syncSubjectInUrl(nextSubjectId)
+  }, [syncSubjectInUrl])
+
+  const closePreview = () => {
+    if (previewFile?.objectUrl) {
+      window.URL.revokeObjectURL(previewFile.objectUrl)
+    }
+
+    setPreviewFile(null)
+    setPreviewLoading(false)
+  }
+
+  const openPreview = async (title, fileUrl) => {
     const resolvedUrl = resolveFileUrl(fileUrl)
     if (!resolvedUrl) {
       setError('This file preview is unavailable because the file link is invalid.')
       return
     }
 
-    setPreviewFile({ title, url: resolvedUrl, canEmbed: isEmbeddablePdfUrl(resolvedUrl) })
+    try {
+      setPreviewLoading(true)
+      const response = await fetch(resolvedUrl, {
+        method: 'GET',
+        credentials: 'omit'
+      })
+
+      if (!response.ok) {
+        throw new Error(`Preview request failed with status ${response.status}`)
+      }
+
+      const blob = await response.blob()
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+
+      setPreviewFile({
+        title,
+        url: objectUrl,
+        sourceUrl: resolvedUrl,
+        objectUrl,
+        canEmbed: blob.type === 'application/pdf' || isEmbeddablePdfUrl(resolvedUrl)
+      })
+    } catch (previewError) {
+      logger.error('Failed to preview assignment file', previewError)
+      setError('Unable to open this PDF preview right now. Try opening it in a new tab.')
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   const fetchAssignments = useCallback(async () => {
-    await executeAssignments(
-      (signal) => api.get('/assignments', {
-        signal,
-        params: selectedSubject ? { subjectId: selectedSubject } : undefined
-      }),
-      {
-        transform: (response) => response.data.assignments
-      }
-    )
-  }, [executeAssignments, selectedSubject])
+    if (assignmentRequestRef.current) {
+      assignmentRequestRef.current.abort()
+    }
 
-  const fetchSubjects = useCallback(async () => {
-    await executeSubjects(
-      (signal) => api.get('/subjects', { signal }),
-      {
-        transform: (response) => response.data.subjects
+    const controller = new AbortController()
+    assignmentRequestRef.current = controller
+
+    try {
+      setLoading(true)
+      setAssignmentsError('')
+
+      const response = await api.get('/assignments', {
+        signal: controller.signal,
+        params: {
+          ...(selectedSubject ? { subjectId: selectedSubject } : {}),
+          limit: 100
+        }
+      })
+
+      if (controller.signal.aborted) {
+        return
       }
-    )
-  }, [executeSubjects])
+
+      setAssignments(response.data.assignments || [])
+    } catch (fetchError) {
+      if (isRequestCanceled(fetchError)) {
+        return
+      }
+
+      logger.error('Failed to load assignments', fetchError)
+      setAssignments([])
+      setAssignmentsError(fetchError.response?.data?.message || 'Unable to load assignments right now.')
+      throw fetchError
+    } finally {
+      if (assignmentRequestRef.current === controller) {
+        assignmentRequestRef.current = null
+      }
+
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
+    }
+  }, [selectedSubject])
 
   useEffect(() => {
-    void fetchAssignments()
+    void fetchAssignments().catch((fetchError) => {
+      if (isRequestCanceled(fetchError)) {
+        return
+      }
+    })
+
+    return () => {
+      if (assignmentRequestRef.current) {
+        assignmentRequestRef.current.abort()
+        assignmentRequestRef.current = null
+      }
+    }
   }, [fetchAssignments])
 
   useEffect(() => {
-    void fetchSubjects()
-  }, [fetchSubjects])
+    const controller = new AbortController()
+    void loadSubjects({ force: true, signal: controller.signal }).catch((loadError) => {
+      if (isRequestCanceled(loadError)) {
+        return
+      }
+
+      logger.error('Failed to load subjects for assignments', loadError)
+      setError(loadError.response?.data?.message || 'Unable to load your modules right now.')
+    })
+    return () => controller.abort()
+  }, [loadSubjects])
+
+  useEffect(() => {
+    if (subjects.length === 0) {
+      return
+    }
+
+    const hasSelectedSubject = subjects.some((subject) => subject.id === selectedSubject)
+    const nextSubjectId = hasSelectedSubject ? selectedSubject : subjects[0]?.id || ''
+
+    if (nextSubjectId !== selectedSubject) {
+      setSelectedSubject(nextSubjectId)
+      syncSubjectInUrl(nextSubjectId)
+    }
+
+    if (nextSubjectId) {
+      setForm((current) => ({ ...current, subjectId: nextSubjectId }))
+    }
+  }, [selectedSubject, subjects, syncSubjectInUrl])
+
+  const openAssignmentModal = () => {
+    if (!subjects.length) {
+      setError('No assigned modules found. Ask an admin or coordinator to assign a module to this instructor first.')
+      return
+    }
+
+    const targetSubjectId = selectedSubject || subjects[0]?.id || ''
+    handleSubjectChange(targetSubjectId)
+    setShowModal(true)
+    setError('')
+    setForm((current) => ({
+      ...current,
+      subjectId: targetSubjectId
+    }))
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -100,18 +240,32 @@ const Assignments = () => {
       payload.append('totalMarks', form.totalMarks)
       payload.append('questionPdf', questionPdf)
 
-      await api.post('/assignments', payload)
+      const response = await api.post('/assignments', payload)
+      const createdAssignment = response.data.assignment
+
+      if (createdAssignment) {
+        setAssignments((current) => {
+          const nextAssignments = [createdAssignment, ...(current || []).filter((item) => item.id !== createdAssignment.id)]
+          return nextAssignments.sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))
+        })
+      }
+
       showToast({ title: 'Assignment created successfully.' })
       setShowModal(false)
+      handleSubjectChange(form.subjectId)
       setForm({
         title: '',
         description: '',
-        subjectId: selectedSubject || '',
+        subjectId: form.subjectId,
         dueDate: '',
         totalMarks: 100
       })
       setQuestionPdf(null)
-      await fetchAssignments()
+      await fetchAssignments().catch((fetchError) => {
+        if (isRequestCanceled(fetchError)) {
+          return
+        }
+      })
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -163,6 +317,19 @@ const Assignments = () => {
     }
   }
 
+  const handleViewSubmissions = async (assignmentId) => {
+    try {
+      setError('')
+      setSubmissionsLoadingId(assignmentId)
+      const res = await api.get(`/assignments/${assignmentId}`)
+      setShowSubmissions(res.data.assignment)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to load assignment submissions right now')
+    } finally {
+      setSubmissionsLoadingId('')
+    }
+  }
+
   const isOverdue = (dueDate) => new Date() > new Date(dueDate)
 
   return (
@@ -176,27 +343,21 @@ const Assignments = () => {
             label: 'Add Assignment',
             icon: Plus,
             variant: 'primary',
-            onClick: () => {
-              setShowModal(true)
-              setError('')
-              setForm((current) => ({
-                ...current,
-                subjectId: selectedSubject || current.subjectId
-              }))
-            }
+            disabled: !isCoordinator && subjects.length === 0,
+            onClick: openAssignmentModal
           }]}
         />
 
-        <Alert type="error" message={error} />
+        <Alert type="error" message={error || assignmentsError} />
 
         <div className="mb-6 rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-4 shadow-sm dark:shadow-slate-900/50">
           <label className="mb-2 block text-sm text-[var(--color-text-muted)]">Module</label>
           <select
             value={selectedSubject}
-            onChange={(event) => setSelectedSubject(event.target.value)}
+            onChange={(event) => handleSubjectChange(event.target.value)}
             className="ui-form-input"
           >
-            <option value="">All Modules</option>
+            <option value="">{isCoordinator ? 'All Modules' : 'Select Module'}</option>
             {subjects.map((subject) => (
               <option key={subject.id} value={subject.id}>
                 {subject.name} - {subject.code}
@@ -205,7 +366,15 @@ const Assignments = () => {
           </select>
         </div>
 
-        {loading ? (
+        {!isCoordinator && subjects.length === 0 ? (
+          <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-10 shadow-sm dark:shadow-slate-900/50">
+            <EmptyState
+              icon="📝"
+              title="No modules available yet"
+              description="Your assigned modules will appear here once an admin or coordinator links them to your account."
+            />
+          </div>
+        ) : loading ? (
           <LoadingSkeleton rows={5} itemClassName="h-32" />
         ) : (
           <div className="space-y-4">
@@ -239,13 +408,10 @@ const Assignments = () => {
 
                   <div className="flex flex-wrap gap-2 lg:w-[220px] lg:flex-col">
                     <button
-                      onClick={async () => {
-                        const res = await api.get(`/assignments/${assignment.id}`)
-                        setShowSubmissions(res.data.assignment)
-                      }}
+                      onClick={() => handleViewSubmissions(assignment.id)}
                       className="status-present rounded-lg border px-3 py-2 text-xs"
                     >
-                      View Submissions
+                      {submissionsLoadingId === assignment.id ? 'Loading...' : 'View Submissions'}
                     </button>
                     <button
                       onClick={() => handleExport(assignment.id, 'xlsx')}
@@ -355,9 +521,9 @@ const Assignments = () => {
       )}
 
       {showSubmissions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="bg-[--color-bg-card] dark:bg-slate-800 rounded-2xl p-8 w-full max-w-3xl shadow-xl dark:shadow-slate-900/50 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6 flex items-center justify-between border-b border-[var(--color-card-border)] pb-4 dark:border-slate-700">
               <h2 className="text-xl font-bold text-[var(--color-heading)]">Submissions — {showSubmissions.title}</h2>
               <button onClick={() => setShowSubmissions(null)} className="text-xl text-[var(--color-text-soft)] hover:text-[var(--color-text-muted)]">✕</button>
             </div>
@@ -371,7 +537,10 @@ const Assignments = () => {
               )}
 
               {showSubmissions.submissions?.map((submission) => (
-                <div key={submission.id} className="border rounded-xl p-4">
+                <div
+                  key={submission.id}
+                  className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)]/60 p-4 dark:border-slate-700 dark:bg-slate-900/50"
+                >
                   <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
                     <div className="flex-1">
                       <p className="font-medium text-[var(--color-heading)]">{submission.student?.user?.name}</p>
@@ -400,7 +569,7 @@ const Assignments = () => {
                       </span>
 
                       {submission.feedback && (
-                        <div className="grade-merit mt-3 rounded-lg px-3 py-2 text-sm">
+                        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
                           Feedback sent to student: {submission.feedback}
                         </div>
                       )}
@@ -408,11 +577,11 @@ const Assignments = () => {
 
                     <div className="flex flex-col gap-2">
                       {submission.status === 'GRADED' ? (
-                        <div className="status-present rounded-lg px-3 py-2 text-right">
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-right text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
                           <span className="text-sm font-bold">
                             {submission.obtainedMarks}/{showSubmissions.totalMarks}
                           </span>
-                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Visible to instructors and coordinators only.</p>
+                          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">Visible to instructors and coordinators only.</p>
                         </div>
                       ) : (
                         <>
@@ -454,7 +623,7 @@ const Assignments = () => {
               <h2 className="text-lg font-semibold text-[var(--color-heading)]">{previewFile.title}</h2>
               <div className="flex items-center gap-3">
                 <a
-                  href={previewFile.url}
+                  href={previewFile.sourceUrl || previewFile.url}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm text-[var(--color-role-accent)] hover:underline"
@@ -463,19 +632,22 @@ const Assignments = () => {
                 </a>
                 <button
                   type="button"
-                  onClick={() => setPreviewFile(null)}
+                  onClick={closePreview}
                   className="text-xl text-[var(--color-text-soft)] hover:text-[var(--color-text-muted)]"
                 >
                   ✕
                 </button>
               </div>
             </div>
-            {previewFile.canEmbed ? (
+            {previewLoading ? (
+              <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--color-text-muted)]">
+                Loading preview...
+              </div>
+            ) : previewFile.canEmbed ? (
               <iframe
                 src={previewFile.url}
                 title={previewFile.title}
                 className="w-full flex-1"
-                sandbox="allow-downloads"
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -484,7 +656,7 @@ const Assignments = () => {
                   This file can be opened in a new tab, but embedded preview is only available for PDFs stored in this app.
                 </p>
                 <a
-                  href={previewFile.url}
+                  href={previewFile.sourceUrl || previewFile.url}
                   target="_blank"
                   rel="noreferrer"
                   className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"

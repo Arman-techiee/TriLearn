@@ -54,26 +54,34 @@ const actorRateLimitKey = (req) => (
     : ipKeyGenerator(req.ip || '')
 )
 
-const apiLimiter = createLimiter({
+const bypassInDevelopment = (limiter) => {
+  if (process.env.NODE_ENV === 'production') {
+    return limiter
+  }
+
+  return (req, res, next) => next()
+}
+
+const apiLimiter = bypassInDevelopment(createLimiter({
   max: 300,
   message: 'Too many requests, please try again later'
-})
+}))
 
-const authLimiter = createLimiter({
+const authLimiter = bypassInDevelopment(createLimiter({
   max: 20,
   message: 'Too many attempts, please try again later'
-})
+}))
 
-const loginLimiter = createLimiter({
+const loginLimiter = bypassInDevelopment(createLimiter({
   max: 25,
   message: 'Too many login attempts, please try again later'
-})
+}))
 
-const refreshLimiter = createLimiter({
+const refreshLimiter = bypassInDevelopment(createLimiter({
   windowMs: 5 * 60 * 1000,
   max: 60,
   message: 'Too many session refresh attempts, please try again shortly'
-})
+}))
 
 const uploadLimiter = createLimiter({
   max: 40,

@@ -65,6 +65,8 @@ const generateUniqueStudentRollNumber = async () => {
   throw new Error('Unable to generate a unique student roll number')
 }
 
+const isMobileClient = (req) => String(req.headers?.['x-client-type'] || '').toLowerCase() === 'mobile'
+
 const issueAuthSession = async (user, res, req, previousRefreshToken) => {
   const accessToken = signAccessToken(user)
   const refreshToken = signRefreshToken(user)
@@ -95,9 +97,14 @@ const issueAuthSession = async (user, res, req, previousRefreshToken) => {
     })
   })
 
-  res.cookie('refreshToken', refreshToken, getRefreshCookieOptions())
+  if (!isMobileClient(req)) {
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions())
+  }
 
-  return accessToken
+  return {
+    accessToken,
+    refreshToken: isMobileClient(req) ? refreshToken : undefined
+  }
 }
 
 const getResetTokenExpiry = () => {
@@ -208,11 +215,12 @@ const register = async (req, res) => {
       department: student.department
     })
 
-    const token = await issueAuthSession(user, res, req)
+    const session = await issueAuthSession(user, res, req)
 
     res.status(201).json({
       message: 'User registered successfully!',
-      token,
+      token: session.accessToken,
+      refreshToken: session.refreshToken,
       user: buildAuthUser(user)
     })
   } catch (error) {
@@ -368,7 +376,7 @@ const login = async (req, res) => {
       })
     }
 
-    const token = await issueAuthSession(user, res, req)
+    const session = await issueAuthSession(user, res, req)
 
     await recordAuditLog({
       actorId: user.id,
@@ -385,7 +393,8 @@ const login = async (req, res) => {
       message: user.mustChangePassword
         ? 'Login successful. Please change your password to continue.'
         : 'Login successful!',
-      token,
+      token: session.accessToken,
+      refreshToken: session.refreshToken,
       user: buildAuthUser(user)
     })
   } catch (error) {
@@ -771,7 +780,7 @@ const resetPassword = async (req, res) => {
 
 const refresh = async (req, res) => {
   try {
-    const refreshToken = req.cookies?.refreshToken
+    const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken
 
     if (!refreshToken) {
       return res.status(401).json({ message: 'Refresh token is required' })
@@ -805,11 +814,12 @@ const refresh = async (req, res) => {
       return res.status(401).json({ message: 'Refresh token is invalid or expired' })
     }
 
-    const token = await issueAuthSession(storedRefreshToken.user, res, req, refreshToken)
+    const session = await issueAuthSession(storedRefreshToken.user, res, req, refreshToken)
 
     res.json({
       message: 'Token refreshed successfully',
-      token,
+      token: session.accessToken,
+      refreshToken: session.refreshToken,
       user: buildAuthUser(storedRefreshToken.user)
     })
   } catch (error) {
@@ -820,7 +830,7 @@ const refresh = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies?.refreshToken
+    const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken
 
     if (refreshToken) {
       await prisma.refreshToken.updateMany({
