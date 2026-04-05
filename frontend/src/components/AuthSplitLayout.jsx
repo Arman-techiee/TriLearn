@@ -1,4 +1,4 @@
-import { GraduationCap } from 'lucide-react'
+import BrandLogo from './BrandLogo'
 
 const AuthSplitLayout = ({
   title,
@@ -23,14 +23,8 @@ const AuthSplitLayout = ({
           <aside className="relative overflow-hidden bg-[#0F172A] px-6 py-10 text-slate-100 sm:px-10 lg:flex lg:flex-col lg:justify-between lg:px-12 lg:py-12">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.22),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.2),transparent_42%),linear-gradient(160deg,rgba(255,255,255,0.06),transparent_40%)]" />
             <div className="relative z-10">
-              <div className="inline-flex items-center gap-3 rounded-full border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/6 px-4 py-2 shadow-lg dark:shadow-slate-900/50 shadow-slate-950/20 backdrop-blur-sm">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[--color-bg-card] dark:bg-slate-800/10 text-white ring-1 ring-white/15">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="ui-heading-tight text-lg font-semibold text-white">TriLearn</p>
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Campus Portal</p>
-                </div>
+              <div className="inline-flex rounded-full border border-white/12 bg-[--color-bg-card] px-4 py-2 shadow-lg shadow-slate-950/20 backdrop-blur-sm dark:bg-slate-800/6 dark:shadow-slate-900/50">
+                <BrandLogo theme="dark" size="sm" />
               </div>
             </div>
 
@@ -69,13 +63,13 @@ const AuthSplitLayout = ({
           </aside>
         ) : null}
 
-        <main className={`flex min-h-screen bg-[--color-bg-card] dark:bg-slate-800 px-4 py-10 sm:px-8 lg:px-12 ${alignmentClassName} ${mainClassName}`}>
+        <main className={`flex min-h-screen bg-[var(--color-page-bg)] px-4 py-10 sm:px-8 lg:px-12 ${alignmentClassName} ${mainClassName}`}>
           <div className={`mx-auto w-full ${contentWidthClassName}`}>
-            <div className={`ui-card overflow-hidden rounded-[1.75rem] border-slate-200/80 bg-[--color-bg-card] dark:bg-slate-800 shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] ${cardClassName}`}>
-              <div className="border-b border-slate-100 px-6 py-6 sm:px-8">
-                <h2 className="ui-heading-tight text-2xl font-semibold text-slate-950">{formTitle}</h2>
+            <div className={`ui-card overflow-hidden rounded-[1.75rem] border-[var(--color-card-border)] bg-[var(--color-card-surface)] shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] ${cardClassName}`}>
+              <div className="border-b border-[var(--color-card-border)] px-6 py-6 sm:px-8">
+                <h2 className="ui-heading-tight text-2xl font-semibold text-[var(--color-heading)]">{formTitle}</h2>
                 {formSubtitle ? (
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{formSubtitle}</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{formSubtitle}</p>
                 ) : null}
               </div>
 
@@ -85,7 +79,7 @@ const AuthSplitLayout = ({
             </div>
 
             {footer ? (
-              <div className="mt-6 text-center text-sm text-slate-500">
+              <div className="mt-6 text-center text-sm text-[var(--color-text-muted)]">
                 {footer}
               </div>
             ) : null}

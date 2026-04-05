@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api, { resolveFileUrl } from '../utils/api'
 import { useTheme } from '../context/ThemeContext'
+import BrandLogo from './BrandLogo'
 
 const initialsFromName = (name = '') =>
   name
@@ -174,17 +175,17 @@ const AppShell = ({
           <div className="border-b border-white/10 px-4 py-4">
             <div className={`flex items-start ${isDesktopCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
               <div className={`flex min-w-0 overflow-hidden ${isDesktopCollapsed ? 'items-center justify-center' : 'items-start gap-3 pr-3'}`}>
-                <div className="ui-role-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[13px] font-black leading-none shadow-[0_18px_40px_rgba(15,23,42,0.28)]">
-                EN
-                </div>
                 <div className={`min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
                   sidebarCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[160px] opacity-100'
                 }`}>
-                  <p className="ui-heading-tight truncate text-lg font-bold text-white">{brand}</p>
+                  <BrandLogo theme="dark" size="sm" className="max-w-full" />
                   <span className="ui-role-surface ui-role-ring mt-2 inline-flex rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em]">
                     {roleLabel}
                   </span>
                 </div>
+                {sidebarCollapsed ? (
+                  <BrandLogo compact theme="dark" size="sm" />
+                ) : null}
               </div>
 
               <div className={`shrink-0 ${isDesktopCollapsed ? 'absolute right-3 top-4' : ''}`}>

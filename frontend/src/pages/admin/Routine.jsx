@@ -11,8 +11,8 @@ import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 import logger from '../../utils/logger'
 import { isRequestCanceled } from '../../utils/http'
-const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
-const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' }
+const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+const DAY_SHORT = { SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat' }
 
 const COLORS = [
   'routine-tone-1',
@@ -30,7 +30,7 @@ const defaultForm = {
   department: '',
   semester: 1,
   section: '',
-  dayOfWeek: 'MONDAY',
+  dayOfWeek: 'SUNDAY',
   startTime: '08:00',
   endTime: '09:00',
   room: ''
@@ -274,7 +274,12 @@ const AdminRoutine = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {routines.map(r => (
+                  {[...routines]
+                    .sort((left, right) => {
+                      const dayDiff = DAYS.indexOf(left.dayOfWeek) - DAYS.indexOf(right.dayOfWeek)
+                      return dayDiff !== 0 ? dayDiff : left.startTime.localeCompare(right.startTime)
+                    })
+                    .map(r => (
                     <tr key={r.id} className="border-t border-[var(--color-card-border)] hover:bg-[var(--color-surface-muted)]/70">
                       <td className="px-6 py-3 text-sm font-medium text-[var(--color-heading)]">{DAY_SHORT[r.dayOfWeek]}</td>
                       <td className="px-6 py-3">
