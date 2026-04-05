@@ -57,6 +57,7 @@ const Users = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
   const visibleRoles = isCoordinator ? coordinatorVisibleRoles : allVisibleRoles
+  const coordinatorDepartment = currentUser?.coordinator?.department || ''
   const validateUserForm = (values) => {
     const validationErrors = {}
 
@@ -124,6 +125,7 @@ const Users = () => {
     } catch (error) {
       if (isRequestCanceled(error)) return
       logger.error(error)
+      setError(getFriendlyErrorMessage(error, 'Unable to load users right now.'))
     } finally {
       if (!signal?.aborted) {
         setLoading(false)
@@ -178,10 +180,15 @@ const Users = () => {
       } else {
         showToast({ title: `${modalType} created successfully.` })
       }
+      setFilterRole(modalType === 'student' ? 'STUDENT' : modalType === 'instructor' ? 'INSTRUCTOR' : '')
+      setSearchTerm('')
+      setPage(1)
       setShowModal(false)
-      setValues(initialUserValues)
+      setValues({
+        ...initialUserValues,
+        department: isCoordinator ? coordinatorDepartment : ''
+      })
       setErrors({})
-      fetchUsers()
     } catch (err) {
       setError(getFriendlyErrorMessage(err, 'Unable to create the user right now.'))
     }
@@ -226,7 +233,10 @@ const Users = () => {
   const openModal = (type) => {
     setModalType(type)
     setError('')
-    setValues(initialUserValues)
+    setValues({
+      ...initialUserValues,
+      department: isCoordinator ? coordinatorDepartment : ''
+    })
     setErrors({})
     setShowModal(true)
   }
@@ -290,15 +300,19 @@ const Users = () => {
 
         <PageHeader
           title="Users"
-          subtitle="Manage all users in TriLearn"
-          breadcrumbs={['Admin', 'Users']}
+          subtitle={isCoordinator ? 'Manage instructors and students for your department' : 'Manage all users in TriLearn'}
+          breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Users']}
           actions={[
-            ...(!isCoordinator ? [
-              { label: 'Add Coordinator', icon: UserPlus, variant: 'primary', onClick: () => openModal('coordinator') },
-              { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') },
-              { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') },
-              { label: 'Import Students', icon: Upload, variant: 'secondary', onClick: openImportModal }
-            ] : []),
+            ...(isCoordinator
+              ? [
+                  { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') }
+                ]
+              : [
+                  { label: 'Add Coordinator', icon: UserPlus, variant: 'primary', onClick: () => openModal('coordinator') },
+                  { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') },
+                  { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') },
+                  { label: 'Import Students', icon: Upload, variant: 'secondary', onClick: openImportModal }
+                ]),
             { label: 'Add Student', icon: UserPlus, variant: 'primary', onClick: () => openModal('student') }
           ]}
         />
@@ -367,15 +381,19 @@ const Users = () => {
                   <EmptyState
                     icon="👥"
                     title="No users found"
-                    description="Try a different role filter or create a new account for your campus."
+                    description={filterRole === 'INSTRUCTOR'
+                      ? 'No instructors matched this filter yet. Create one for your department to get started.'
+                      : filterRole === 'STUDENT'
+                        ? 'No students matched this filter yet. Add a student or change the filter.'
+                        : 'Try a different role filter or create a new account for your campus.'}
                     action={(
                       <button
                         type="button"
-                        onClick={() => openModal('student')}
+                        onClick={() => openModal(filterRole === 'INSTRUCTOR' ? 'instructor' : 'student')}
                         className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
                       >
                         <UserPlus className="h-4 w-4" />
-                        <span>Add Student</span>
+                        <span>{filterRole === 'INSTRUCTOR' ? 'Add Instructor' : 'Add Student'}</span>
                       </button>
                     )}
                   />
@@ -566,6 +584,7 @@ const Users = () => {
                     value={values.department}
                     onChange={handleChange}
                     className={`ui-form-input ${errors.department ? 'ui-form-input-error' : ''}`}
+                    disabled={isCoordinator}
                   >
                     <option value="">Select Department</option>
                     {departments.map((department) => (
@@ -574,6 +593,9 @@ const Users = () => {
                       </option>
                     ))}
                   </select>
+                  {isCoordinator ? (
+                    <p className="mt-2 text-xs text-[var(--color-text-soft)]">Coordinators can only create users inside their own department.</p>
+                  ) : null}
                   {errors.department && <p className="ui-form-helper-error">{errors.department}</p>}
                 </div>
               )}

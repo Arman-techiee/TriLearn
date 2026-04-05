@@ -671,6 +671,139 @@ test('createStudentFromApplication blocks coordinators from converting another d
   })
 })
 
+test('createInstructor allows coordinators to create instructors in their own department', async () => {
+  const createCalls = []
+  const { createInstructor } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findFirst: async () => ({ name: 'BCA', code: 'BCA' })
+      },
+      user: {
+        findUnique: async () => null,
+        create: async (payload) => {
+          createCalls.push(payload)
+          return {
+            id: 'user-instructor-1',
+            name: payload.data.name,
+            email: payload.data.email,
+            role: 'INSTRUCTOR',
+            instructor: { department: payload.data.instructor.create.department }
+          }
+        }
+      }
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    body: {
+      name: 'Instructor One',
+      email: 'instructor1@example.com',
+      password: 'Password123',
+      phone: '9800000000',
+      address: 'Kathmandu',
+      department: 'BCA'
+    },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await createInstructor(req, res)
+
+  assert.equal(res.statusCode, 201)
+  assert.equal(createCalls.length, 1)
+  assert.equal(createCalls[0].data.instructor.create.department, 'BCA')
+})
+
+test('createInstructor blocks coordinators from creating instructors outside their department', async () => {
+  const { createInstructor } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findFirst: async ({ where }) => {
+          if (where?.OR?.some((entry) => entry.name === 'BCA' || entry.code === 'BCA')) {
+            return { name: 'BCA', code: 'BCA' }
+          }
+
+          if (where?.OR?.some((entry) => entry.name === 'BBS' || entry.code === 'BBS')) {
+            return { name: 'BBS', code: 'BBS' }
+          }
+
+          return null
+        }
+      },
+      user: {
+        findUnique: async () => null,
+        create: async () => {
+          throw new Error('should not create')
+        }
+      }
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    body: {
+      name: 'Instructor Two',
+      email: 'instructor2@example.com',
+      password: 'Password123',
+      phone: '9800000000',
+      address: 'Kathmandu',
+      department: 'BBS'
+    },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await createInstructor(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'Coordinators can only create instructors in their own department'
+  })
+})
+
 test('deleteUser blocks deleting the last admin account', async () => {
   const deleteCalls = []
   const { deleteUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
@@ -1622,7 +1755,7 @@ test('createRoutine blocks instructor double-booking with a specific error', asy
         findUnique: async () => ({ id: 'subject-1', semester: 3, department: 'BCA' })
       },
       instructor: {
-        findUnique: async () => ({ id: 'instructor-1' })
+        findUnique: async () => ({ id: 'instructor-1', department: 'BCA' })
       },
       routine: {
         findFirst: async () => ({
@@ -1666,7 +1799,7 @@ test('createRoutine allows combined classes sharing the same room and combinedGr
         findUnique: async () => ({ id: 'subject-1', semester: 3, department: 'BCA' })
       },
       instructor: {
-        findUnique: async () => ({ id: 'instructor-1' })
+        findUnique: async () => ({ id: 'instructor-1', department: 'BCA' })
       },
       routine: {
         findFirst: async (payload) => {
@@ -1716,7 +1849,7 @@ test('createRoutine returns a friendly error when the database uniqueness guard 
         findUnique: async () => ({ id: 'subject-1', semester: 3, department: 'BCA' })
       },
       instructor: {
-        findUnique: async () => ({ id: 'instructor-1' })
+        findUnique: async () => ({ id: 'instructor-1', department: 'BCA' })
       },
       routine: {
         findFirst: async () => null,
@@ -1787,4 +1920,197 @@ test('getAllRoutines shows all section routines to students without an assigned 
   assert.equal(findManyCalls[0].where.department, 'BCA')
   assert.equal(findManyCalls[0].where.semester, 3)
   assert.equal('OR' in findManyCalls[0].where, false)
+})
+
+test('getAllSubjects scopes coordinator queries to their own department', async () => {
+  const findManyCalls = []
+
+  const { getAllSubjects } = loadWithMocks(resolveFromTest('src', 'controllers', 'subject.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findFirst: async () => ({ name: 'BCA', code: 'BCA' })
+      },
+      subject: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        },
+        count: async () => 0
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/enrollment': {
+      enrollMatchingStudentsInSubject: async () => {},
+      syncMatchingStudentsForSubject: async () => {}
+    }
+  })
+
+  const req = {
+    query: {},
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await getAllSubjects(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(findManyCalls.length, 1)
+  assert.deepEqual(findManyCalls[0].where, {
+    AND: [
+      {},
+      {
+        department: {
+          in: ['BCA']
+        }
+      }
+    ]
+  })
+})
+
+test('createSubject blocks coordinators from creating subjects outside their department', async () => {
+  const { createSubject } = loadWithMocks(resolveFromTest('src', 'controllers', 'subject.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findFirst: async ({ where }) => {
+          if (where?.OR?.some((entry) => entry.name === 'BCA' || entry.code === 'BCA')) {
+            return { name: 'BCA', code: 'BCA' }
+          }
+
+          return null
+        }
+      },
+      subject: {
+        findUnique: async () => null,
+        create: async () => {
+          throw new Error('should not create')
+        }
+      }
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/enrollment': {
+      enrollMatchingStudentsInSubject: async () => {},
+      syncMatchingStudentsForSubject: async () => {}
+    }
+  })
+
+  const req = {
+    body: {
+      name: 'Accounting',
+      code: 'ACC101',
+      description: '',
+      semester: 1,
+      department: 'BBS',
+      instructorId: ''
+    },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await createSubject(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'You can only manage subjects in your own department'
+  })
+})
+
+test('getAllRoutines scopes coordinator queries to their own department', async () => {
+  const findManyCalls = []
+
+  const { getAllRoutines } = loadWithMocks(resolveFromTest('src', 'controllers', 'routine.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findFirst: async () => ({ name: 'BCA', code: 'BCA' })
+      },
+      routine: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        }
+      }
+    }
+  })
+
+  const req = {
+    query: {},
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await getAllRoutines(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(findManyCalls.length, 1)
+  assert.deepEqual(findManyCalls[0].where, {
+    AND: [
+      {},
+      {
+        department: {
+          in: ['BCA']
+        }
+      }
+    ]
+  })
+})
+
+test('createRoutine blocks coordinators from creating routines outside their department', async () => {
+  const { createRoutine } = loadWithMocks(resolveFromTest('src', 'controllers', 'routine.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findFirst: async ({ where }) => {
+          if (where?.OR?.some((entry) => entry.name === 'BCA' || entry.code === 'BCA')) {
+            return { name: 'BCA', code: 'BCA' }
+          }
+
+          return null
+        }
+      },
+      subject: {
+        findUnique: async () => ({ id: 'subject-1', semester: 3, department: 'BBS' })
+      },
+      instructor: {
+        findUnique: async () => ({ id: 'instructor-1', department: 'BBS' })
+      },
+      routine: {
+        findFirst: async () => null,
+        create: async () => {
+          throw new Error('should not create')
+        }
+      }
+    }
+  })
+
+  const req = {
+    body: {
+      subjectId: 'subject-1',
+      instructorId: 'instructor-1',
+      department: 'BBS',
+      semester: 3,
+      section: 'A',
+      dayOfWeek: 'SUNDAY',
+      startTime: '10:00',
+      endTime: '11:00',
+      room: 'Room 101'
+    },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await createRoutine(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'You can only manage routines in your own department'
+  })
 })

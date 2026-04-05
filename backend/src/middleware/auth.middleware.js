@@ -22,7 +22,6 @@ const protect = async (req, res, next) => {
         id: true,
         role: true,
         isActive: true,
-        deletedAt: true,
         student: {
           select: {
             id: true,
@@ -47,7 +46,7 @@ const protect = async (req, res, next) => {
       }
     })
 
-    if (!user || user.deletedAt || !user.isActive) {
+    if (!user || !user.isActive) {
       return res.status(401).json({ message: 'User is not authorized' })
     }
 

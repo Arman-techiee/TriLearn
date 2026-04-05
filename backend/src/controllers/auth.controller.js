@@ -26,7 +26,10 @@ const buildAuthUser = (user) => ({
   avatar: user.avatar || null,
   role: user.role,
   mustChangePassword: !!user.mustChangePassword,
-  profileCompleted: !!user.profileCompleted
+  profileCompleted: !!user.profileCompleted,
+  ...(user.student ? { student: user.student } : {}),
+  ...(user.instructor ? { instructor: user.instructor } : {}),
+  ...(user.coordinator ? { coordinator: user.coordinator } : {})
 })
 
 const isPasswordResetEnabled = () => process.env.ENABLE_PASSWORD_RESET === 'true'
@@ -216,12 +219,16 @@ const register = async (req, res) => {
     })
 
     const session = await issueAuthSession(user, res, req)
+    const authUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: getProfileSelect()
+    })
 
     res.status(201).json({
       message: 'User registered successfully!',
       token: session.accessToken,
       refreshToken: session.refreshToken,
-      user: buildAuthUser(user)
+      user: buildAuthUser(authUser || user)
     })
   } catch (error) {
     res.internalError(error)
@@ -377,6 +384,10 @@ const login = async (req, res) => {
     }
 
     const session = await issueAuthSession(user, res, req)
+    const authUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: getProfileSelect()
+    })
 
     await recordAuditLog({
       actorId: user.id,
@@ -395,7 +406,7 @@ const login = async (req, res) => {
         : 'Login successful!',
       token: session.accessToken,
       refreshToken: session.refreshToken,
-      user: buildAuthUser(user)
+      user: buildAuthUser(authUser || user)
     })
   } catch (error) {
     res.internalError(error)
@@ -801,16 +812,37 @@ const refresh = async (req, res) => {
             name: true,
             email: true,
             role: true,
+            avatar: true,
             isActive: true,
-            deletedAt: true,
             mustChangePassword: true,
-            profileCompleted: true
+            profileCompleted: true,
+            student: {
+              select: {
+                id: true,
+                rollNumber: true,
+                semester: true,
+                section: true,
+                department: true
+              }
+            },
+            instructor: {
+              select: {
+                id: true,
+                department: true
+              }
+            },
+            coordinator: {
+              select: {
+                id: true,
+                department: true
+              }
+            }
           }
         }
       }
     })
 
-    if (!storedRefreshToken || !storedRefreshToken.user.isActive || storedRefreshToken.user.deletedAt) {
+    if (!storedRefreshToken || !storedRefreshToken.user.isActive) {
       return res.status(401).json({ message: 'Refresh token is invalid or expired' })
     }
 

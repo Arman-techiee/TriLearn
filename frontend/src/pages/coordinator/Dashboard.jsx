@@ -1,16 +1,84 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BellRing, BookOpenText, ClipboardList, FileText, Percent, TimerReset, Users } from 'lucide-react'
+import {
+  ArrowRight,
+  BellRing,
+  BookOpenText,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  Percent,
+  Sparkles,
+  TimerReset,
+  Users
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import PageHeader from '../../components/PageHeader'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import EmptyState from '../../components/EmptyState'
-import StatCard from '../../components/StatCard'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
 
 const currentMonth = () => new Date().toISOString().slice(0, 7)
+
+const panelClassName = 'ui-card rounded-[1.75rem] p-5 md:p-6'
+
+const formatDate = (value, options) => {
+  if (!value) return 'No date'
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Invalid date'
+  }
+
+  return parsed.toLocaleDateString(undefined, options)
+}
+
+const formatDateTime = (value) => {
+  if (!value) return 'No schedule'
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Invalid schedule'
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
+}
+
+const getAssignmentTone = (dueDate, now) => {
+  const parsedDueDate = new Date(dueDate)
+  if (Number.isNaN(parsedDueDate.getTime())) {
+    return {
+      badge: 'ui-status-badge ui-status-neutral',
+      label: 'Unscheduled'
+    }
+  }
+
+  if (parsedDueDate < now) {
+    return {
+      badge: 'ui-status-badge ui-status-danger',
+      label: 'Overdue'
+    }
+  }
+
+  if (parsedDueDate <= new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000))) {
+    return {
+      badge: 'ui-status-badge ui-status-warning',
+      label: 'Due soon'
+    }
+  }
+
+  return {
+    badge: 'ui-status-badge ui-status-success',
+    label: 'Scheduled'
+  }
+}
 
 const CoordinatorDashboard = () => {
   const { user } = useAuth()
@@ -40,19 +108,27 @@ const CoordinatorDashboard = () => {
       try {
         setLoading(true)
         setError('')
-        const [subjectsRes, assignmentsRes, noticesRes, ticketsRes, marksRes] = await Promise.all([
-          api.get('/subjects', { signal: controller.signal }),
-          api.get('/assignments', { signal: controller.signal }),
+        const [subjectsRes, assignmentsRes, noticesRes, ticketsRes, marksRes] = await Promise.allSettled([
+          api.get('/subjects', { params: { page: 1, limit: 100 }, signal: controller.signal }),
+          api.get('/assignments', { params: { page: 1, limit: 100 }, signal: controller.signal }),
           api.get('/notices', { params: { page: 1, limit: 5 }, signal: controller.signal }),
-          api.get('/attendance/tickets', { signal: controller.signal }),
-          api.get('/marks/review', { params: { page: 1, limit: 20 }, signal: controller.signal })
+          api.get('/attendance/tickets', { params: { page: 1, limit: 100 }, signal: controller.signal }),
+          api.get('/marks/review', { params: { page: 1, limit: 100 }, signal: controller.signal })
         ])
 
         if (controller.signal.aborted) {
           return
         }
 
-        const nextSubjects = subjectsRes.data.subjects || []
+        const getResponseData = (result, fallback) => (result.status === 'fulfilled' ? result.value.data : fallback)
+
+        const subjectsData = getResponseData(subjectsRes, { subjects: [] })
+        const assignmentsData = getResponseData(assignmentsRes, { assignments: [] })
+        const noticesData = getResponseData(noticesRes, { notices: [] })
+        const ticketsData = getResponseData(ticketsRes, { tickets: [] })
+        const marksData = getResponseData(marksRes, { marks: [], stats: { unpublished: 0, published: 0, total: 0 } })
+
+        const nextSubjects = subjectsData.subjects || []
         const nextSemesters = [...new Set(
           nextSubjects
             .map((subject) => Number.parseInt(subject.semester, 10))
@@ -60,13 +136,17 @@ const CoordinatorDashboard = () => {
         )].sort((left, right) => left - right)
 
         setSubjects(nextSubjects)
-        setAssignments(assignmentsRes.data.assignments || [])
-        setNotices(noticesRes.data.notices || [])
-        setTickets(ticketsRes.data.tickets || [])
+        setAssignments(assignmentsData.assignments || [])
+        setNotices(noticesData.notices || [])
+        setTickets(ticketsData.tickets || [])
         setMarksReview({
-          marks: marksRes.data.marks || [],
-          stats: marksRes.data.stats || { unpublished: 0, published: 0, total: 0 }
+          marks: marksData.marks || [],
+          stats: marksData.stats || { unpublished: 0, published: 0, total: 0 }
         })
+
+        if ([subjectsRes, assignmentsRes, noticesRes, ticketsRes, marksRes].every((result) => result.status === 'rejected')) {
+          setError('Unable to load the coordinator dashboard right now.')
+        }
 
         setSelectedSemester((current) => {
           if (current && nextSemesters.includes(Number.parseInt(current, 10))) {
@@ -153,25 +233,23 @@ const CoordinatorDashboard = () => {
     }
   }, [selectedSemester])
 
+  const departmentName = user?.coordinator?.department || 'Department'
   const pendingTickets = tickets.filter((ticket) => ticket.status === 'PENDING')
   const unpublishedMarks = marksReview.marks.filter((mark) => !mark.isPublished)
   const recentNotices = [...notices].slice(0, 4)
-  const recentAssignments = [...assignments]
-    .sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))
-    .slice(0, 4)
   const now = new Date()
+  const sortedAssignments = [...assignments].sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))
+  const recentAssignments = sortedAssignments.slice(0, 5)
   const upcomingAssignments = assignments.filter((assignment) => {
     const dueDate = new Date(assignment.dueDate)
     return dueDate >= now && dueDate <= new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000))
   })
   const overdueAssignments = assignments.filter((assignment) => new Date(assignment.dueDate) < now)
-  const semestersWithStudents = attendanceReports.filter((report) => report.totalStudents > 0)
-  const strongestAttendance = useMemo(() => (
-    [...attendanceReports]
-      .filter((report) => report.totalStudents > 0)
-      .sort((left, right) => right.monthlyAverage - left.monthlyAverage)
-      .slice(0, 4)
-  ), [attendanceReports])
+
+  const selectedAttendanceReport = attendanceReports[0] || null
+  const monthlyAverage = selectedAttendanceReport?.monthlyAverage || 0
+  const attendanceSummary = selectedAttendanceReport?.summary || { present: 0, absent: 0, late: 0 }
+
   const semesterSubjectMap = useMemo(() => (
     availableSemesters.map((semester) => {
       const semesterSubjects = subjects.filter((subject) => Number.parseInt(subject.semester, 10) === semester)
@@ -183,43 +261,84 @@ const CoordinatorDashboard = () => {
       }
     })
   ), [assignments, availableSemesters, subjects, unpublishedMarks])
-  const coordinatorActionBoard = [
+
+  const semesterSnapshot = semesterSubjectMap.find((entry) => String(entry.semester) === selectedSemester) || null
+
+  const quickLinks = [
     {
-      title: 'Admission queue',
-      value: notices.length,
-      meta: 'Recent communication cadence'
+      title: 'Manage People',
+      description: 'Create instructors, review students, and manage department access.',
+      to: '/coordinator/users',
+      icon: Users,
+      accent: 'from-sky-500 to-cyan-600'
     },
     {
-      title: 'Upcoming deadlines',
-      value: upcomingAssignments.length,
-      meta: `${overdueAssignments.length} overdue assignments`
+      title: 'Build Routine',
+      description: 'Create a cleaner timetable for your department and sections.',
+      to: '/coordinator/routine',
+      icon: CalendarDays,
+      accent: 'from-emerald-500 to-green-600'
     },
     {
-      title: 'Pending ticket reviews',
-      value: pendingTickets.length,
-      meta: `${tickets.length} total department tickets`
+      title: 'Track Attendance',
+      description: 'Monitor monthly attendance and respond before problems compound.',
+      to: '/coordinator/attendance',
+      icon: Percent,
+      accent: 'from-amber-500 to-orange-600'
     },
     {
-      title: 'Results awaiting publish',
-      value: unpublishedMarks.length,
-      meta: `${marksReview.stats.published || 0} already visible to students`
+      title: 'Publish Results',
+      description: 'Clear unpublished marks and keep students updated on time.',
+      to: '/coordinator/marks',
+      icon: FileText,
+      accent: 'from-violet-500 to-fuchsia-600'
     }
   ]
 
-  const stats = [
-    { title: 'Department Modules', value: subjects.length, icon: BookOpenText, iconClassName: 'from-blue-500 to-cyan-600', trend: user?.coordinator?.department || 'Department scope', trendLabel: 'coordinator control' },
-    { title: 'Pending Requests', value: pendingTickets.length, icon: ClipboardList, iconClassName: 'from-amber-500 to-orange-600', trend: `${tickets.length} total`, trendLabel: 'absence tickets' },
-    { title: 'Unpublished Results', value: marksReview.stats.unpublished || 0, icon: FileText, iconClassName: 'from-violet-500 to-purple-600', trend: `${marksReview.stats.published || 0} published`, trendLabel: 'exam records' },
-    { title: 'Semesters Reporting', value: semestersWithStudents.length, icon: Percent, iconClassName: 'from-emerald-500 to-green-600', trend: currentMonth(), trendLabel: 'attendance month' },
-    { title: 'Students In Scope', value: attendanceReports[0]?.totalStudents || 0, icon: Users, iconClassName: 'from-slate-700 to-slate-900', trend: selectedSemester ? `Semester ${selectedSemester}` : 'Awaiting filter', trendLabel: 'current report' },
-    { title: 'Due This Week', value: upcomingAssignments.length, icon: TimerReset, iconClassName: 'from-rose-500 to-red-600', trend: `${overdueAssignments.length} overdue`, trendLabel: 'assignment watch' }
+  const commandMetrics = [
+    {
+      label: 'Subjects',
+      value: subjects.length,
+      detail: `${availableSemesters.length || 0} semesters active`
+    },
+    {
+      label: 'Students In Scope',
+      value: selectedAttendanceReport?.totalStudents || 0,
+      detail: selectedSemester ? `Semester ${selectedSemester}` : 'Select a semester'
+    },
+    {
+      label: 'Pending Reviews',
+      value: pendingTickets.length + unpublishedMarks.length,
+      detail: `${pendingTickets.length} tickets • ${unpublishedMarks.length} marks`
+    }
+  ]
+
+  const urgencyBoard = [
+    {
+      title: 'Assignment pressure',
+      value: upcomingAssignments.length,
+      description: `${overdueAssignments.length} overdue items need follow-up`,
+      tone: 'border-amber-200 bg-amber-50 text-amber-900'
+    },
+    {
+      title: 'Unpublished marks',
+      value: unpublishedMarks.length,
+      description: `${marksReview.stats.published || 0} results are already visible`,
+      tone: 'border-violet-200 bg-violet-50 text-violet-900'
+    },
+    {
+      title: 'Pending absence requests',
+      value: pendingTickets.length,
+      description: `${tickets.length} total department tickets`,
+      tone: 'border-rose-200 bg-rose-50 text-rose-900'
+    }
   ]
 
   if (loading) {
     return (
       <CoordinatorLayout>
         <div className="p-4 md:p-8">
-          <LoadingSkeleton rows={6} itemClassName="h-28" />
+          <LoadingSkeleton rows={6} itemClassName="h-32" />
         </div>
       </CoordinatorLayout>
     )
@@ -230,7 +349,7 @@ const CoordinatorDashboard = () => {
       <div className="p-4 md:p-8">
         <PageHeader
           title="Coordinator Dashboard"
-          subtitle="Manage your department’s notices, routines, attendance, assignments, and result publishing from one workspace."
+          subtitle="Run the department like an academic command center, with routine, attendance, people, and publishing in one place."
           breadcrumbs={['Coordinator', 'Dashboard']}
         />
 
@@ -238,216 +357,352 @@ const CoordinatorDashboard = () => {
           <div className="mb-6 rounded-lg bg-accent-50 px-4 py-3 text-sm text-accent-600">{error}</div>
         ) : null}
 
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          {stats.map((stat) => (
-            <StatCard
-              key={stat.title}
-              title={stat.title}
-              value={stat.value}
-              icon={stat.icon}
-              iconClassName={stat.iconClassName}
-              trend={stat.trend}
-              trendLabel={stat.trendLabel}
-            />
-          ))}
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <section className="space-y-6">
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Coordinator Action Board</h2>
-                  <p className="text-sm text-slate-500">The fastest way to explain department workload and where attention is needed right now.</p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                  Live department snapshot
-                </span>
+        <section className="mb-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_34%),linear-gradient(135deg,#f8fafc_0%,#eef6ff_46%,#f6fffb_100%)] p-6 shadow-sm dark:shadow-slate-900/50 md:p-8">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>{departmentName} operations</span>
               </div>
+              <h2 className="max-w-3xl text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+                Keep the department aligned, on schedule, and ready to publish.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
+                This view surfaces what needs attention first: student-facing delays, attendance drift, routine setup, and academic delivery across the current semester mix.
+              </p>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {coordinatorActionBoard.map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{item.title}</p>
-                    <p className="mt-3 text-2xl font-black text-slate-900">{item.value}</p>
-                    <p className="mt-2 text-sm text-slate-500">{item.meta}</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {commandMetrics.map((metric) => (
+                  <div key={metric.label} className="rounded-2xl border border-white/70 bg-white/80 px-4 py-4 backdrop-blur">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{metric.label}</p>
+                    <p className="mt-3 text-3xl font-black text-slate-900">{metric.value}</p>
+                    <p className="mt-2 text-sm text-slate-500">{metric.detail}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_24px_60px_-30px_rgba(15,23,42,0.65)] md:p-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Department Attendance Pulse</h2>
-                  <p className="text-sm text-slate-500">Average monthly attendance for the selected semester in the current reporting month.</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Current month pulse</p>
+                  <p className="mt-2 text-2xl font-black">{currentMonth()}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Semester</label>
                   <select
                     value={selectedSemester}
                     onChange={(event) => setSelectedSemester(event.target.value)}
-                    className="rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-3 py-2 text-sm text-slate-700"
+                    className="bg-transparent text-sm font-medium text-white outline-none"
                   >
                     {availableSemesters.length === 0 ? (
                       <option value="">No semesters</option>
                     ) : (
                       availableSemesters.map((semester) => (
-                        <option key={semester} value={semester}>
+                        <option key={semester} value={semester} className="text-slate-900">
                           Semester {semester}
                         </option>
                       ))
                     )}
                   </select>
-                  <Link to="/coordinator/attendance" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
-                    Open attendance
-                  </Link>
                 </div>
               </div>
-
-              {attendanceLoading ? (
-                <LoadingSkeleton rows={1} itemClassName="h-28" />
-              ) : strongestAttendance.length === 0 ? (
-                <EmptyState
-                  icon="📊"
-                  title="No attendance reports yet"
-                  description="Monthly department attendance summaries will appear here once records are available."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {strongestAttendance.map((report) => (
-                    <div key={report.semester} className="rounded-2xl border border-slate-200 px-4 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">Semester {report.semester}</p>
-                          <p className="mt-1 text-xs text-slate-500">{report.totalStudents} students in report</p>
-                        </div>
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${report.monthlyAverage >= 80 ? 'bg-primary-100 text-primary' : 'bg-accent-100 text-accent-700'}`}>
-                          {report.monthlyAverage}%
-                        </span>
-                      </div>
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className={`h-full rounded-full ${report.monthlyAverage >= 80 ? 'bg-primary-500' : 'bg-accent'}`} style={{ width: `${Math.min(report.monthlyAverage, 100)}%` }} />
-                      </div>
-                      <p className="mt-2 text-xs text-slate-500">
-                        {report.summary.present} present • {report.summary.absent} absent • {report.summary.late} late
-                      </p>
-                    </div>
-                  ))}
+              <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Attendance health</p>
+                    <p className="mt-2 text-4xl font-black">{attendanceLoading ? '--' : `${monthlyAverage}%`}</p>
+                  </div>
+                  <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-400">
+                    <p>{selectedAttendanceReport?.totalStudents || 0} students</p>
+                    <p className="mt-1">{selectedSemester ? `Sem ${selectedSemester}` : 'No selection'}</p>
+                  </div>
                 </div>
-              )}
+                <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={`h-full rounded-full ${monthlyAverage >= 80 ? 'bg-emerald-400' : monthlyAverage >= 65 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                    style={{ width: `${Math.min(monthlyAverage, 100)}%` }}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-2xl bg-white/[0.04] px-3 py-3">
+                    <p className="text-slate-400">Present</p>
+                    <p className="mt-1 text-lg font-bold text-white">{attendanceSummary.present}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.04] px-3 py-3">
+                    <p className="text-slate-400">Absent</p>
+                    <p className="mt-1 text-lg font-bold text-white">{attendanceSummary.absent}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.04] px-3 py-3">
+                    <p className="text-slate-400">Late</p>
+                    <p className="mt-1 text-lg font-bold text-white">{attendanceSummary.late}</p>
+                  </div>
+                </div>
+                <Link to="/coordinator/attendance" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-sky-300 hover:text-sky-200">
+                  <span>Open attendance desk</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
+          </div>
+        </section>
 
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Semester Delivery Map</h2>
-                  <p className="text-sm text-slate-500">Show how modules, assignments, and unpublished results are distributed across the department.</p>
+        <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {quickLinks.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.title}
+                to={item.to}
+                className="group overflow-hidden rounded-[1.6rem] border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:shadow-slate-900/50"
+              >
+                <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg ${item.accent}`}>
+                  <Icon className="h-5 w-5" />
                 </div>
-                <Link to="/coordinator/subjects" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
+                <h3 className="text-base font-bold text-[var(--color-heading)]">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{item.description}</p>
+                <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-role-accent)]">
+                  <span>Open</span>
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            )
+          })}
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_380px]">
+          <section className="space-y-6">
+            <div className={panelClassName}>
+              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Academic radar</p>
+                  <h2 className="mt-2 text-xl font-black text-[var(--color-heading)]">Semester delivery snapshot</h2>
+                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">See where the selected semester stands across subjects, assignments, and unpublished results.</p>
+                </div>
+                <Link to="/coordinator/subjects" className="text-sm font-semibold text-[var(--color-role-accent)] hover:underline">
                   Open subjects
                 </Link>
               </div>
 
-              {semesterSubjectMap.length === 0 ? (
+              {attendanceLoading && !selectedAttendanceReport ? (
+                <LoadingSkeleton rows={1} itemClassName="h-36" />
+              ) : !semesterSnapshot ? (
                 <EmptyState
                   icon="🧭"
-                  title="No semester map yet"
-                  description="Once subjects are configured for the department, this semester breakdown will appear here."
+                  title="No semester activity yet"
+                  description="Once the department has subjects configured, this semester snapshot will become more useful."
                 />
               ) : (
-                <div className="space-y-3">
-                  {semesterSubjectMap.map((entry) => (
-                    <div key={entry.semester} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">Semester {entry.semester}</p>
-                          <p className="mt-1 text-xs text-slate-500">{entry.subjectCount} modules configured</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <span className="rounded-full bg-[--color-bg-card] dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm dark:shadow-slate-900/50">
-                            {entry.assignmentCount} assignments
-                          </span>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${entry.unpublishedCount > 0 ? 'bg-accent-100 text-accent-700' : 'bg-primary-100 text-primary'}`}>
-                            {entry.unpublishedCount} unpublished results
-                          </span>
-                        </div>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                  <div className="rounded-[1.5rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-5">
+                    <p className="text-sm font-semibold text-[var(--color-heading)]">Semester {semesterSnapshot.semester}</p>
+                    <p className="mt-2 text-4xl font-black text-[var(--color-heading)]">{semesterSnapshot.subjectCount}</p>
+                    <p className="mt-2 text-sm text-[var(--color-text-muted)]">Active modules currently configured in the selected semester.</p>
+                    <div className="mt-5 space-y-3">
+                      <div className="flex items-center justify-between rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
+                        <span className="text-sm text-[var(--color-text-muted)]">Assignments</span>
+                        <span className="font-semibold text-[var(--color-heading)]">{semesterSnapshot.assignmentCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
+                        <span className="text-sm text-[var(--color-text-muted)]">Pending publish</span>
+                        <span className="font-semibold text-[var(--color-heading)]">{semesterSnapshot.unpublishedCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
+                        <span className="text-sm text-[var(--color-text-muted)]">Attendance average</span>
+                        <span className="font-semibold text-[var(--color-heading)]">{monthlyAverage}%</span>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {urgencyBoard.map((item) => (
+                      <div key={item.title} className={`rounded-[1.5rem] border px-4 py-4 ${item.tone}`}>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">{item.title}</p>
+                        <p className="mt-3 text-3xl font-black">{item.value}</p>
+                        <p className="mt-2 text-sm leading-6 opacity-80">{item.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
+            <div className={panelClassName}>
+              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Pending Absence Requests</h2>
-                  <p className="text-sm text-slate-500">Students waiting for a department-level response.</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Action lanes</p>
+                  <h2 className="mt-2 text-xl font-black text-[var(--color-heading)]">Department review queues</h2>
+                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">The most useful coordinator work happens here: requests, marks waiting to publish, and assignment deadlines.</p>
                 </div>
-                <Link to="/coordinator/requests" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
-                  Review requests
-                </Link>
               </div>
 
-              {pendingTickets.length === 0 ? (
-                <EmptyState
-                  icon="📬"
-                  title="No pending requests"
-                  description="New student absence requests will surface here when they need your review."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {pendingTickets.slice(0, 4).map((ticket) => (
-                    <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <p className="text-sm font-semibold text-slate-900">{ticket.student?.user?.name || 'Student'}</p>
-                      <p className="mt-1 text-xs text-slate-500">{ticket.attendance?.subject?.name} ({ticket.attendance?.subject?.code})</p>
-                      <p className="mt-2 line-clamp-2 text-sm text-slate-600">{ticket.reason}</p>
+              <div className="grid gap-4 xl:grid-cols-3">
+                <div className="rounded-[1.5rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-rose-100 p-3 text-rose-700">
+                        <ClipboardList className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[var(--color-heading)]">Requests</p>
+                        <p className="text-xs text-[var(--color-text-soft)]">{pendingTickets.length} pending</p>
+                      </div>
                     </div>
-                  ))}
+                    <Link to="/coordinator/requests" className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-role-accent)]">
+                      Review
+                    </Link>
+                  </div>
+                  {pendingTickets.length === 0 ? (
+                    <EmptyState icon="📬" title="Queue clear" description="No absence requests are waiting for review." />
+                  ) : (
+                    <div className="space-y-3">
+                      {pendingTickets.slice(0, 4).map((ticket) => (
+                        <div key={ticket.id} className="rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
+                          <p className="text-sm font-semibold text-[var(--color-heading)]">{ticket.student?.user?.name || 'Student'}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-soft)]">{ticket.attendance?.subject?.code || 'Subject pending'} • {formatDate(ticket.createdAt)}</p>
+                          <p className="mt-2 line-clamp-2 text-sm text-[var(--color-text-muted)]">{ticket.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <div className="rounded-[1.5rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-violet-100 p-3 text-violet-700">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[var(--color-heading)]">Results</p>
+                        <p className="text-xs text-[var(--color-text-soft)]">{unpublishedMarks.length} awaiting publish</p>
+                      </div>
+                    </div>
+                    <Link to="/coordinator/marks" className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-role-accent)]">
+                      Publish
+                    </Link>
+                  </div>
+                  {unpublishedMarks.length === 0 ? (
+                    <EmptyState icon="📝" title="All clear" description="No unpublished marks are waiting right now." />
+                  ) : (
+                    <div className="space-y-3">
+                      {unpublishedMarks.slice(0, 4).map((mark) => (
+                        <div key={mark.id} className="rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
+                          <p className="text-sm font-semibold text-[var(--color-heading)]">{mark.student?.user?.name || 'Student'}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-soft)]">{mark.subject?.code} • {mark.examType}</p>
+                          <p className="mt-2 text-sm text-[var(--color-text-muted)]">{mark.obtainedMarks}/{mark.totalMarks} marks recorded</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-[1.5rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
+                        <TimerReset className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[var(--color-heading)]">Deadlines</p>
+                        <p className="text-xs text-[var(--color-text-soft)]">{upcomingAssignments.length} due this week</p>
+                      </div>
+                    </div>
+                    <Link to="/coordinator/assignments" className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-role-accent)]">
+                      Open
+                    </Link>
+                  </div>
+                  {recentAssignments.length === 0 ? (
+                    <EmptyState icon="🗂️" title="No assignments yet" description="Assignment deadlines will appear here once coursework is posted." />
+                  ) : (
+                    <div className="space-y-3">
+                      {recentAssignments.slice(0, 4).map((assignment) => {
+                        const tone = getAssignmentTone(assignment.dueDate, now)
+                        return (
+                          <div key={assignment.id} className="rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-[var(--color-heading)]">{assignment.title}</p>
+                                <p className="mt-1 text-xs text-[var(--color-text-soft)]">{assignment.subject?.code || 'Subject'} • {formatDateTime(assignment.dueDate)}</p>
+                              </div>
+                              <span className={tone.badge}>{tone.label}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
+            <div className={panelClassName}>
+              <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Result Publishing Queue</h2>
-                  <p className="text-sm text-slate-500">Exam records still hidden from students.</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Operational mix</p>
+                  <h2 className="mt-2 text-xl font-black text-[var(--color-heading)]">What is moving right now</h2>
                 </div>
-                <Link to="/coordinator/marks" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
-                  Open results
-                </Link>
+                <BellRing className="h-5 w-5 text-[var(--color-role-accent)]" />
               </div>
 
-              {marksReview.marks.length === 0 ? (
-                <EmptyState
-                  icon="📝"
-                  title="No result records yet"
-                  description="Marks awaiting publication will appear here after instructors enter them."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {unpublishedMarks.slice(0, 4).map((mark) => (
-                    <div key={mark.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <p className="text-sm font-semibold text-slate-900">{mark.student?.user?.name}</p>
-                      <p className="mt-1 text-xs text-slate-500">{mark.subject?.name} ({mark.subject?.code})</p>
-                      <p className="mt-2 text-sm text-slate-600">{mark.examType} • {mark.obtainedMarks}/{mark.totalMarks}</p>
+              <div className="space-y-3">
+                <div className="rounded-[1.4rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-sky-100 p-3 text-sky-700">
+                        <BookOpenText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[var(--color-heading)]">Subject coverage</p>
+                        <p className="text-xs text-[var(--color-text-soft)]">Department teaching structure</p>
+                      </div>
                     </div>
-                  ))}
+                    <span className="text-lg font-black text-[var(--color-heading)]">{subjects.length}</span>
+                  </div>
                 </div>
-              )}
+
+                <div className="rounded-[1.4rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700">
+                        <Percent className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[var(--color-heading)]">Attendance average</p>
+                        <p className="text-xs text-[var(--color-text-soft)]">Current semester monthly view</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-black text-[var(--color-heading)]">{monthlyAverage}%</span>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.4rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-fuchsia-100 p-3 text-fuchsia-700">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[var(--color-heading)]">Published results</p>
+                        <p className="text-xs text-[var(--color-text-soft)]">Coordinator review throughput</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-black text-[var(--color-heading)]">{marksReview.stats.published || 0}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
+            <div className={panelClassName}>
+              <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Recent Notices</h2>
-                  <p className="text-sm text-slate-500">The latest department and campus announcements.</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Notice timeline</p>
+                  <h2 className="mt-2 text-xl font-black text-[var(--color-heading)]">Recent notices</h2>
                 </div>
-                <Link to="/coordinator/notices" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
-                  Manage notices
+                <Link to="/coordinator/notices" className="text-sm font-semibold text-[var(--color-role-accent)] hover:underline">
+                  Manage
                 </Link>
               </div>
 
@@ -460,82 +715,15 @@ const CoordinatorDashboard = () => {
               ) : (
                 <div className="space-y-3">
                   {recentNotices.map((notice) => (
-                    <div key={notice.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div key={notice.id} className="rounded-[1.4rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
-                          {notice.type}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(notice.createdAt).toLocaleDateString()}
-                        </span>
+                        <span className="ui-status-badge ui-status-neutral">{notice.type}</span>
+                        <span className="text-xs text-[var(--color-text-soft)]">{formatDate(notice.createdAt, { month: 'short', day: 'numeric' })}</span>
                       </div>
-                      <p className="mt-3 text-sm font-semibold text-slate-900">{notice.title}</p>
-                      <p className="mt-2 line-clamp-2 text-sm text-slate-500">{notice.content}</p>
+                      <p className="mt-3 text-sm font-semibold text-[var(--color-heading)]">{notice.title}</p>
+                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-[var(--color-text-muted)]">{notice.content}</p>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Assignment Watchlist</h2>
-                  <p className="text-sm text-slate-500">Closest department assignment deadlines.</p>
-                </div>
-                <Link to="/coordinator/assignments" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
-                  Open assignments
-                </Link>
-              </div>
-
-              {recentAssignments.length === 0 ? (
-                <EmptyState
-                  icon="🗂️"
-                  title="No assignments yet"
-                  description="Upcoming module tasks will show here once instructors or coordinators create them."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {recentAssignments.map((assignment) => (
-                    <div key={assignment.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <p className="text-sm font-semibold text-slate-900">{assignment.title}</p>
-                      <p className="mt-1 text-xs text-slate-500">{assignment.subject?.name} ({assignment.subject?.code})</p>
-                      <p className="mt-2 text-sm text-slate-600">Due {new Date(assignment.dueDate).toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-6 shadow-sm dark:shadow-slate-900/50">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Deadline Pressure</h2>
-                  <p className="text-sm text-slate-500">Upcoming and overdue assignment signals make the dashboard feel operational instead of decorative.</p>
-                </div>
-                <Link to="/coordinator/assignments" className="text-sm font-medium text-[var(--color-role-accent)] hover:underline">
-                  Open assignments
-                </Link>
-              </div>
-
-              {assignments.length === 0 ? (
-                <EmptyState
-                  icon="⏱️"
-                  title="No assignment pressure yet"
-                  description="Assignment urgency indicators will show up here once department modules start posting coursework."
-                />
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Due This Week</p>
-                    <p className="mt-3 text-3xl font-black text-slate-900">{upcomingAssignments.length}</p>
-                    <p className="mt-2 text-sm text-slate-600">Assignments approaching their due date in the next 7 days.</p>
-                  </div>
-                  <div className="rounded-2xl border border-accent-200 bg-accent-50 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Overdue</p>
-                    <p className="mt-3 text-3xl font-black text-slate-900">{overdueAssignments.length}</p>
-                    <p className="mt-2 text-sm text-slate-600">Department assignments whose due date has already passed.</p>
-                  </div>
                 </div>
               )}
             </div>

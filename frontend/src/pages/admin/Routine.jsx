@@ -39,6 +39,7 @@ const defaultForm = {
 const AdminRoutine = () => {
   const { user } = useAuth()
   const isCoordinator = user?.role === 'COORDINATOR'
+  const coordinatorDepartment = user?.coordinator?.department || ''
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const [routines, setRoutines] = useState([])
   const [subjects, setSubjects] = useState([])
@@ -80,8 +81,11 @@ const AdminRoutine = () => {
 
   const fetchSubjects = async (signal) => {
     try {
-      const res = await api.get('/subjects', { signal })
-      setSubjects(res.data.subjects)
+      const res = await api.get('/subjects', {
+        signal,
+        params: { limit: 100 }
+      })
+      setSubjects(res.data.subjects || [])
     } catch (err) {
       if (isRequestCanceled(err)) return
       logger.error(err)
@@ -90,11 +94,18 @@ const AdminRoutine = () => {
 
   const fetchInstructors = async (signal) => {
     try {
-      const res = await api.get('/admin/users?role=INSTRUCTOR', { signal })
-      setInstructors(res.data.users)
+      const res = await api.get('/admin/users', {
+        signal,
+        params: {
+          role: 'INSTRUCTOR',
+          limit: 100
+        }
+      })
+      setInstructors((res.data.users || []).filter((item) => item.instructor?.id))
     } catch (err) {
       if (isRequestCanceled(err)) return
       logger.error(err)
+      setError(err.response?.data?.message || 'Unable to load instructors right now.')
     }
   }
 
@@ -182,6 +193,14 @@ const AdminRoutine = () => {
     return normalizeValue(subject.department) === normalizeValue(form.department)
   })
 
+  const filteredInstructors = instructors.filter((instructor) => {
+    if (!form.department.trim()) {
+      return true
+    }
+
+    return normalizeValue(instructor.instructor?.department) === normalizeValue(form.department)
+  })
+
   const handleSubjectChange = (subjectId) => {
     const subject = subjects.find((item) => item.id === subjectId)
     if (!subject) {
@@ -209,7 +228,15 @@ const AdminRoutine = () => {
             label: 'Add Class',
             icon: Plus,
             variant: 'primary',
-            onClick: () => { setEditRoutine(null); setForm(defaultForm); setError(''); setShowModal(true) }
+            onClick: () => {
+              setEditRoutine(null)
+              setForm({
+                ...defaultForm,
+                department: isCoordinator ? coordinatorDepartment : ''
+              })
+              setError('')
+              setShowModal(true)
+            }
           }]}
         />
 
@@ -331,7 +358,11 @@ const AdminRoutine = () => {
                   onChange={(e) => setForm({ ...form, department: e.target.value, subjectId: '' })}
                   className="ui-form-input"
                   placeholder="e.g. BCA"
+                  readOnly={isCoordinator}
                 />
+                {isCoordinator ? (
+                  <p className="mt-2 text-xs text-[var(--color-text-soft)]">Routine entries are limited to your coordinator department.</p>
+                ) : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -375,10 +406,13 @@ const AdminRoutine = () => {
                 <label className="ui-form-label">Instructor</label>
                 <select required value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })} className="ui-form-input">
                   <option value="">Select Instructor</option>
-                  {instructors.filter(i => i.instructor?.id).map(i => (
+                  {filteredInstructors.map(i => (
                     <option key={i.instructor.id} value={i.instructor.id}>{i.name}</option>
                   ))}
                 </select>
+                {form.department && filteredInstructors.length === 0 ? (
+                  <p className="status-late mt-2 inline-flex rounded-lg px-2 py-1 text-xs">No instructors are available for this department yet.</p>
+                ) : null}
               </div>
               <div>
                 <label className="ui-form-label">Day Of Week</label>

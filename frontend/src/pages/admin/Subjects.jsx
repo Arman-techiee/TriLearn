@@ -76,8 +76,14 @@ const Subjects = () => {
 
   const fetchInstructors = useCallback(async (signal) => {
     try {
-      const res = await api.get('/admin/users?role=INSTRUCTOR', { signal })
-      setInstructors(res.data.users)
+      const res = await api.get('/admin/users', {
+        signal,
+        params: {
+          role: 'INSTRUCTOR',
+          limit: 100
+        }
+      })
+      setInstructors((res.data.users || []).filter((inst) => inst.instructor?.id))
     } catch (error) {
       if (isRequestCanceled(error)) return
       logger.error('Failed to load instructors', error)
@@ -448,7 +454,7 @@ const Subjects = () => {
                 >
                   <option value="">Select Instructor (optional)</option>
                   {instructors.map((inst) => (
-                    <option key={inst.id} value={inst.instructor?.id}>
+                    <option key={inst.instructor.id} value={inst.instructor.id}>
                       {inst.name} - {inst.instructor?.department || 'No dept'}
                     </option>
                   ))}

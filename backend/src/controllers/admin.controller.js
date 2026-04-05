@@ -562,6 +562,17 @@ const createInstructor = async (req, res) => {
       }
     }
 
+    if (req.user.role === 'COORDINATOR') {
+      const departmentAliases = await getCoordinatorDepartmentAliasesOrRespond(req, res)
+      if (!departmentAliases) {
+        return
+      }
+
+      if (!normalizedDepartment || !isDepartmentWithinAliases(normalizedDepartment, departmentAliases)) {
+        return res.status(403).json({ message: 'Coordinators can only create instructors in their own department' })
+      }
+    }
+
     const hashedPassword = await hashPassword(password)
 
     const user = await prisma.user.create({

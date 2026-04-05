@@ -22,7 +22,7 @@ const CoordinatorLayout = ({ children }) => {
 
   const sidebarItems = useMemo(() => ([
     { path: `${basePath}`, label: 'Dashboard', icon: LayoutDashboard, meta: 'Overview' },
-    { path: `${basePath}/users`, label: 'Students', icon: Users, meta: 'People and access' },
+    { path: `${basePath}/users`, label: 'People', icon: Users, meta: 'Students and instructors' },
     { path: `${basePath}/applications`, label: 'Admissions', icon: FileText, meta: 'Applications' },
     { path: `${basePath}/subjects`, label: 'Subjects', icon: BookOpenText, meta: 'Academic setup' },
     { path: `${basePath}/student-qr`, label: 'Student QR', icon: Percent, meta: 'Gate scan windows' },

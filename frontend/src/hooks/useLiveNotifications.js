@@ -34,8 +34,9 @@ const useLiveNotifications = ({
       auth: { token },
       withCredentials: true,
       autoConnect: false,
-      upgrade: false,
-      transports: ['polling']
+      reconnectionAttempts: 3,
+      timeout: 5000,
+      transports: ['websocket', 'polling']
     })
     const connectTimer = window.setTimeout(() => {
       socket.connect()

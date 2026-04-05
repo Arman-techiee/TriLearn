@@ -6,7 +6,95 @@ const {
   syncMatchingStudentsForSubject
 } = require('../utils/enrollment')
 
-const buildSubjectVisibilityFilter = async (user, filters = {}) => {
+const normalizeDepartmentValue = (value) => String(value || '').trim()
+
+const getDepartmentAliases = async (departmentValue) => {
+  const normalizedDepartment = normalizeDepartmentValue(departmentValue)
+  if (!normalizedDepartment) {
+    return []
+  }
+
+  const department = await prisma.department.findFirst({
+    where: {
+      OR: [
+        { name: normalizedDepartment },
+        { code: normalizedDepartment.toUpperCase() }
+      ]
+    },
+    select: {
+      name: true,
+      code: true
+    }
+  })
+
+  return Array.from(new Set([
+    normalizedDepartment,
+    normalizedDepartment.toUpperCase(),
+    department?.name,
+    department?.code
+  ].filter(Boolean)))
+}
+
+const isDepartmentWithinAliases = (departmentValue, departmentAliases) => (
+  departmentAliases.includes(normalizeDepartmentValue(departmentValue))
+)
+
+const getCoordinatorDepartmentAliases = async (req) => {
+  if (req.user.role !== 'COORDINATOR') {
+    return []
+  }
+
+  return getDepartmentAliases(req.coordinator?.department)
+}
+
+const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, message = 'You can only manage subjects in your own department') => {
+  if (req.user.role !== 'COORDINATOR') {
+    return null
+  }
+
+  const departmentAliases = await getCoordinatorDepartmentAliases(req)
+  if (departmentAliases.length === 0) {
+    res.status(403).json({ message: 'Coordinator department is not configured yet' })
+    return null
+  }
+
+  if (!isDepartmentWithinAliases(departmentValue, departmentAliases)) {
+    res.status(403).json({ message })
+    return null
+  }
+
+  return departmentAliases
+}
+
+const ensureCoordinatorInstructorScope = async (req, res, instructorId, departmentAliases, message = 'You can only assign instructors from your own department') => {
+  if (req.user.role !== 'COORDINATOR' || !instructorId) {
+    return true
+  }
+
+  const instructor = await prisma.instructor.findUnique({
+    where: { id: instructorId },
+    select: {
+      id: true,
+      department: true
+    }
+  })
+
+  if (!instructor) {
+    res.status(404).json({ message: 'Instructor not found' })
+    return false
+  }
+
+  if (!isDepartmentWithinAliases(instructor.department, departmentAliases)) {
+    res.status(403).json({ message })
+    return false
+  }
+
+  return true
+}
+
+const buildSubjectVisibilityFilter = async (req, filters = {}) => {
+  const { user } = req
+
   if (user.role === 'INSTRUCTOR') {
     const instructor = await prisma.instructor.findUnique({
       where: { userId: user.id }
@@ -30,6 +118,27 @@ const buildSubjectVisibilityFilter = async (user, filters = {}) => {
           studentId: student?.id || '__no_student__'
         }
       }
+    }
+  }
+
+  if (user.role === 'COORDINATOR') {
+    const departmentAliases = await getCoordinatorDepartmentAliases(req)
+    if (departmentAliases.length === 0) {
+      return {
+        ...filters,
+        id: '__no_subjects__'
+      }
+    }
+
+    return {
+      AND: [
+        filters,
+        {
+          department: {
+            in: departmentAliases
+          }
+        }
+      ]
     }
   }
 
@@ -100,6 +209,16 @@ const createSubject = async (req, res) => {
       }
     }
 
+    const departmentAliases = await ensureCoordinatorDepartmentScope(req, res, normalizedDepartment)
+    if (req.user.role === 'COORDINATOR' && !departmentAliases) {
+      return
+    }
+
+    const instructorAllowed = await ensureCoordinatorInstructorScope(req, res, instructorId, departmentAliases || [])
+    if (!instructorAllowed) {
+      return
+    }
+
     const subject = await prisma.subject.create({
       data: {
         name,
@@ -149,7 +268,7 @@ const getAllSubjects = async (req, res) => {
       ]
     }
 
-    const visibleFilters = await buildSubjectVisibilityFilter(req.user, filters)
+    const visibleFilters = await buildSubjectVisibilityFilter(req, filters)
 
     const [subjects, total] = await Promise.all([
       prisma.subject.findMany({
@@ -176,7 +295,7 @@ const getSubjectById = async (req, res) => {
   try {
     const { id } = req.params
 
-    const visibleFilters = await buildSubjectVisibilityFilter(req.user, { id })
+    const visibleFilters = await buildSubjectVisibilityFilter(req, { id })
 
     const subject = await prisma.subject.findFirst({
       where: visibleFilters,
@@ -240,10 +359,27 @@ const updateSubject = async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' })
     }
 
+    const departmentAliases = await ensureCoordinatorDepartmentScope(req, res, subject.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAliases) {
+      return
+    }
+
     if (normalizedDepartment) {
       const validDepartment = await ensureDepartmentExists(normalizedDepartment)
       if (!validDepartment) {
         return res.status(400).json({ message: 'Please select a valid department' })
+      }
+    }
+
+    if (req.user.role === 'COORDINATOR') {
+      const nextDepartmentAliases = await ensureCoordinatorDepartmentScope(req, res, normalizedDepartment)
+      if (!nextDepartmentAliases) {
+        return
+      }
+
+      const instructorAllowed = await ensureCoordinatorInstructorScope(req, res, instructorId, nextDepartmentAliases)
+      if (!instructorAllowed) {
+        return
       }
     }
 
@@ -279,6 +415,11 @@ const deleteSubject = async (req, res) => {
     const subject = await prisma.subject.findUnique({ where: { id } })
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' })
+    }
+
+    const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, subject.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAllowed) {
+      return
     }
 
     const assignments = await prisma.assignment.findMany({
@@ -335,6 +476,16 @@ const assignInstructor = async (req, res) => {
     const subject = await prisma.subject.findUnique({ where: { id } })
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' })
+    }
+
+    const departmentAliases = await ensureCoordinatorDepartmentScope(req, res, subject.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAliases) {
+      return
+    }
+
+    const instructorAllowed = await ensureCoordinatorInstructorScope(req, res, instructorId, departmentAliases)
+    if (!instructorAllowed) {
+      return
     }
 
     const instructor = await prisma.instructor.findUnique({
@@ -416,6 +567,11 @@ const getSubjectEnrollments = async (req, res) => {
       return res.status(404).json({ message: 'Subject not found' })
     }
 
+    const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, subject.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAllowed) {
+      return
+    }
+
     const students = await getEnrollmentTargetStudents(subject)
     const enrollmentSet = new Set(subject.enrollments.map((entry) => entry.studentId))
 
@@ -473,6 +629,11 @@ const updateSubjectEnrollments = async (req, res) => {
     const subject = await prisma.subject.findUnique({ where: { id } })
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' })
+    }
+
+    const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, subject.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAllowed) {
+      return
     }
 
     const students = await prisma.student.findMany({

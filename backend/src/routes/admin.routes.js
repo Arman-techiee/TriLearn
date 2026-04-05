@@ -36,7 +36,7 @@ router.post('/student-applications/:id/create-account', allowRoles('ADMIN', 'COO
 router.delete('/student-applications/:id', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.studentApplicationId), deleteStudentApplication)
 router.post('/users/coordinator', allowRoles('ADMIN'), validate(schemas.admin.createCoordinator), createCoordinator)
 router.post('/users/gatekeeper', allowRoles('ADMIN'), validate(schemas.admin.createGatekeeper), createGatekeeper)
-router.post('/users/instructor', allowRoles('ADMIN'), validate(schemas.admin.createInstructor), createInstructor)
+router.post('/users/instructor', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.createInstructor), createInstructor)
 router.post('/users/student', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.createStudent), createStudent)
 router.post('/users/student-import', allowRoles('ADMIN'), staffUploadLimiter, uploadSpreadsheet.single('file'), importStudents)
 router.put('/users/:id', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.updateUser), updateUser)

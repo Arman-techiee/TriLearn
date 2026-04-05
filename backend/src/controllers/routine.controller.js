@@ -1,5 +1,65 @@
 const prisma = require('../utils/prisma')
 
+const normalizeDepartmentValue = (value) => String(value || '').trim()
+
+const getDepartmentAliases = async (departmentValue) => {
+  const normalizedDepartment = normalizeDepartmentValue(departmentValue)
+  if (!normalizedDepartment) {
+    return []
+  }
+
+  const department = await prisma.department.findFirst({
+    where: {
+      OR: [
+        { name: normalizedDepartment },
+        { code: normalizedDepartment.toUpperCase() }
+      ]
+    },
+    select: {
+      name: true,
+      code: true
+    }
+  })
+
+  return Array.from(new Set([
+    normalizedDepartment,
+    normalizedDepartment.toUpperCase(),
+    department?.name,
+    department?.code
+  ].filter(Boolean)))
+}
+
+const isDepartmentWithinAliases = (departmentValue, departmentAliases) => (
+  departmentAliases.includes(normalizeDepartmentValue(departmentValue))
+)
+
+const getCoordinatorDepartmentAliases = async (req) => {
+  if (req.user.role !== 'COORDINATOR') {
+    return []
+  }
+
+  return getDepartmentAliases(req.coordinator?.department)
+}
+
+const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, message = 'You can only manage routines in your own department') => {
+  if (req.user.role !== 'COORDINATOR') {
+    return null
+  }
+
+  const departmentAliases = await getCoordinatorDepartmentAliases(req)
+  if (departmentAliases.length === 0) {
+    res.status(403).json({ message: 'Coordinator department is not configured yet' })
+    return null
+  }
+
+  if (!isDepartmentWithinAliases(departmentValue, departmentAliases)) {
+    res.status(403).json({ message })
+    return null
+  }
+
+  return departmentAliases
+}
+
 const applySectionScope = (studentSection) => (
   studentSection
     ? [{ section: null }, { section: studentSection }]
@@ -40,6 +100,24 @@ const buildRoutineFilters = async (req) => {
     }
   }
 
+  if (req.user.role === 'COORDINATOR') {
+    const departmentAliases = await getCoordinatorDepartmentAliases(req)
+    if (departmentAliases.length === 0) {
+      return { id: '__no_routines__' }
+    }
+
+    return {
+      AND: [
+        filters,
+        {
+          department: {
+            in: departmentAliases
+          }
+        }
+      ]
+    }
+  }
+
   return filters
 }
 
@@ -62,11 +140,17 @@ const getRoutineInclude = () => ({
   }
 })
 
-const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester }) => {
+const validateRoutineAcademicScope = async ({ req, subjectId, instructorId, department, semester }) => {
   const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
   if (!subject) return { error: { status: 404, message: 'Subject not found' } }
 
-  const instructor = await prisma.instructor.findUnique({ where: { id: instructorId } })
+  const instructor = await prisma.instructor.findUnique({
+    where: { id: instructorId },
+    select: {
+      id: true,
+      department: true
+    }
+  })
   if (!instructor) return { error: { status: 404, message: 'Instructor not found' } }
 
   if (subject.semester !== semester) {
@@ -78,6 +162,22 @@ const validateRoutineAcademicScope = async ({ subjectId, instructorId, departmen
 
   if (normalizedDepartment !== normalizedSubjectDepartment) {
     return { error: { status: 400, message: 'Routine department must match the selected subject department.' } }
+  }
+
+  const normalizedInstructorDepartment = instructor.department || null
+  if (normalizedInstructorDepartment !== normalizedDepartment) {
+    return { error: { status: 400, message: 'Routine instructor must belong to the selected department.' } }
+  }
+
+  if (req?.user?.role === 'COORDINATOR') {
+    const departmentAliases = await getCoordinatorDepartmentAliases(req)
+    if (departmentAliases.length === 0) {
+      return { error: { status: 403, message: 'Coordinator department is not configured yet' } }
+    }
+
+    if (!isDepartmentWithinAliases(normalizedDepartment, departmentAliases)) {
+      return { error: { status: 403, message: 'You can only manage routines in your own department' } }
+    }
   }
 
   return { subject, instructor }
@@ -131,7 +231,7 @@ const createRoutine = async (req, res) => {
   try {
     const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId } = req.body
 
-    const scope = await validateRoutineAcademicScope({ subjectId, instructorId, department, semester })
+    const scope = await validateRoutineAcademicScope({ req, subjectId, instructorId, department, semester })
     if (scope.error) {
       return res.status(scope.error.status).json({ message: scope.error.message })
     }
@@ -197,6 +297,12 @@ const getRoutineById = async (req, res) => {
       include: getRoutineInclude()
     })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
+
+    const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, routine.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAllowed) {
+      return
+    }
+
     res.json({ routine })
   } catch (error) {
     res.internalError(error)
@@ -211,7 +317,12 @@ const updateRoutine = async (req, res) => {
     const routine = await prisma.routine.findUnique({ where: { id } })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
 
-    const scope = await validateRoutineAcademicScope({ subjectId, instructorId, department, semester })
+    const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, routine.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAllowed) {
+      return
+    }
+
+    const scope = await validateRoutineAcademicScope({ req, subjectId, instructorId, department, semester })
     if (scope.error) {
       return res.status(scope.error.status).json({ message: scope.error.message })
     }
@@ -256,6 +367,11 @@ const deleteRoutine = async (req, res) => {
     const { id } = req.params
     const routine = await prisma.routine.findUnique({ where: { id } })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
+
+    const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, routine.department)
+    if (req.user.role === 'COORDINATOR' && !departmentAllowed) {
+      return
+    }
 
     await prisma.routine.delete({ where: { id } })
     res.json({ message: 'Routine deleted successfully!' })
