@@ -52,11 +52,11 @@ const getDepartmentAliases = async (departmentValue) => {
 const getAdminStats = async (req, res) => {
   try {
     const [totalUsers, totalStudents, totalInstructors, totalCoordinators, totalGatekeepers, totalSubjects] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { role: 'STUDENT' } }),
-      prisma.user.count({ where: { role: 'INSTRUCTOR' } }),
-      prisma.user.count({ where: { role: 'COORDINATOR' } }),
-      prisma.user.count({ where: { role: 'GATEKEEPER' } }),
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.user.count({ where: { role: 'STUDENT', deletedAt: null } }),
+      prisma.user.count({ where: { role: 'INSTRUCTOR', deletedAt: null } }),
+      prisma.user.count({ where: { role: 'COORDINATOR', deletedAt: null } }),
+      prisma.user.count({ where: { role: 'GATEKEEPER', deletedAt: null } }),
       prisma.subject.count()
     ])
 
@@ -83,7 +83,7 @@ const getAllUsers = async (req, res) => {
     const { role, isActive, search } = req.query
     const { page, limit, skip } = getPagination(req.query)
 
-    const filters = {}
+    const filters = { deletedAt: null }
     if (role) filters.role = role
     if (isActive !== undefined) filters.isActive = isActive === 'true'
     if (search) {
@@ -149,8 +149,8 @@ const getUserById = async (req, res) => {
   try {
     const { id } = req.params
 
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
       select: {
         id: true,
         name: true,
@@ -462,7 +462,7 @@ const updateUser = async (req, res) => {
     const { name, phone, address, department, semester, section } = req.body
     const normalizedDepartment = department?.trim() || null
 
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await prisma.user.findFirst({ where: { id, deletedAt: null } })
     if (!user) {
       return res.status(404).json({ message: 'User not found' })
     }
@@ -534,8 +534,8 @@ const toggleUserStatus = async (req, res) => {
   try {
     const { id } = req.params
 
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
       select: {
         id: true,
         role: true,
@@ -591,8 +591,8 @@ const toggleUserStatus = async (req, res) => {
       })
     }
 
-    const updatedUser = await prisma.user.findUnique({
-      where: { id },
+    const updatedUser = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
       select: {
         id: true,
         isActive: true
@@ -627,7 +627,7 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params
 
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await prisma.user.findFirst({ where: { id, deletedAt: null } })
     if (!user) {
       return res.status(404).json({ message: 'User not found' })
     }
@@ -638,7 +638,7 @@ const deleteUser = async (req, res) => {
 
     if (user.role === 'ADMIN') {
       const adminCount = await prisma.user.count({
-        where: { role: 'ADMIN' }
+        where: { role: 'ADMIN', deletedAt: null }
       })
 
       if (adminCount <= 1) {
@@ -646,7 +646,22 @@ const deleteUser = async (req, res) => {
       }
     }
 
-    await prisma.user.delete({ where: { id } })
+    await prisma.$transaction([
+      prisma.refreshToken.updateMany({
+        where: {
+          userId: id,
+          revokedAt: null
+        },
+        data: { revokedAt: new Date() }
+      }),
+      prisma.user.update({
+        where: { id },
+        data: {
+          isActive: false,
+          deletedAt: new Date()
+        }
+      })
+    ])
     clearStatsCache()
 
     res.json({ message: 'User deleted successfully!' })

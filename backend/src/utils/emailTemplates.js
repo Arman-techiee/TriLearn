@@ -57,20 +57,8 @@ const noticeTemplate = ({ title, content, audience, type }) => ({
   text: `${title}\n\n${content}`
 })
 
-const lowAttendanceTemplate = ({ name, subjectName, percentage }) => ({
-  subject: `Low attendance alert - ${subjectName}`,
-  html: base(`
-    <p>Hi ${name},</p>
-    <p>Your attendance in <strong>${subjectName}</strong> has dropped to
-       <strong style="color:#dc2626">${percentage}%</strong>.</p>
-    <p>The minimum required is <strong>75%</strong>. Please attend
-       upcoming classes to avoid issues.</p>`),
-  text: `Hi ${name},\n\nYour attendance in ${subjectName} is ${percentage}%.\nMinimum required: 75%.`
-})
-
 module.exports = {
   passwordResetTemplate,
   welcomeTemplate,
-  noticeTemplate,
-  lowAttendanceTemplate
+  noticeTemplate
 }

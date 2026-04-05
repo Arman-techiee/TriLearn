@@ -17,10 +17,36 @@ const protect = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, role: true, isActive: true }
+      select: {
+        id: true,
+        role: true,
+        isActive: true,
+        deletedAt: true,
+        student: {
+          select: {
+            id: true,
+            rollNumber: true,
+            semester: true,
+            section: true,
+            department: true
+          }
+        },
+        instructor: {
+          select: {
+            id: true,
+            department: true
+          }
+        },
+        coordinator: {
+          select: {
+            id: true,
+            department: true
+          }
+        }
+      }
     })
 
-    if (!user || !user.isActive) {
+    if (!user || user.deletedAt || !user.isActive) {
       return res.status(401).json({ message: 'User is not authorized' })
     }
 

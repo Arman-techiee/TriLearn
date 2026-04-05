@@ -12,6 +12,7 @@ EduNexus is a full-stack campus management system for semester-based colleges. I
 - Instructor QR attendance, Student QR attendance windows, and student ID-card QR scanning
 - Absence tickets with review workflow
 - In-app notification center with unread polling
+- Device token registration and notification persistence, with FCM delivery still scaffolded
 - Student marks summary chart
 - Dark mode with manual toggle and system-aware theming
 - Recent account activity and active-session tracking on the profile page
@@ -74,12 +75,14 @@ EduNexus is a full-stack campus management system for semester-based colleges. I
 - Full system management
 - Creates and manages users, departments, subjects, routines, notices, and attendance settings
 - Reviews student applications and converts them into accounts
+- Only role that can create coordinator and gatekeeper accounts
 
 ### `COORDINATOR`
 
 - Department-scoped academic operations
 - Reviews applications and creates student accounts
 - Manages routines, subjects, notices, attendance windows, and academic reports for their department
+- Can create student accounts, but not coordinator or gatekeeper accounts
 
 ### `INSTRUCTOR`
 
@@ -92,6 +95,7 @@ EduNexus is a full-stack campus management system for semester-based colleges. I
 
 - Runs the Student QR page during attendance windows
 - Scans student ID QR cards for gate attendance
+- Uses the base authenticated user record directly because there is no separate gatekeeper profile model yet
 
 ### `STUDENT`
 
@@ -283,6 +287,10 @@ npx prisma migrate dev --skip-generate
 npm run test:db
 ```
 
+Migration note:
+
+- `20260402183000_add_absence_tickets_and_cleanup` creates the absence ticket status column before `20260402234500_fix_absence_ticket_status_enum` converts it to the enum type. Keep migration order intact when bootstrapping older databases.
+
 GitHub Actions runs:
 
 - backend lint
@@ -300,6 +308,8 @@ Workflow file: [.github/workflows/ci.yml](/C:/Users/arman/EduNexus/.github/workf
 - Access tokens are type-checked in auth middleware.
 - QR payload signing reads secrets at runtime and fails safely if secrets are missing.
 - Refresh tokens track session metadata for profile visibility.
+- User deletion is still a hard delete today, so related attendance, marks, and submission records cascade with the user.
+- Protected requests now hydrate role profile context from the main auth lookup to avoid a second profile query per request.
 
 ## Current Product Status
 
@@ -319,6 +329,7 @@ Still reasonable future work:
 - mobile push notifications
 - cloud object storage
 - advanced analytics/reporting
+- soft-delete or archival workflows for student record retention instead of hard-delete cascades
 
 ## Why This Fits A Nepal College Workflow
 

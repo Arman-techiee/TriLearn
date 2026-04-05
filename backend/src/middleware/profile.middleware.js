@@ -1,5 +1,3 @@
-const prisma = require('../utils/prisma')
-
 const attachActorProfiles = async (req, _res, next) => {
   if (!req.user?.id || !req.user?.role) {
     return next()
@@ -7,17 +5,13 @@ const attachActorProfiles = async (req, _res, next) => {
 
   try {
     if (req.user.role === 'INSTRUCTOR') {
-      req.instructor = await prisma.instructor.findUnique({
-        where: { userId: req.user.id }
-      })
+      req.instructor = req.user.instructor || null
     } else if (req.user.role === 'STUDENT') {
-      req.student = await prisma.student.findUnique({
-        where: { userId: req.user.id }
-      })
+      req.student = req.user.student || null
     } else if (req.user.role === 'COORDINATOR') {
-      req.coordinator = await prisma.coordinator.findUnique({
-        where: { userId: req.user.id }
-      })
+      req.coordinator = req.user.coordinator || null
+    } else if (req.user.role === 'GATEKEEPER') {
+      req.gatekeeper = { userId: req.user.id }
     }
 
     next()

@@ -24,8 +24,9 @@ const loadPushTargets = async (userIds = []) => {
 const dispatchPushNotifications = async ({ userIds }) => {
   if (!process.env.FCM_SERVER_KEY) return { count: 0 }
 
-  // Mobile groundwork: persist device tokens now and centralize the future
-  // FCM fan-out hook here after database notifications are saved.
+  // Push delivery is intentionally scaffolded but not yet connected to FCM.
+  // For now we count eligible device tokens so the rest of the notification
+  // pipeline can be exercised without attempting external delivery.
   const pushTargets = await loadPushTargets(userIds)
   return { count: pushTargets.length }
 }

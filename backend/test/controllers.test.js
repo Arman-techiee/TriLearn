@@ -327,12 +327,14 @@ test('allowRoles blocks unauthorized roles with 403', async () => {
 test('getAdminStats returns fresh server-side aggregate counts', async () => {
   let userCountCalls = 0
   let subjectCountCalls = 0
+  const countWheres = []
   const { getAdminStats } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
     '../utils/prisma': {
       user: {
         count: async ({ where } = {}) => {
           userCountCalls += 1
-          if (!where) return 42
+          countWheres.push(where || null)
+          if (!where || (where.deletedAt === null && !where.role)) return 42
           if (where.role === 'STUDENT') return 30
           if (where.role === 'INSTRUCTOR') return 7
           if (where.role === 'COORDINATOR') return 3
@@ -390,6 +392,8 @@ test('getAdminStats returns fresh server-side aggregate counts', async () => {
   assert.deepEqual(secondRes.body, firstRes.body)
   assert.equal(userCountCalls, 10)
   assert.equal(subjectCountCalls, 2)
+  assert.deepEqual(countWheres[0], { deletedAt: null })
+  assert.deepEqual(countWheres[1], { role: 'STUDENT', deletedAt: null })
 })
 
 test('updateUser does not wipe coordinator department when no department is provided', async () => {
@@ -397,7 +401,7 @@ test('updateUser does not wipe coordinator department when no department is prov
   const { updateUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
     '../utils/prisma': {
       user: {
-        findUnique: async () => ({
+        findFirst: async () => ({
           id: 'user-1',
           role: 'COORDINATOR'
         }),
@@ -458,17 +462,21 @@ test('deleteUser blocks deleting the last admin account', async () => {
   const { deleteUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
     '../utils/prisma': {
       user: {
-        findUnique: async () => ({
+        findFirst: async () => ({
           id: 'admin-2',
           role: 'ADMIN',
           email: 'admin2@example.com'
         }),
         count: async () => 1,
-        delete: async (payload) => {
+        update: async (payload) => {
           deleteCalls.push(payload)
           return payload
         }
-      }
+      },
+      refreshToken: {
+        updateMany: async () => ({ count: 0 })
+      },
+      $transaction: async (operations) => Promise.all(operations)
     },
     'bcryptjs': {
       hash: async () => 'hashed'
@@ -494,7 +502,7 @@ test('deleteUser blocks deleting the last admin account', async () => {
   })
 
   const req = {
-    params: { id: 'admin-2' },
+    params: { id: 'student-2' },
     user: { id: 'admin-1', role: 'ADMIN' }
   }
   const res = createResponse()
@@ -504,6 +512,72 @@ test('deleteUser blocks deleting the last admin account', async () => {
   assert.equal(res.statusCode, 400)
   assert.deepEqual(res.body, { message: 'You cannot delete the last admin user' })
   assert.equal(deleteCalls.length, 0)
+})
+
+test('deleteUser soft deletes the user and revokes refresh tokens', async () => {
+  const transactionCalls = []
+  const { deleteUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({
+          id: 'student-2',
+          role: 'STUDENT',
+          email: 'student2@example.com'
+        }),
+        count: async () => 2,
+        update: async (payload) => {
+          transactionCalls.push({ type: 'user.update', payload })
+          return payload
+        }
+      },
+      refreshToken: {
+        updateMany: async (payload) => {
+          transactionCalls.push({ type: 'refreshToken.updateMany', payload })
+          return { count: 1 }
+        }
+      },
+      $transaction: async (operations) => Promise.all(operations)
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    params: { id: 'student-2' },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await deleteUser(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.body, { message: 'User deleted successfully!' })
+  assert.equal(transactionCalls.length, 2)
+  assert.equal(transactionCalls[0].type, 'refreshToken.updateMany')
+  assert.equal(transactionCalls[0].payload.where.userId, 'student-2')
+  assert.equal(transactionCalls[1].type, 'user.update')
+  assert.equal(transactionCalls[1].payload.where.id, 'student-2')
+  assert.equal(transactionCalls[1].payload.data.isActive, false)
+  assert.ok(transactionCalls[1].payload.data.deletedAt instanceof Date)
 })
 
 test('getMyAttendance builds subject summary with groupBy instead of loading all records', async () => {
@@ -924,7 +998,7 @@ test('toggleUserStatus returns 409 when another request already changed the stat
   const { toggleUserStatus } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
     '../utils/prisma': {
       user: {
-        findUnique: async ({ select } = {}) => {
+        findFirst: async ({ select } = {}) => {
           if (select?.student || select?.instructor || select?.coordinator) {
             return {
               id: 'user-2',
