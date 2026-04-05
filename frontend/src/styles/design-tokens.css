@@ -208,41 +208,51 @@ html[data-theme="dark"] {
 }
 
 @utility status-present {
-  background: #ecfdf5;
-  color: #047857;
-  border-color: color-mix(in srgb, #10b981 22%, transparent);
+  background: color-mix(in srgb, #10b981 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #047857 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #10b981 34%, var(--color-card-border));
 }
 
 @utility status-absent {
-  background: #fef2f2;
-  color: #b91c1c;
-  border-color: color-mix(in srgb, #ef4444 22%, transparent);
+  background: color-mix(in srgb, #ef4444 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #b91c1c 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #ef4444 34%, var(--color-card-border));
 }
 
 @utility status-late {
-  background: #fff7ed;
-  color: #c2410c;
-  border-color: color-mix(in srgb, #f97316 22%, transparent);
+  background: color-mix(in srgb, #f97316 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #c2410c 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #f97316 34%, var(--color-card-border));
+}
+
+@utility status-info {
+  background: color-mix(in srgb, #3b82f6 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #1d4ed8 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #3b82f6 34%, var(--color-card-border));
 }
 
 @utility grade-pass {
-  background: #ecfdf5;
-  color: #047857;
+  background: color-mix(in srgb, #10b981 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #047857 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #10b981 34%, var(--color-card-border));
 }
 
 @utility grade-merit {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: color-mix(in srgb, #3b82f6 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #1d4ed8 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #3b82f6 34%, var(--color-card-border));
 }
 
 @utility grade-average {
-  background: #fffbeb;
-  color: #b45309;
+  background: color-mix(in srgb, #f59e0b 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #b45309 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #f59e0b 34%, var(--color-card-border));
 }
 
 @utility grade-fail {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: color-mix(in srgb, #ef4444 14%, var(--color-card-surface));
+  color: color-mix(in srgb, #b91c1c 82%, var(--color-heading));
+  border-color: color-mix(in srgb, #ef4444 34%, var(--color-card-border));
 }
 
 @utility routine-tone-1 {

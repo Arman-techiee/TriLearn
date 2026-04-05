@@ -45,7 +45,7 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/edunexus?connection_limit=10&p
 
 ## Docker
 
-The backend includes [backend/Dockerfile](/C:/Users/arman/EduNexus/backend/Dockerfile) for containerized deployment.
+The backend includes [backend/Dockerfile](backend/Dockerfile) for containerized deployment.
 
 Example:
 

@@ -577,9 +577,26 @@ const toggleUserStatus = async (req, res) => {
       }
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id },
+    const updateResult = await prisma.user.updateMany({
+      where: {
+        id,
+        isActive: user.isActive
+      },
       data: { isActive: !user.isActive }
+    })
+
+    if (updateResult.count === 0) {
+      return res.status(409).json({
+        message: 'User status changed before this request could be applied. Please refresh and try again.'
+      })
+    }
+
+    const updatedUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        isActive: true
+      }
     })
 
     res.json({

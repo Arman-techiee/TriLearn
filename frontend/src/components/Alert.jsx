@@ -1,7 +1,7 @@
 const styles = {
   success: 'status-present',
   error: 'status-absent',
-  info: 'grade-merit'
+  info: 'status-info'
 }
 
 const Alert = ({ type, message }) => {

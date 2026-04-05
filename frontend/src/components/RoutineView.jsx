@@ -8,13 +8,13 @@ const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'
 const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' }
 
 const ROUTINE_TONES = [
-  'border-sky-200 bg-sky-50 text-sky-900',
-  'border-emerald-200 bg-emerald-50 text-emerald-900',
-  'border-amber-200 bg-amber-50 text-amber-900',
-  'border-rose-200 bg-rose-50 text-rose-900',
-  'border-cyan-200 bg-cyan-50 text-cyan-900',
-  'border-lime-200 bg-lime-50 text-lime-900',
-  'border-indigo-200 bg-indigo-50 text-indigo-900'
+  'routine-tone-1',
+  'routine-tone-2',
+  'routine-tone-3',
+  'routine-tone-4',
+  'routine-tone-5',
+  'routine-tone-6',
+  'routine-tone-7'
 ]
 
 const todayName = () => {

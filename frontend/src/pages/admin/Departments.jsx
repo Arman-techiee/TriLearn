@@ -32,7 +32,7 @@ const Departments = () => {
 
   const fetchDepartments = useCallback(async () => {
     await execute(
-      () => api.get('/departments'),
+      (signal) => api.get('/departments', { signal }),
       {
         fallbackMessage: 'Unable to load departments',
         transform: (response) => response.data.departments

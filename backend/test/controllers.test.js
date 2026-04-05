@@ -824,6 +824,167 @@ test('submitStudentIntake upserts the application payload and returns success', 
   assert.equal(upsertCalls[0].create.preferredDepartment, 'BCA')
 })
 
+test('submitStudentIntake allows resubmission when a prior application was reviewed', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+
+  const upsertCalls = []
+  const { submitStudentIntake } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      studentApplication: {
+        findUnique: async () => ({ id: 'application-1', status: 'REVIEWED' }),
+        upsert: async (payload) => {
+          upsertCalls.push(payload)
+          return payload
+        }
+      },
+      user: {
+        findUnique: async () => null
+      }
+    }
+  }))
+
+  const req = {
+    body: {
+      fullName: 'Arman Dev',
+      email: 'arman@example.com',
+      phone: '9800000000',
+      fatherName: 'Father Name',
+      motherName: 'Mother Name',
+      fatherPhone: '9800000001',
+      motherPhone: '9800000002',
+      bloodGroup: 'A+',
+      localGuardianName: 'Guardian Name',
+      localGuardianAddress: 'Kathmandu',
+      localGuardianPhone: '9800000003',
+      permanentAddress: 'Bhaktapur',
+      temporaryAddress: 'Lalitpur',
+      dateOfBirth: '2005-01-01',
+      preferredDepartment: 'BCA'
+    }
+  }
+  const res = createResponse()
+
+  await submitStudentIntake(req, res)
+
+  assert.equal(res.statusCode, 201)
+  assert.equal(upsertCalls.length, 1)
+  assert.equal(upsertCalls[0].update.status, 'PENDING')
+  assert.equal(upsertCalls[0].update.reviewedAt, null)
+  assert.equal(upsertCalls[0].update.reviewedBy, null)
+})
+
+test('submitStudentIntake still blocks duplicate pending applications', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+
+  const { submitStudentIntake } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      studentApplication: {
+        findUnique: async () => ({ id: 'application-1', status: 'PENDING' }),
+        upsert: async () => {
+          throw new Error('should not upsert')
+        }
+      },
+      user: {
+        findUnique: async () => null
+      }
+    }
+  }))
+
+  const req = {
+    body: {
+      fullName: 'Arman Dev',
+      email: 'arman@example.com',
+      phone: '9800000000',
+      fatherName: 'Father Name',
+      motherName: 'Mother Name',
+      fatherPhone: '9800000001',
+      motherPhone: '9800000002',
+      bloodGroup: 'A+',
+      localGuardianName: 'Guardian Name',
+      localGuardianAddress: 'Kathmandu',
+      localGuardianPhone: '9800000003',
+      permanentAddress: 'Bhaktapur',
+      temporaryAddress: 'Lalitpur',
+      dateOfBirth: '2005-01-01',
+      preferredDepartment: 'BCA'
+    }
+  }
+  const res = createResponse()
+
+  await submitStudentIntake(req, res)
+
+  assert.equal(res.statusCode, 400)
+  assert.deepEqual(res.body, {
+    message: 'An application with this email has already been submitted.'
+  })
+})
+
+test('toggleUserStatus returns 409 when another request already changed the status', async () => {
+  const auditCalls = []
+  const { toggleUserStatus } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findUnique: async ({ select } = {}) => {
+          if (select?.student || select?.instructor || select?.coordinator) {
+            return {
+              id: 'user-2',
+              role: 'STUDENT',
+              isActive: true,
+              email: 'student@example.com',
+              student: { department: 'BCA' },
+              instructor: null,
+              coordinator: null
+            }
+          }
+
+          return {
+            id: 'user-2',
+            isActive: false
+          }
+        },
+        updateMany: async () => ({ count: 0 })
+      }
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async (payload) => {
+        auditCalls.push(payload)
+      }
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    params: { id: 'user-2' },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await toggleUserStatus(req, res)
+
+  assert.equal(res.statusCode, 409)
+  assert.deepEqual(res.body, {
+    message: 'User status changed before this request could be applied. Please refresh and try again.'
+  })
+  assert.equal(auditCalls.length, 0)
+})
+
 test('markAttendanceQR creates a present attendance record for eligible students', async () => {
   const upsertCalls = []
   const { markAttendanceQR } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {

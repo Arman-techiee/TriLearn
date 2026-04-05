@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   API_BASE_URL,
@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(getAuthState().user)
   const [token, setToken] = useState(getAuthState().token)
   const [loading, setLoading] = useState(true)
+  const skipInitialRefreshRef = useRef(PUBLIC_AUTH_ROUTES.has(location.pathname))
 
   useEffect(() => {
     let isMounted = true
@@ -34,7 +35,8 @@ export const AuthProvider = ({ children }) => {
       navigate('/login', { replace: true })
     })
 
-    if (PUBLIC_AUTH_ROUTES.has(location.pathname)) {
+    if (skipInitialRefreshRef.current) {
+      skipInitialRefreshRef.current = false
       setLoading(false)
       return () => {
         isMounted = false
@@ -58,7 +60,7 @@ export const AuthProvider = ({ children }) => {
       unsubscribe()
       unregisterUnauthorizedHandler()
     }
-  }, [location.pathname, navigate])
+  }, [navigate])
 
   const login = (userData, userToken) => {
     setAuthState({ user: userData, token: userToken })

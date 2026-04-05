@@ -244,7 +244,7 @@ const submitStudentIntake = async (req, res) => {
       where: { email }
     })
 
-    if (existingApplication && existingApplication.status !== 'CONVERTED') {
+    if (existingApplication && !['CONVERTED', 'REVIEWED'].includes(existingApplication.status)) {
       return res.status(400).json({ message: 'An application with this email has already been submitted.' })
     }
 
@@ -401,8 +401,7 @@ const getMe = async (req, res) => {
 
     res.json({ user })
   } catch (error) {
-    logger.error(error.message, { stack: error.stack })
-    res.status(500).json({ message: 'Something went wrong' })
+    res.internalError(error)
   }
 }
 
