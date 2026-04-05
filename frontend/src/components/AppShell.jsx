@@ -21,7 +21,6 @@ const roleThemeClasses = {
 }
 
 const AppShell = ({
-  brand = 'TriLearn',
   roleLabel,
   roleTheme = 'admin',
   user,
