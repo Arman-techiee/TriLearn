@@ -41,6 +41,10 @@ const validateEnv = () => {
     process.exit(1)
   }
 
+  // Real-time notifications run over Socket.IO on the same backend server.
+  // No separate env vars are required because it reuses JWT_SECRET and the
+  // existing trusted frontend origin configuration.
+
   if (process.env.NODE_ENV === 'production' && process.env.OPEN_REGISTRATION === 'true') {
     console.warn('Warning: OPEN_REGISTRATION is enabled in production')
   }

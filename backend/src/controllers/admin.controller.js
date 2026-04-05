@@ -1090,6 +1090,16 @@ const importStudents = async (req, res) => {
     for (const row of rowsToCreate) {
       try {
         const { user, temporaryPassword } = await createStudentAccountRecord(row)
+
+        const { subject, html, text } = welcomeTemplate({
+          name: user.name,
+          email: user.email,
+          tempPassword: temporaryPassword
+        })
+
+        await sendMail({ to: user.email, subject, html, text })
+          .catch((error) => logger.error('Welcome email failed', { message: error.message, stack: error.stack, userId: user.id }))
+
         created.push({
           rowNumber: row.rowNumber,
           status: 'created',
