@@ -12,7 +12,7 @@ import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
 import useApi from '../../hooks/useApi'
-import api, { isEmbeddablePdfUrl, resolveFileUrl } from '../../utils/api'
+import api, { fetchFileBlob, openFileUrl } from '../../utils/api'
 
 const InstructorMaterials = () => {
   const { user } = useAuth()
@@ -62,6 +62,14 @@ const InstructorMaterials = () => {
     void fetchMaterials()
     void fetchSubjects()
   }, [fetchMaterials, fetchSubjects])
+
+  useEffect(() => {
+    return () => {
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+    }
+  }, [previewFile])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -137,14 +145,32 @@ const InstructorMaterials = () => {
     return 'bg-slate-100 text-slate-700'
   }
 
-  const openPreview = (title, fileUrl) => {
-    const resolvedUrl = resolveFileUrl(fileUrl)
-    if (!resolvedUrl) {
+  const openPreview = async (title, fileUrl) => {
+    if (!fileUrl) {
       setError('This file preview is unavailable because the file link is invalid.')
       return
     }
 
-    setPreviewFile({ title, url: resolvedUrl, canEmbed: isEmbeddablePdfUrl(resolvedUrl) })
+    try {
+      const { blob } = await fetchFileBlob(fileUrl)
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+
+      setPreviewFile({ title, url: objectUrl, objectUrl, canEmbed: blob.type === 'application/pdf' })
+    } catch {
+      setError('Unable to open this file right now.')
+    }
+  }
+
+  const handleOpenMaterial = async (fileUrl) => {
+    try {
+      await openFileUrl(fileUrl)
+    } catch {
+      setError('Unable to open this file right now.')
+    }
   }
 
   return (
@@ -237,32 +263,13 @@ const InstructorMaterials = () => {
                     View PDF
                   </button>
                 ) : (
-                  (() => {
-                    const materialUrl = resolveFileUrl(mat.fileUrl)
-
-                    if (!materialUrl) {
-                      return (
-                        <button
-                          type="button"
-                          disabled
-                          className="mt-3 block w-full cursor-not-allowed text-center text-xs bg-slate-200 text-slate-500 py-2 rounded-lg font-medium"
-                        >
-                          Invalid File Link
-                        </button>
-                      )
-                    }
-
-                    return (
-                      <a
-                        href={materialUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 block text-center text-xs bg-primary text-white py-2 rounded-lg hover:bg-primary-700 transition font-medium"
-                      >
-                        Open / Download
-                      </a>
-                    )
-                  })()
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMaterial(mat.fileUrl)}
+                    className="mt-3 block w-full text-center text-xs bg-primary text-white py-2 rounded-lg hover:bg-primary-700 transition font-medium"
+                  >
+                    Open / Download
+                  </button>
                 )}
               </div>
             ))}
@@ -351,7 +358,12 @@ const InstructorMaterials = () => {
                 </a>
                 <button
                   type="button"
-                  onClick={() => setPreviewFile(null)}
+                  onClick={() => {
+                    if (previewFile?.objectUrl) {
+                      window.URL.revokeObjectURL(previewFile.objectUrl)
+                    }
+                    setPreviewFile(null)
+                  }}
                   className="text-gray-400 hover:text-[--color-text-muted] dark:text-slate-400 text-xl"
                 >
                   ✕

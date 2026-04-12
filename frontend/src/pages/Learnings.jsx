@@ -7,7 +7,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton'
 import PageHeader from '../components/PageHeader'
 import Alert from '../components/Alert'
 import EmptyState from '../components/EmptyState'
-import api, { isEmbeddablePdfUrl, resolveFileUrl } from '../utils/api'
+import api, { fetchFileBlob } from '../utils/api'
 import { isRequestCanceled } from '../utils/http'
 import logger from '../utils/logger'
 
@@ -60,6 +60,14 @@ const Learnings = () => {
     }
   }, [subjectId])
 
+  useEffect(() => {
+    return () => {
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+    }
+  }, [previewFile])
+
   const upcomingAssignments = useMemo(() => (
     [...assignments]
       .filter((assignment) => new Date(assignment.dueDate) >= new Date())
@@ -73,14 +81,25 @@ const Learnings = () => {
     { label: 'Subject Code', value: subject?.code || '--', help: 'Current learning space', icon: Hash, color: 'from-violet-500 to-fuchsia-500' }
   ]
 
-  const openPreview = (title, fileUrl) => {
-    const resolvedUrl = resolveFileUrl(fileUrl)
-    if (!resolvedUrl) {
+  const openPreview = async (title, fileUrl) => {
+    if (!fileUrl) {
       setError('This file preview is unavailable because the file link is invalid.')
       return
     }
 
-    setPreviewFile({ title, url: resolvedUrl, canEmbed: isEmbeddablePdfUrl(resolvedUrl) })
+    try {
+      const { blob } = await fetchFileBlob(fileUrl)
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+
+      setPreviewFile({ title, url: objectUrl, objectUrl, canEmbed: blob.type === 'application/pdf' })
+    } catch (previewError) {
+      logger.error('Failed to preview learning file', previewError)
+      setError('Unable to open this file right now.')
+    }
   }
 
   return (
@@ -299,7 +318,12 @@ const Learnings = () => {
                 </a>
                 <button
                   type="button"
-                  onClick={() => setPreviewFile(null)}
+                  onClick={() => {
+                    if (previewFile?.objectUrl) {
+                      window.URL.revokeObjectURL(previewFile.objectUrl)
+                    }
+                    setPreviewFile(null)
+                  }}
                   className="text-xl text-[var(--color-text-soft)] hover:text-[var(--color-text-muted)]"
                 >
                   ✕

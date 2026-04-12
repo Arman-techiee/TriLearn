@@ -10,6 +10,7 @@ const { apiLimiter } = require('./middleware/rateLimit.middleware')
 const { requestId } = require('./middleware/requestId.middleware')
 const { uploadPath, uploadPublicPath } = require('./utils/fileStorage')
 const { csrfProtection, getRuntimeEnv, getTrustedOrigins, isTrustedOrigin } = require('./middleware/csrf.middleware')
+const { serveUploadedFile } = require('./controllers/upload.controller')
 const prisma = require('./utils/prisma')
 const { scheduleMaintenance } = require('./utils/maintenance')
 const { initRealtime, closeRealtime } = require('./utils/realtime')
@@ -59,15 +60,7 @@ app.use((req, res, next) => {
 })
 app.use(apiLimiter)
 app.use(csrfProtection)
-app.use(uploadPublicPath, express.static(uploadPath, {
-  setHeaders: (res) => {
-    // Uploaded PDFs are previewed inside the frontend modal iframe, so the
-    // default frame protections from helmet would block them when the
-    // frontend and API run on different local origins in development.
-    res.removeHeader('X-Frame-Options')
-    res.removeHeader('Content-Security-Policy')
-  }
-}))
+app.get(`${uploadPublicPath}/:filename`, serveUploadedFile)
 
 // Routes
 const authRoutes = require('./routes/auth.routes')

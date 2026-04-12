@@ -294,12 +294,11 @@ const StudentMarks = () => {
 
                     {summary.ranking.topStudents.length > 0 && (
                       <div className="ui-card rounded-3xl p-5 md:p-6">
-                        <h2 className="text-lg font-semibold text-[var(--color-heading)]">Top Rankers</h2>
+                        <h2 className="text-lg font-semibold text-[var(--color-heading)]">Top Performance Range</h2>
                         <div className="mt-4 space-y-3">
                           {summary.ranking.topStudents.map((student, index) => (
-                            <div key={`${student.userId}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--color-surface-muted)] px-4 py-3">
+                            <div key={`top-student-${index}`} className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--color-surface-muted)] px-4 py-3">
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-[var(--color-heading)]">{student.name}</p>
                                 <p className="text-xs text-[var(--color-text-muted)]">Rank #{index + 1}</p>
                               </div>
                               <div className="text-right">

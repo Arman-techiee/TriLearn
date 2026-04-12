@@ -245,8 +245,6 @@ const getRankingSummary = async ({ student, examType, overallGpa }) => {
     cohortSize: cohortStudents.length,
     percentile,
     topStudents: rankedStudents.slice(0, 5).map((entry) => ({
-      userId: entry.userId,
-      name: entry.name,
       overallGpa: entry.overallGpa,
       overallPercentage: entry.overallPercentage
     })),

@@ -674,7 +674,7 @@ const createStudent = async (req, res) => {
       return res.status(403).json({ message: 'Coordinators can only create students in their own department' })
     }
 
-    const { user, temporaryPassword } = await createStudentAccountRecord({
+    const { user } = await createStudentAccountRecord({
       name,
       email: normalizedEmail,
       studentId: normalizedStudentId,
@@ -694,8 +694,7 @@ const createStudent = async (req, res) => {
         email: user.email,
         role: user.role,
         rollNumber: user.student.rollNumber,
-        semester: user.student.semester,
-        temporaryPassword,
+        semester: user.student.semester
       }
     })
 
@@ -1221,7 +1220,8 @@ const importStudents = async (req, res) => {
             department: row.department,
             semester: row.semester,
             section: row.section,
-            temporaryPassword: row.temporaryPassword
+            temporaryPassword: row.temporaryPassword,
+            welcomeEmailSent: false
           }))
         })
 
@@ -1243,6 +1243,8 @@ const importStudents = async (req, res) => {
                 stack: result.reason?.stack,
                 userId: created[index]?.id
               })
+            } else if (created[index]) {
+              created[index].welcomeEmailSent = true
             }
           })
         })
@@ -1277,7 +1279,7 @@ const importStudents = async (req, res) => {
         created: created.length,
         failed: failures.length
       },
-      created,
+      created: created.map(({ temporaryPassword, ...row }) => row),
       failures
     })
   } catch (error) {

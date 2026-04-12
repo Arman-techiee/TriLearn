@@ -5,7 +5,7 @@ import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
 import { useToast } from '../../components/Toast'
-import api, { isEmbeddablePdfUrl, resolveFileUrl } from '../../utils/api'
+import api, { fetchFileBlob } from '../../utils/api'
 import { isRequestCanceled } from '../../utils/http'
 import logger from '../../utils/logger'
 const StudentAssignments = () => {
@@ -20,14 +20,38 @@ const StudentAssignments = () => {
   const { showToast } = useToast()
   const [previewFile, setPreviewFile] = useState(null)
 
-  const openPreview = (title, fileUrl) => {
-    const resolvedUrl = resolveFileUrl(fileUrl)
-    if (!resolvedUrl) {
+  useEffect(() => {
+    return () => {
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+    }
+  }, [previewFile])
+
+  const openPreview = async (title, fileUrl) => {
+    if (!fileUrl) {
       setSubmitError('This file preview is unavailable because the file link is invalid.')
       return
     }
 
-    setPreviewFile({ title, url: resolvedUrl, canEmbed: isEmbeddablePdfUrl(resolvedUrl) })
+    try {
+      const { blob } = await fetchFileBlob(fileUrl)
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+
+      setPreviewFile({
+        title,
+        url: objectUrl,
+        objectUrl,
+        canEmbed: blob.type === 'application/pdf'
+      })
+    } catch (previewError) {
+      logger.error('Failed to preview assignment file', previewError)
+      setSubmitError('Unable to open this file right now.')
+    }
   }
 
   useEffect(() => {
@@ -247,7 +271,12 @@ const StudentAssignments = () => {
                 </a>
                 <button
                   type="button"
-                  onClick={() => setPreviewFile(null)}
+                  onClick={() => {
+                    if (previewFile?.objectUrl) {
+                      window.URL.revokeObjectURL(previewFile.objectUrl)
+                    }
+                    setPreviewFile(null)
+                  }}
                   className="text-gray-400 hover:text-[--color-text-muted] dark:text-slate-400 text-xl"
                 >
                   ✕

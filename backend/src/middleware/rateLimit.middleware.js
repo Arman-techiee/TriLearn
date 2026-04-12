@@ -4,14 +4,14 @@ const { createClient } = require('redis')
 
 let redisClient
 let redisStore
-let productionMemoryStoreWarningShown = false
+let memoryStoreWarningShown = false
 
 const getRedisStore = () => {
   const redisUrl = process.env.REDIS_URL
 
   if (!redisUrl) {
-    if (process.env.NODE_ENV === 'production' && !productionMemoryStoreWarningShown) {
-      productionMemoryStoreWarningShown = true
+    if (!memoryStoreWarningShown) {
+      memoryStoreWarningShown = true
       console.warn('Warning: REDIS_URL not set - rate limiting is using the in-memory store and is not shared across instances')
     }
 
@@ -54,34 +54,26 @@ const actorRateLimitKey = (req) => (
     : ipKeyGenerator(req.ip || '')
 )
 
-const bypassInDevelopment = (limiter) => {
-  if (process.env.NODE_ENV === 'production') {
-    return limiter
-  }
-
-  return (req, res, next) => next()
-}
-
-const apiLimiter = bypassInDevelopment(createLimiter({
+const apiLimiter = createLimiter({
   max: 300,
   message: 'Too many requests, please try again later'
-}))
+})
 
-const authLimiter = bypassInDevelopment(createLimiter({
+const authLimiter = createLimiter({
   max: 20,
   message: 'Too many attempts, please try again later'
-}))
+})
 
-const loginLimiter = bypassInDevelopment(createLimiter({
+const loginLimiter = createLimiter({
   max: 25,
   message: 'Too many login attempts, please try again later'
-}))
+})
 
-const refreshLimiter = bypassInDevelopment(createLimiter({
+const refreshLimiter = createLimiter({
   windowMs: 5 * 60 * 1000,
   max: 60,
   message: 'Too many session refresh attempts, please try again shortly'
-}))
+})
 
 const uploadLimiter = createLimiter({
   max: 40,

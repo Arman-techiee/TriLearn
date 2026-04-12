@@ -223,6 +223,83 @@ export const isEmbeddablePdfUrl = (fileUrl) => {
   }
 }
 
+export const isProtectedUploadUrl = (fileUrl) => {
+  const resolvedUrl = resolveFileUrl(fileUrl)
+  if (!resolvedUrl) {
+    return false
+  }
+
+  try {
+    const parsedUrl = new URL(resolvedUrl)
+    const apiOriginUrl = new URL(API_ORIGIN)
+
+    return parsedUrl.origin === apiOriginUrl.origin && /^\/uploads\//i.test(parsedUrl.pathname)
+  } catch {
+    return false
+  }
+}
+
+const getRequestPathFromResolvedUrl = (resolvedUrl) => {
+  const parsedUrl = new URL(resolvedUrl)
+  return `${parsedUrl.pathname}${parsedUrl.search}`
+}
+
+export const fetchFileBlob = async (fileUrl, { signal } = {}) => {
+  const resolvedUrl = resolveFileUrl(fileUrl)
+  if (!resolvedUrl) {
+    throw new Error('Invalid file URL')
+  }
+
+  if (isProtectedUploadUrl(resolvedUrl)) {
+    const response = await api.get(getRequestPathFromResolvedUrl(resolvedUrl), {
+      signal,
+      responseType: 'blob'
+    })
+
+    return {
+      blob: response.data,
+      resolvedUrl
+    }
+  }
+
+  const response = await fetch(resolvedUrl, {
+    method: 'GET',
+    credentials: 'omit',
+    signal
+  })
+
+  if (!response.ok) {
+    throw new Error(`File request failed with status ${response.status}`)
+  }
+
+  return {
+    blob: await response.blob(),
+    resolvedUrl
+  }
+}
+
+export const openFileUrl = async (fileUrl, { signal } = {}) => {
+  const resolvedUrl = resolveFileUrl(fileUrl)
+  if (!resolvedUrl) {
+    throw new Error('Invalid file URL')
+  }
+
+  if (!isProtectedUploadUrl(resolvedUrl)) {
+    window.open(resolvedUrl, '_blank', 'noopener,noreferrer')
+    return { resolvedUrl, objectUrl: null }
+  }
+
+  const { blob } = await fetchFileBlob(resolvedUrl, { signal })
+  const objectUrl = window.URL.createObjectURL(blob)
+  window.open(objectUrl, '_blank', 'noopener,noreferrer')
+
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(objectUrl)
+  }, 60_000)
+
+  return { resolvedUrl, objectUrl }
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,

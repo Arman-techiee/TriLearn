@@ -761,7 +761,9 @@ const Users = () => {
                         <div key={`${student.rowNumber}-${student.studentId}`} className="rounded-lg bg-[var(--color-card-surface)] px-3 py-3 text-sm">
                           <p className="font-semibold text-[var(--color-heading)]">{student.name} · {student.studentId}</p>
                           <p className="mt-1 text-[var(--color-text-muted)]">{student.email}</p>
-                          <p className="mt-1 text-[var(--color-text-muted)]">Temp password: <span className="font-medium text-[var(--color-heading)]">{student.temporaryPassword}</span></p>
+                          <p className="mt-1 text-[var(--color-text-muted)]">
+                            Welcome email: <span className="font-medium text-[var(--color-heading)]">{student.welcomeEmailSent ? 'Sent' : 'Pending / failed'}</span>
+                          </p>
                         </div>
                       ))}
                     </div>

@@ -5,7 +5,7 @@ import PageHeader from '../../components/PageHeader'
 import StudentLayout from '../../layouts/StudentLayout'
 import useApi from '../../hooks/useApi'
 import { useToast } from '../../components/Toast'
-import api, { isEmbeddablePdfUrl, resolveFileUrl } from '../../utils/api'
+import api, { fetchFileBlob, openFileUrl } from '../../utils/api'
 
 const StudentMaterials = () => {
   const [filterSubject, setFilterSubject] = useState('')
@@ -44,6 +44,14 @@ const StudentMaterials = () => {
     void fetchSubjects()
   }, [fetchMaterials, fetchSubjects])
 
+  useEffect(() => {
+    return () => {
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+    }
+  }, [previewFile])
+
   const filtered = filterSubject
     ? materials.filter(m => m.subject?.code === filterSubject)
     : materials
@@ -76,9 +84,8 @@ const StudentMaterials = () => {
     return 'ui-status-badge ui-status-neutral'
   }
 
-  const openPreview = (title, fileUrl) => {
-    const resolvedUrl = resolveFileUrl(fileUrl)
-    if (!resolvedUrl) {
+  const openPreview = async (title, fileUrl) => {
+    if (!fileUrl) {
       showToast({
         title: 'Preview unavailable',
         description: 'This file link is invalid, so the preview cannot be opened.',
@@ -87,7 +94,34 @@ const StudentMaterials = () => {
       return
     }
 
-    setPreviewFile({ title, url: resolvedUrl, canEmbed: isEmbeddablePdfUrl(resolvedUrl) })
+    try {
+      const { blob } = await fetchFileBlob(fileUrl)
+      const objectUrl = window.URL.createObjectURL(blob)
+
+      if (previewFile?.objectUrl) {
+        window.URL.revokeObjectURL(previewFile.objectUrl)
+      }
+
+      setPreviewFile({ title, url: objectUrl, objectUrl, canEmbed: blob.type === 'application/pdf' })
+    } catch {
+      showToast({
+        title: 'Preview unavailable',
+        description: 'This file could not be opened right now.',
+        type: 'error'
+      })
+    }
+  }
+
+  const handleOpenMaterial = async (fileUrl) => {
+    try {
+      await openFileUrl(fileUrl)
+    } catch {
+      showToast({
+        title: 'Open failed',
+        description: 'This file could not be opened right now.',
+        type: 'error'
+      })
+    }
   }
 
   return (
@@ -170,32 +204,13 @@ const StudentMaterials = () => {
                       View PDF
                     </button>
                   ) : (
-                    (() => {
-                      const materialUrl = resolveFileUrl(mat.fileUrl)
-
-                      if (!materialUrl) {
-                        return (
-                          <button
-                            type="button"
-                            disabled
-                            className="block w-full cursor-not-allowed text-center text-xs bg-slate-200 text-slate-500 py-2 rounded-lg font-medium"
-                          >
-                            Invalid File Link
-                          </button>
-                        )
-                      }
-
-                      return (
-                        <a
-                          href={materialUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ui-role-fill block rounded-lg py-2 text-center text-xs font-medium transition"
-                        >
-                          Open Material
-                        </a>
-                      )
-                    })()
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMaterial(mat.fileUrl)}
+                      className="ui-role-fill block w-full rounded-lg py-2 text-center text-xs font-medium transition"
+                    >
+                      Open Material
+                    </button>
                   )}
               </div>
             ))}
@@ -229,7 +244,12 @@ const StudentMaterials = () => {
                 </a>
                 <button
                   type="button"
-                  onClick={() => setPreviewFile(null)}
+                  onClick={() => {
+                    if (previewFile?.objectUrl) {
+                      window.URL.revokeObjectURL(previewFile.objectUrl)
+                    }
+                    setPreviewFile(null)
+                  }}
                   className="text-xl text-[var(--color-text-soft)] hover:text-[var(--color-text-muted)]"
                 >
                   ✕

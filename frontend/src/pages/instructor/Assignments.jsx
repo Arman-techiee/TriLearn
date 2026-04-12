@@ -11,7 +11,7 @@ import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
 import { useReferenceData } from '../../context/ReferenceDataContext'
-import api, { isEmbeddablePdfUrl, resolveFileUrl } from '../../utils/api'
+import api, { fetchFileBlob } from '../../utils/api'
 import { isRequestCanceled } from '../../utils/http'
 import logger from '../../utils/logger'
 
@@ -76,24 +76,14 @@ const Assignments = () => {
   }
 
   const openPreview = async (title, fileUrl) => {
-    const resolvedUrl = resolveFileUrl(fileUrl)
-    if (!resolvedUrl) {
+    if (!fileUrl) {
       setError('This file preview is unavailable because the file link is invalid.')
       return
     }
 
     try {
       setPreviewLoading(true)
-      const response = await fetch(resolvedUrl, {
-        method: 'GET',
-        credentials: 'omit'
-      })
-
-      if (!response.ok) {
-        throw new Error(`Preview request failed with status ${response.status}`)
-      }
-
-      const blob = await response.blob()
+      const { blob } = await fetchFileBlob(fileUrl)
       const objectUrl = window.URL.createObjectURL(blob)
 
       if (previewFile?.objectUrl) {
@@ -103,9 +93,8 @@ const Assignments = () => {
       setPreviewFile({
         title,
         url: objectUrl,
-        sourceUrl: resolvedUrl,
         objectUrl,
-        canEmbed: blob.type === 'application/pdf' || isEmbeddablePdfUrl(resolvedUrl)
+        canEmbed: blob.type === 'application/pdf'
       })
     } catch (previewError) {
       logger.error('Failed to preview assignment file', previewError)
@@ -634,7 +623,7 @@ const Assignments = () => {
               <h2 className="text-lg font-semibold text-[var(--color-heading)]">{previewFile.title}</h2>
               <div className="flex items-center gap-3">
                 <a
-                  href={previewFile.sourceUrl || previewFile.url}
+                  href={previewFile.url}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm text-[var(--color-role-accent)] hover:underline"
@@ -667,7 +656,7 @@ const Assignments = () => {
                   This file can be opened in a new tab, but embedded preview is only available for PDFs stored in this app.
                 </p>
                 <a
-                  href={previewFile.sourceUrl || previewFile.url}
+                  href={previewFile.url}
                   target="_blank"
                   rel="noreferrer"
                   className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
