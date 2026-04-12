@@ -220,9 +220,62 @@ const resolveInstructorDepartmentsInput = async ({ department, departments }) =>
   }
 }
 
-const getCoordinatorDepartments = () => []
+const getCoordinatorDepartments = (req) => {
+  if (req?.user?.role !== 'COORDINATOR') {
+    return []
+  }
 
-const coordinatorCanManageUser = () => true
+  return normalizeDepartmentList([
+    ...(Array.isArray(req.coordinator?.departments) ? req.coordinator.departments : []),
+    req.coordinator?.department
+  ])
+}
+
+const getManagedUserDepartments = (user) => {
+  if (!user || typeof user !== 'object') {
+    return []
+  }
+
+  if (user.role === 'STUDENT') {
+    return normalizeDepartmentList([user.student?.department])
+  }
+
+  if (user.role === 'INSTRUCTOR') {
+    return normalizeDepartmentList([
+      ...(Array.isArray(user.instructor?.departments) ? user.instructor.departments : []),
+      user.instructor?.department
+    ])
+  }
+
+  if (user.role === 'COORDINATOR') {
+    return normalizeDepartmentList([
+      ...(Array.isArray(user.coordinator?.departments) ? user.coordinator.departments : []),
+      user.coordinator?.department
+    ])
+  }
+
+  return []
+}
+
+const coordinatorCanManageUser = (req, user) => {
+  const coordinatorDepartments = getCoordinatorDepartments(req)
+  if (coordinatorDepartments.length === 0) {
+    return true
+  }
+
+  const targetDepartments = getManagedUserDepartments(user)
+  if (targetDepartments.length === 0) {
+    return false
+  }
+
+  const normalizedCoordinatorDepartments = new Set(
+    coordinatorDepartments.map((department) => department.toLowerCase())
+  )
+
+  return targetDepartments.some((department) => (
+    normalizedCoordinatorDepartments.has(department.toLowerCase())
+  ))
+}
 
 const getAdminStats = async (req, res) => {
   try {
