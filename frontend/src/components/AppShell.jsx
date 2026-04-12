@@ -175,7 +175,7 @@ const AppShell = ({
     })
   }, [showToast])
 
-  const handleNotificationRead = useCallback(({ notificationId, readAt, unreadCount: nextUnreadCount }) => {
+  const handleNotificationRead = useCallback(({ notificationId, unreadCount: nextUnreadCount }) => {
     if (!notificationId) {
       return
     }

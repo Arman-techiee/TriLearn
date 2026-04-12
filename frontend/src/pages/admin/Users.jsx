@@ -31,7 +31,7 @@ const initialUserValues = {
   section: ''
 }
 
-const coordinatorVisibleRoles = ['', 'COORDINATOR', 'INSTRUCTOR', 'STUDENT']
+const coordinatorVisibleRoles = ['', 'INSTRUCTOR', 'STUDENT']
 const allVisibleRoles = ['', 'ADMIN', 'COORDINATOR', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT']
 const normalizeValue = (value) => String(value || '').trim().toLowerCase()
 const getInstructorDepartments = (instructor) => (
@@ -336,7 +336,7 @@ const Users = () => {
 
         <PageHeader
           title="Users"
-          subtitle={isCoordinator ? 'Manage users across the campus with admin-style access' : 'Manage all users in TriLearn'}
+          subtitle={isCoordinator ? 'Manage users across the campus with admin-style access.' : 'Manage all users in TriLearn'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Users']}
           actions={[
             ...(isCoordinator
@@ -620,7 +620,10 @@ const Users = () => {
                 <div>
                   <label className="ui-form-label">Departments</label>
                   <div className="grid gap-2 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3 sm:grid-cols-2">
-                    {departments.map((department) => {
+                    {(isCoordinator
+                      ? departments.filter((department) => normalizeValue(department.name) === normalizeValue(normalizedCoordinatorDepartment))
+                      : departments
+                    ).map((department) => {
                       const checked = values.departments.includes(department.name)
 
                       return (
@@ -649,7 +652,10 @@ const Users = () => {
                     className={`ui-form-input ${errors.department ? 'ui-form-input-error' : ''}`}
                   >
                     <option value="">Select Department</option>
-                    {departments.map((department) => (
+                    {(isCoordinator
+                      ? departments.filter((department) => normalizeValue(department.name) === normalizeValue(normalizedCoordinatorDepartment))
+                      : departments
+                    ).map((department) => (
                       <option key={department.id} value={department.name}>
                         {department.name} ({department.code})
                       </option>

@@ -345,7 +345,7 @@ test('GET /api/v1/admin/stats denies instructors through the real admin route', 
 
   assert.equal(response.status, 403)
   assert.deepEqual(response.body, {
-    message: 'Access denied. Only ADMIN can do this.'
+    message: 'Access denied. Only ADMIN, COORDINATOR can do this.'
   })
   assert.equal(statsCalled, false)
 })

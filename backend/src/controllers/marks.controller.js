@@ -994,7 +994,14 @@ const publishMarks = async (req, res) => {
 
     const where = {
       examType,
-      ...(subjectId ? { subjectId } : {})
+      ...(subjectId ? { subjectId } : {}),
+      ...(req.user.role === 'COORDINATOR' && req.coordinator?.department
+        ? {
+            subject: {
+              department: req.coordinator.department
+            }
+          }
+        : {})
     }
 
     const existingCount = await prisma.mark.count({ where })

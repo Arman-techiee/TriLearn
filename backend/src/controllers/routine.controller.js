@@ -6,10 +6,19 @@ const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, messa
     return null
   }
 
-  void res
-  void departmentValue
-  void message
-  return ['*']
+  const coordinatorDepartments = [req.coordinator?.department].filter(Boolean)
+
+  if (coordinatorDepartments.length === 0) {
+    res.status(403).json({ message: 'Coordinator department is not configured yet' })
+    return null
+  }
+
+  if (departmentValue && !coordinatorDepartments.includes(departmentValue)) {
+    res.status(403).json({ message })
+    return null
+  }
+
+  return coordinatorDepartments
 }
 
 const applySectionScope = (studentSection) => (
@@ -52,6 +61,25 @@ const buildRoutineFilters = async (req) => {
     }
   }
 
+  if (req.user.role === 'COORDINATOR') {
+    const coordinatorDepartments = [req.coordinator?.department].filter(Boolean)
+
+    if (coordinatorDepartments.length === 0) {
+      return { id: '__no_routines__' }
+    }
+
+    return {
+      AND: [
+        filters,
+        {
+          department: {
+            in: coordinatorDepartments
+          }
+        }
+      ]
+    }
+  }
+
   return filters
 }
 
@@ -74,7 +102,7 @@ const getRoutineInclude = () => ({
   }
 })
 
-const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester }) => {
+const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester, req }) => {
   const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
   if (!subject) return { error: { status: 404, message: 'Subject not found' } }
 
@@ -94,6 +122,21 @@ const validateRoutineAcademicScope = async ({ subjectId, instructorId, departmen
 
   const normalizedDepartment = department || null
   const normalizedSubjectDepartment = subject.department || null
+
+  if (req?.user?.role === 'COORDINATOR') {
+    const coordinatorDepartments = [req.coordinator?.department].filter(Boolean)
+
+    if (coordinatorDepartments.length === 0) {
+      return { error: { status: 403, message: 'Coordinator department is not configured yet' } }
+    }
+
+    if (
+      (normalizedDepartment && !coordinatorDepartments.includes(normalizedDepartment)) ||
+      (normalizedSubjectDepartment && !coordinatorDepartments.includes(normalizedSubjectDepartment))
+    ) {
+      return { error: { status: 403, message: 'You can only manage routines in your own department' } }
+    }
+  }
 
   if (normalizedDepartment !== normalizedSubjectDepartment) {
     return { error: { status: 400, message: 'Routine department must match the selected subject department.' } }

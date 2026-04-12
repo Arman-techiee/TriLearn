@@ -12,10 +12,19 @@ const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, messa
     return null
   }
 
-  void res
-  void departmentValue
-  void message
-  return ['*']
+  const coordinatorDepartments = [req.coordinator?.department].filter(Boolean)
+
+  if (coordinatorDepartments.length === 0) {
+    res.status(403).json({ message: 'Coordinator department is not configured yet' })
+    return null
+  }
+
+  if (departmentValue && !coordinatorDepartments.includes(departmentValue)) {
+    res.status(403).json({ message })
+    return null
+  }
+
+  return coordinatorDepartments
 }
 
 const ensureCoordinatorInstructorScope = async (req, res, instructorId, departmentAliases, message = 'You can only assign instructors from your own department') => {
@@ -71,6 +80,25 @@ const buildSubjectVisibilityFilter = async (req, filters = {}) => {
           studentId: student?.id || '__no_student__'
         }
       }
+    }
+  }
+
+  if (user.role === 'COORDINATOR') {
+    const coordinatorDepartments = [req.coordinator?.department].filter(Boolean)
+
+    if (coordinatorDepartments.length === 0) {
+      return { id: '__no_subjects__' }
+    }
+
+    return {
+      AND: [
+        filters,
+        {
+          department: {
+            in: coordinatorDepartments
+          }
+        }
+      ]
     }
   }
 

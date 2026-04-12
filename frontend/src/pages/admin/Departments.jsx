@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
@@ -10,9 +10,10 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
-import useApi from '../../hooks/useApi'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
+import { isRequestCanceled } from '../../utils/http'
+import logger from '../../utils/logger'
 
 const emptyForm = { name: '', code: '', description: '' }
 
@@ -25,29 +26,60 @@ const Departments = () => {
   const [departmentToDelete, setDepartmentToDelete] = useState(null)
   const [deletingDepartment, setDeletingDepartment] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [departments, setDepartments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const { showToast } = useToast()
-  const {
-    data: departments = [],
-    setData: setDepartments,
-    loading,
-    error,
-    setError,
-    execute
-  } = useApi({ initialData: [], initialLoading: true })
-
-  const fetchDepartments = useCallback(async () => {
-    await execute(
-      (signal) => api.get('/departments', { signal }),
-      {
-        fallbackMessage: 'Unable to load departments',
-        transform: (response) => response.data.departments
-      }
-    )
-  }, [execute])
 
   useEffect(() => {
+    const controller = new AbortController()
+
+    const fetchDepartments = async () => {
+      try {
+        setLoading(true)
+        setError('')
+        const response = await api.get('/departments', {
+          signal: controller.signal,
+          timeout: 10000
+        })
+
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setDepartments(response.data.departments || [])
+      } catch (requestError) {
+        if (isRequestCanceled(requestError)) {
+          return
+        }
+
+        logger.error('Failed to load departments', requestError)
+        setError(getFriendlyErrorMessage(requestError, 'Unable to load departments right now.'))
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
     void fetchDepartments()
-  }, [fetchDepartments])
+
+    return () => controller.abort()
+  }, [])
+
+  const fetchDepartments = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const response = await api.get('/departments', { timeout: 10000 })
+      setDepartments(response.data.departments || [])
+    } catch (requestError) {
+      logger.error('Failed to reload departments', requestError)
+      setError(getFriendlyErrorMessage(requestError, 'Unable to load departments right now.'))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingDepartment(null)

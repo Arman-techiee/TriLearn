@@ -37,7 +37,7 @@ const createDepartment = async (req, res) => {
   }
 }
 
-const getAllDepartments = async (_req, res) => {
+const getAllDepartments = async (req, res) => {
   try {
     const departments = await prisma.department.findMany({
       orderBy: { name: 'asc' }
@@ -136,7 +136,14 @@ const deleteDepartment = async (req, res) => {
 
     const [students, instructors, subjects] = await Promise.all([
       prisma.student.count({ where: { department: existing.name } }),
-      prisma.instructor.count({ where: { department: existing.name } }),
+      prisma.instructor.count({
+        where: {
+          OR: [
+            { department: existing.name },
+            { departments: { has: existing.name } }
+          ]
+        }
+      }),
       prisma.subject.count({ where: { department: existing.name } })
     ])
 
@@ -159,5 +166,6 @@ module.exports = {
   deleteDepartment,
   ensureDepartmentExists
 }
+
 
 

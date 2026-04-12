@@ -266,8 +266,26 @@ const requestUsedAccessToken = (requestConfig) => {
   return typeof authorizationHeader === 'string' && authorizationHeader.startsWith('Bearer ')
 }
 
+const isAuthRouteRequest = (requestConfig) => {
+  const requestUrl = String(requestConfig?.url || '')
+
+  return (
+    requestUrl.includes('/auth/login') ||
+    requestUrl.includes('/auth/refresh') ||
+    requestUrl.includes('/auth/logout')
+  )
+}
+
 // Automatically add token to every request
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  if (!authState.token && authState.user && !isAuthRouteRequest(config)) {
+    try {
+      await refreshSession()
+    } catch {
+      return config
+    }
+  }
+
   if (authState.token) {
     config.headers.Authorization = `Bearer ${authState.token}`
   }
@@ -324,10 +342,8 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest?._retry &&
-      requestUsedAccessToken(originalRequest) &&
-      !originalRequest?.url?.includes('/auth/login') &&
-      !originalRequest?.url?.includes('/auth/refresh') &&
-      !originalRequest?.url?.includes('/auth/logout')
+      (requestUsedAccessToken(originalRequest) || Boolean(authState.user)) &&
+      !isAuthRouteRequest(originalRequest)
     ) {
       originalRequest._retry = true
 
