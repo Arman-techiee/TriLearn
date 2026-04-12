@@ -1,45 +1,5 @@
 const prisma = require('../utils/prisma')
-
-const normalizeDepartmentValue = (value) => String(value || '').trim()
-
-const getDepartmentAliases = async (departmentValue) => {
-  const normalizedDepartment = normalizeDepartmentValue(departmentValue)
-  if (!normalizedDepartment) {
-    return []
-  }
-
-  const department = await prisma.department.findFirst({
-    where: {
-      OR: [
-        { name: normalizedDepartment },
-        { code: normalizedDepartment.toUpperCase() }
-      ]
-    },
-    select: {
-      name: true,
-      code: true
-    }
-  })
-
-  return Array.from(new Set([
-    normalizedDepartment,
-    normalizedDepartment.toUpperCase(),
-    department?.name,
-    department?.code
-  ].filter(Boolean)))
-}
-
-const isDepartmentWithinAliases = (departmentValue, departmentAliases) => (
-  departmentAliases.includes('*') || departmentAliases.includes(normalizeDepartmentValue(departmentValue))
-)
-
-const getCoordinatorDepartmentAliases = async (req) => {
-  if (req.user.role !== 'COORDINATOR') {
-    return []
-  }
-
-  return ['*']
-}
+const { instructorHasDepartment } = require('../utils/instructorDepartments')
 
 const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, message = 'You can only manage routines in your own department') => {
   if (req.user.role !== 'COORDINATOR') {
@@ -114,7 +74,7 @@ const getRoutineInclude = () => ({
   }
 })
 
-const validateRoutineAcademicScope = async ({ req, subjectId, instructorId, department, semester }) => {
+const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester }) => {
   const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
   if (!subject) return { error: { status: 404, message: 'Subject not found' } }
 
@@ -122,7 +82,8 @@ const validateRoutineAcademicScope = async ({ req, subjectId, instructorId, depa
     where: { id: instructorId },
     select: {
       id: true,
-      department: true
+      department: true,
+      departments: true
     }
   })
   if (!instructor) return { error: { status: 404, message: 'Instructor not found' } }
@@ -138,8 +99,7 @@ const validateRoutineAcademicScope = async ({ req, subjectId, instructorId, depa
     return { error: { status: 400, message: 'Routine department must match the selected subject department.' } }
   }
 
-  const normalizedInstructorDepartment = instructor.department || null
-  if (normalizedInstructorDepartment !== normalizedDepartment) {
+  if (!instructorHasDepartment(instructor, normalizedDepartment)) {
     return { error: { status: 400, message: 'Routine instructor must belong to the selected department.' } }
   }
 

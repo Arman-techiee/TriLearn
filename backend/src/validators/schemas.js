@@ -53,6 +53,10 @@ const userBaseSchema = z.object({
   address: optionalString(255)
 })
 
+const departmentListSchema = z.array(
+  z.string().trim().min(2).max(100)
+).min(1).max(20)
+
 const selfProfileBody = z.object({
   phone: z.string().trim().min(7).max(30),
   fatherName: z.string().trim().min(2).max(100),
@@ -340,7 +344,13 @@ const schemas = {
     createGatekeeper: { body: userBaseSchema },
     createInstructor: {
       body: userBaseSchema.extend({
-        department: z.string().trim().min(2).max(100)
+        department: optionalString(100),
+        departments: departmentListSchema.optional()
+      }).refine((data) => (
+        Boolean(data.department) || (Array.isArray(data.departments) && data.departments.length > 0)
+      ), {
+        path: ['departments'],
+        message: 'Select at least one department'
       })
     },
     createStudent: {
@@ -362,6 +372,7 @@ const schemas = {
         phone: optionalString(30),
         address: optionalString(255),
         department: optionalString(100),
+        departments: departmentListSchema.optional(),
         semester: z.coerce.number().int().min(1).max(12).optional(),
         section: optionalString(20)
       })

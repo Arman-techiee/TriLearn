@@ -1,51 +1,11 @@
 const prisma = require('../utils/prisma')
 const { getPagination } = require('../utils/pagination')
 const { ensureDepartmentExists } = require('./department.controller')
+const { instructorHasDepartment } = require('../utils/instructorDepartments')
 const {
   enrollMatchingStudentsInSubject,
   syncMatchingStudentsForSubject
 } = require('../utils/enrollment')
-
-const normalizeDepartmentValue = (value) => String(value || '').trim()
-
-const getDepartmentAliases = async (departmentValue) => {
-  const normalizedDepartment = normalizeDepartmentValue(departmentValue)
-  if (!normalizedDepartment) {
-    return []
-  }
-
-  const department = await prisma.department.findFirst({
-    where: {
-      OR: [
-        { name: normalizedDepartment },
-        { code: normalizedDepartment.toUpperCase() }
-      ]
-    },
-    select: {
-      name: true,
-      code: true
-    }
-  })
-
-  return Array.from(new Set([
-    normalizedDepartment,
-    normalizedDepartment.toUpperCase(),
-    department?.name,
-    department?.code
-  ].filter(Boolean)))
-}
-
-const isDepartmentWithinAliases = (departmentValue, departmentAliases) => (
-  departmentAliases.includes('*') || departmentAliases.includes(normalizeDepartmentValue(departmentValue))
-)
-
-const getCoordinatorDepartmentAliases = async (req) => {
-  if (req.user.role !== 'COORDINATOR') {
-    return []
-  }
-
-  return ['*']
-}
 
 const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, message = 'You can only manage subjects in your own department') => {
   if (req.user.role !== 'COORDINATOR') {
@@ -67,7 +27,8 @@ const ensureCoordinatorInstructorScope = async (req, res, instructorId, departme
     where: { id: instructorId },
     select: {
       id: true,
-      department: true
+      department: true,
+      departments: true
     }
   })
 
@@ -76,7 +37,7 @@ const ensureCoordinatorInstructorScope = async (req, res, instructorId, departme
     return false
   }
 
-  if (!isDepartmentWithinAliases(instructor.department, departmentAliases)) {
+  if (!departmentAliases.includes('*') && !departmentAliases.some((alias) => instructorHasDepartment(instructor, alias))) {
     res.status(403).json({ message })
     return false
   }

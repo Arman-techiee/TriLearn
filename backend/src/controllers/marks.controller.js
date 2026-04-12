@@ -511,7 +511,7 @@ const getManagedSubject = async (subjectId, req) => {
   return { subject }
 }
 
-const buildStaffReviewFilters = ({ req, subjectId, examType }) => {
+const buildStaffReviewFilters = ({ subjectId, examType }) => {
   const where = {}
 
   if (subjectId) {

@@ -11,6 +11,9 @@ const { recordAuditLog } = require('../utils/audit')
 const { sendMail } = require('../utils/mailer')
 const { welcomeTemplate } = require('../utils/emailTemplates')
 const { hashPassword, getStudentTemporaryPassword } = require('../utils/security')
+const {
+  normalizeDepartmentList
+} = require('../utils/instructorDepartments')
 
 const STATS_CACHE_TTL = 30 * 1000 // 30 seconds
 let statsCache = null
@@ -188,61 +191,30 @@ const createStudentAccountRecord = async ({
 
 const normalizeDepartmentValue = (value) => String(value || '').trim()
 
-const getManagedDepartmentForUser = (user) => (
-  user.student?.department ||
-  user.instructor?.department ||
-  user.coordinator?.department ||
-  null
-)
+const resolveInstructorDepartmentsInput = async ({ department, departments }) => {
+  const requestedDepartments = normalizeDepartmentList(
+    Array.isArray(departments) && departments.length > 0
+      ? departments
+      : [department]
+  )
 
-const getDepartmentAliases = async (departmentValue) => {
-  const normalizedDepartment = String(departmentValue || '').trim()
-  if (!normalizedDepartment) {
-    return []
+  const resolvedDepartments = []
+  for (const departmentValue of requestedDepartments) {
+    const validDepartment = await ensureDepartmentExists(departmentValue)
+    if (!validDepartment) {
+      return null
+    }
+
+    resolvedDepartments.push(validDepartment.name)
   }
 
-  const department = await prisma.department.findFirst({
-    where: {
-      OR: [
-        { name: normalizedDepartment },
-        { code: normalizedDepartment.toUpperCase() }
-      ]
-    },
-    select: {
-      name: true,
-      code: true
-    }
-  })
+  const normalizedDepartments = normalizeDepartmentList(resolvedDepartments)
 
-  return Array.from(new Set([
-    normalizedDepartment,
-    normalizedDepartment.toUpperCase(),
-    department?.name,
-    department?.code
-  ].filter(Boolean)))
+  return {
+    departments: normalizedDepartments,
+    primaryDepartment: normalizedDepartments[0] || null
+  }
 }
-
-const getCoordinatorDepartmentAliasesOrRespond = async () => null
-
-const buildDepartmentAliasTextFilters = (departmentAliases = []) => (
-  departmentAliases
-    .map((alias) => normalizeDepartmentValue(alias))
-    .filter(Boolean)
-    .map((alias) => ({
-      equals: alias,
-      mode: 'insensitive'
-    }))
-)
-
-const coordinatorDepartmentScope = () => ({})
-
-const coordinatorApplicationScope = () => ({})
-
-const isDepartmentWithinAliases = (departmentValue, departmentAliases) => (
-  departmentAliases
-    .map((alias) => normalizeDepartmentValue(alias).toLowerCase())
-    .includes(normalizeDepartmentValue(departmentValue).toLowerCase())
-)
 
 const getAdminStats = async (req, res) => {
   try {
@@ -299,6 +271,7 @@ const getAllUsers = async (req, res) => {
         { student: { is: { rollNumber: buildContainsSearch(search) } } },
         { student: { is: { department: buildContainsSearch(search) } } },
         { instructor: { is: { department: buildContainsSearch(search) } } },
+        { instructor: { is: { departments: { has: search.trim() } } } },
         { coordinator: { is: { department: buildContainsSearch(search) } } }
         ]
       })
@@ -496,19 +469,16 @@ const createGatekeeper = async (req, res) => {
 // ================================
 const createInstructor = async (req, res) => {
   try {
-    const { name, email, password, phone, address, department } = req.body
-    const normalizedDepartment = department?.trim() || null
+    const { name, email, password, phone, address, department, departments } = req.body
 
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
       return res.status(400).json({ message: 'Email already exists' })
     }
 
-    if (normalizedDepartment) {
-      const validDepartment = await ensureDepartmentExists(normalizedDepartment)
-      if (!validDepartment) {
-        return res.status(400).json({ message: 'Please select a valid department' })
-      }
+    const instructorDepartments = await resolveInstructorDepartmentsInput({ department, departments })
+    if (!instructorDepartments?.primaryDepartment) {
+      return res.status(400).json({ message: 'Please select at least one valid department' })
     }
 
     const hashedPassword = await hashPassword(password)
@@ -522,7 +492,10 @@ const createInstructor = async (req, res) => {
         phone,
         address,
         instructor: {
-          create: { department: normalizedDepartment }
+          create: {
+            department: instructorDepartments.primaryDepartment,
+            departments: instructorDepartments.departments
+          }
         }
       },
       include: { instructor: true }
@@ -536,7 +509,8 @@ const createInstructor = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        department: user.instructor.department
+        department: user.instructor.department,
+        departments: user.instructor.departments
       }
     })
 
@@ -548,7 +522,8 @@ const createInstructor = async (req, res) => {
       entityId: user.id,
       metadata: {
         role: user.role,
-        department: user.instructor.department
+        department: user.instructor.department,
+        departments: user.instructor.departments
       }
     })
 
@@ -637,8 +612,12 @@ const createStudent = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params
-    const { name, phone, address, department, semester, section } = req.body
+    const { name, phone, address, department, departments, semester, section } = req.body
     const normalizedDepartment = department?.trim() || null
+    const hasInstructorDepartmentUpdate = (
+      Object.prototype.hasOwnProperty.call(req.body, 'department') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'departments')
+    )
 
     const user = await prisma.user.findFirst({
       where: { id, deletedAt: null },
@@ -655,7 +634,8 @@ const updateUser = async (req, res) => {
         },
         instructor: {
           select: {
-            department: true
+            department: true,
+            departments: true
           }
         },
         coordinator: {
@@ -669,7 +649,7 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    if (normalizedDepartment) {
+    if (normalizedDepartment && user.role !== 'INSTRUCTOR') {
       const validDepartment = await ensureDepartmentExists(normalizedDepartment)
       if (!validDepartment) {
         return res.status(400).json({ message: 'Please select a valid department' })
@@ -681,10 +661,18 @@ const updateUser = async (req, res) => {
       data: { name, phone, address }
     })
 
-    if (user.role === 'INSTRUCTOR' && normalizedDepartment) {
+    if (user.role === 'INSTRUCTOR' && hasInstructorDepartmentUpdate) {
+      const instructorDepartments = await resolveInstructorDepartmentsInput({ department, departments })
+      if (!instructorDepartments?.primaryDepartment) {
+        return res.status(400).json({ message: 'Please select at least one valid department' })
+      }
+
       await prisma.instructor.update({
         where: { userId: id },
-        data: { department: normalizedDepartment }
+        data: {
+          department: instructorDepartments.primaryDepartment,
+          departments: instructorDepartments.departments
+        }
       })
     }
 

@@ -26,6 +26,7 @@ const initialUserValues = {
   studentId: '',
   phone: '',
   department: '',
+  departments: [],
   semester: '1',
   section: ''
 }
@@ -33,6 +34,11 @@ const initialUserValues = {
 const coordinatorVisibleRoles = ['', 'COORDINATOR', 'INSTRUCTOR', 'STUDENT']
 const allVisibleRoles = ['', 'ADMIN', 'COORDINATOR', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT']
 const normalizeValue = (value) => String(value || '').trim().toLowerCase()
+const getInstructorDepartments = (instructor) => (
+  Array.isArray(instructor?.departments) && instructor.departments.length > 0
+    ? instructor.departments
+    : [instructor?.department].filter(Boolean)
+)
 
 const Users = () => {
   const { user: currentUser } = useAuth()
@@ -81,7 +87,9 @@ const Users = () => {
       else if (!/[0-9]/.test(values.password)) validationErrors.password = 'Password must include at least one number'
     }
 
-    if (modalType !== 'gatekeeper' && !values.department.trim()) {
+    if (modalType === 'instructor' && (!Array.isArray(values.departments) || values.departments.length === 0)) {
+      validationErrors.department = 'Select at least one department'
+    } else if (modalType !== 'gatekeeper' && modalType !== 'instructor' && !values.department.trim()) {
       validationErrors.department = 'Department is required'
     }
 
@@ -98,6 +106,24 @@ const Users = () => {
     return validationErrors
   }
   const { values, errors, handleChange, handleSubmit, setValues, setErrors } = useForm(initialUserValues, validateUserForm)
+
+  const handleInstructorDepartmentToggle = (departmentName) => {
+    setValues((current) => {
+      const selectedDepartments = Array.isArray(current.departments) ? current.departments : []
+      const nextDepartments = selectedDepartments.includes(departmentName)
+        ? selectedDepartments.filter((item) => item !== departmentName)
+        : [...selectedDepartments, departmentName]
+
+      return {
+        ...current,
+        departments: nextDepartments
+      }
+    })
+
+    if (errors.department) {
+      setErrors((current) => ({ ...current, department: '' }))
+    }
+  }
 
   useEffect(() => {
     setPage(1)
@@ -171,7 +197,12 @@ const Users = () => {
             password: values.password,
             phone: values.phone,
             address: '',
-            department: modalType === 'gatekeeper' ? undefined : values.department
+            department: modalType === 'gatekeeper'
+              ? undefined
+              : modalType === 'instructor'
+                ? undefined
+                : values.department,
+            departments: modalType === 'instructor' ? values.departments : undefined
           }
       const res = await api.post(endpoint, {
         ...payload
@@ -441,7 +472,7 @@ const Users = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-[--color-text-muted] dark:text-slate-400">
                         {user.student && `Sem ${user.student.semester} · ${user.student.rollNumber}`}
-                        {user.instructor && `${user.instructor.department || 'No dept'}`}
+                        {user.instructor && `${getInstructorDepartments(user.instructor).join(', ') || 'No dept'}`}
                         {user.coordinator && `${user.coordinator.department || 'No dept'} coordinator`}
                         {user.role === 'GATEKEEPER' && 'Gate QR operator'}
                         {user.admin && 'Administrator'}
@@ -585,7 +616,30 @@ const Users = () => {
                   className="ui-form-input"
                 />
               </div>
-              {modalType !== 'gatekeeper' && (
+              {modalType === 'instructor' ? (
+                <div>
+                  <label className="ui-form-label">Departments</label>
+                  <div className="grid gap-2 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3 sm:grid-cols-2">
+                    {departments.map((department) => {
+                      const checked = values.departments.includes(department.name)
+
+                      return (
+                        <label key={department.id} className="flex items-center gap-3 rounded-lg bg-[var(--color-card-surface)] px-3 py-2 text-sm text-[var(--color-heading)]">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleInstructorDepartmentToggle(department.name)}
+                            className="h-4 w-4 accent-[var(--color-role-accent)]"
+                          />
+                          <span>{department.name} ({department.code})</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--color-text-soft)]">Select every department this instructor teaches, such as `BIT` and `BCS`.</p>
+                  {errors.department && <p className="ui-form-helper-error">{errors.department}</p>}
+                </div>
+              ) : modalType !== 'gatekeeper' && (
                 <div>
                   <label className="ui-form-label">Department</label>
                   <select
@@ -593,7 +647,6 @@ const Users = () => {
                     value={values.department}
                     onChange={handleChange}
                     className={`ui-form-input ${errors.department ? 'ui-form-input-error' : ''}`}
-                    disabled={isCoordinator}
                   >
                     <option value="">Select Department</option>
                     {departments.map((department) => (
@@ -602,9 +655,6 @@ const Users = () => {
                       </option>
                     ))}
                   </select>
-                  {isCoordinator ? (
-                    <p className="mt-2 text-xs text-[var(--color-text-soft)]">Coordinators can only create users inside their own department.</p>
-                  ) : null}
                   {errors.department && <p className="ui-form-helper-error">{errors.department}</p>}
                 </div>
               )}

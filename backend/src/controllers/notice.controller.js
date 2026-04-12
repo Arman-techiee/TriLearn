@@ -1,4 +1,8 @@
 const prisma = require('../utils/prisma')
+const {
+  getInstructorDepartments,
+  instructorHasDepartment
+} = require('../utils/instructorDepartments')
 const { getPagination } = require('../utils/pagination')
 const { recordAuditLog } = require('../utils/audit')
 const { sanitizePlainText } = require('../utils/sanitize')
@@ -88,14 +92,16 @@ const resolveNoticeTargeting = (req, { audience, targetDepartment, targetSemeste
   }
 
   if (req.user.role === 'INSTRUCTOR') {
+    const instructorDepartments = getInstructorDepartments(req.instructor)
+
     if (normalizedAudience === 'INSTRUCTORS_ONLY') {
       return {
         error: { status: 403, message: 'Only admins and coordinators can post instructor-only notices' }
       }
     }
 
-    if (req.instructor?.department) {
-      normalizedTarget.targetDepartment = req.instructor.department
+    if (!targetDepartment && instructorDepartments.length > 0) {
+      normalizedTarget.targetDepartment = instructorDepartments[0]
     }
   }
 
@@ -109,9 +115,9 @@ const resolveNoticeTargeting = (req, { audience, targetDepartment, targetSemeste
 
   if (
     req.user.role === 'INSTRUCTOR' &&
-    req.instructor?.department &&
+    getInstructorDepartments(req.instructor).length > 0 &&
     targetDepartment &&
-    targetDepartment !== req.instructor.department
+    !instructorHasDepartment(req.instructor, targetDepartment)
   ) {
     return {
       error: { status: 403, message: 'Instructors can only target notices to their own department' }
@@ -135,7 +141,10 @@ const getNoticeRecipientWhere = (notice) => {
       ...(notice.targetDepartment ? {
         instructor: {
           is: {
-            department: notice.targetDepartment
+            OR: [
+              { department: notice.targetDepartment },
+              { departments: { has: notice.targetDepartment } }
+            ]
           }
         }
       } : {})

@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma')
+const { getInstructorDepartments } = require('../utils/instructorDepartments')
 
 const normalizeDepartment = (value) => value ? value.trim() : ''
 
@@ -42,16 +43,17 @@ const getAllDepartments = async (_req, res) => {
       orderBy: { name: 'asc' }
     })
 
-    const [studentCounts, instructorCounts, subjectCounts] = await Promise.all([
+    const [studentCounts, instructors, subjectCounts] = await Promise.all([
       prisma.student.groupBy({
         by: ['department'],
         _count: { _all: true },
         where: { department: { not: null } }
       }),
-      prisma.instructor.groupBy({
-        by: ['department'],
-        _count: { _all: true },
-        where: { department: { not: null } }
+      prisma.instructor.findMany({
+        select: {
+          department: true,
+          departments: true
+        }
       }),
       prisma.subject.groupBy({
         by: ['department'],
@@ -69,7 +71,13 @@ const getAllDepartments = async (_req, res) => {
     }, {})
 
     const studentCountMap = toCountMap(studentCounts)
-    const instructorCountMap = toCountMap(instructorCounts)
+    const instructorCountMap = instructors.reduce((acc, instructor) => {
+      getInstructorDepartments(instructor).forEach((departmentName) => {
+        acc[departmentName] = (acc[departmentName] || 0) + 1
+      })
+
+      return acc
+    }, {})
     const subjectCountMap = toCountMap(subjectCounts)
 
     const enriched = departments.map((department) => ({

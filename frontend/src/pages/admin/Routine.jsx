@@ -14,6 +14,11 @@ import logger from '../../utils/logger'
 import { isRequestCanceled } from '../../utils/http'
 const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const DAY_SHORT = { SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat' }
+const getInstructorDepartments = (instructor) => (
+  Array.isArray(instructor?.instructor?.departments) && instructor.instructor.departments.length > 0
+    ? instructor.instructor.departments
+    : [instructor?.instructor?.department].filter(Boolean)
+)
 
 const COLORS = [
   'routine-tone-1',
@@ -218,7 +223,8 @@ const AdminRoutine = () => {
       return true
     }
 
-    return normalizeDepartmentKey(instructor.instructor?.department) === normalizeDepartmentKey(form.department)
+    return getInstructorDepartments(instructor)
+      .some((department) => normalizeDepartmentKey(department) === normalizeDepartmentKey(form.department))
   })
 
   const handleSubjectChange = (subjectId) => {
@@ -423,7 +429,9 @@ const AdminRoutine = () => {
                 <select required value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })} className="ui-form-input">
                   <option value="">Select Instructor</option>
                   {filteredInstructors.map(i => (
-                    <option key={i.instructor.id} value={i.instructor.id}>{i.name}</option>
+                    <option key={i.instructor.id} value={i.instructor.id}>
+                      {i.name} {getInstructorDepartments(i).length > 0 ? `— ${getInstructorDepartments(i).join(', ')}` : ''}
+                    </option>
                   ))}
                 </select>
                 {form.department && filteredInstructors.length === 0 ? (
