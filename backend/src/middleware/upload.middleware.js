@@ -86,8 +86,7 @@ const spreadsheetOnly = (_req, file, cb) => {
 const imageOnly = (_req, file, cb) => {
   file.originalname = sanitizeUploadedOriginalName(file.originalname, 'upload-image')
   const mimeType = String(file.mimetype || '').toLowerCase()
-  const fileName = String(file.originalname || '').toLowerCase()
-  const isImage = mimeType.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(fileName)
+  const isImage = mimeType.startsWith('image/')
 
   if (!isImage) {
     return cb(new Error('Only image files are allowed'))

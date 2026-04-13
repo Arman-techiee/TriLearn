@@ -9,6 +9,12 @@ test('sanitizePlainText strips html and control characters', () => {
   assert.equal(sanitizePlainText(input), 'Hello World')
 })
 
+test('sanitizePlainText removes dangerous HTML while preserving plain text content', () => {
+  const input = '<svg><g onload=alert(1)></g></svg><p>Safe &amp; sound</p>'
+
+  assert.equal(sanitizePlainText(input), 'Safe & sound')
+})
+
 test('sanitizePlainText collapses whitespace while preserving paragraph breaks', () => {
   const input = 'First line   \n\n\nSecond\t\tline'
 

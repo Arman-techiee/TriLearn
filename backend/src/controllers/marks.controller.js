@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma')
 const { getPagination } = require('../utils/pagination')
 const { recordAuditLog } = require('../utils/audit')
 const { createNotifications } = require('../utils/notifications')
+const { sanitizePlainText } = require('../utils/sanitize')
 const PDFDocument = require('pdfkit')
 
 const EXAM_TYPES = ['INTERNAL', 'MIDTERM', 'FINAL', 'PREBOARD', 'PRACTICAL']
@@ -521,7 +522,7 @@ const createMarkPayload = ({ studentId, subjectId, instructorId, examType, total
   examType,
   totalMarks,
   obtainedMarks,
-  remarks,
+  remarks: sanitizePlainText(remarks),
   isPublished: false,
   publishedAt: null,
   publishedBy: null
@@ -713,7 +714,7 @@ const updateMarks = async (req, res) => {
       where: { id },
       data: {
         obtainedMarks,
-        remarks,
+        remarks: sanitizePlainText(remarks),
         isPublished: false,
         publishedAt: null,
         publishedBy: null

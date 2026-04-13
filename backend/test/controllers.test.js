@@ -933,6 +933,66 @@ test('getAllUsers scopes coordinator queries to their department', async () => {
   })
 })
 
+test('getAllUsers coerces semester query filters to numbers for Prisma', async () => {
+  const findManyCalls = []
+  const { getAllUsers } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        },
+        count: async () => 0
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    query: {
+      role: 'STUDENT',
+      semester: '5',
+      graduated: 'false'
+    },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await getAllUsers(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(findManyCalls.length, 1)
+  assert.deepEqual(findManyCalls[0].where.AND[0], {
+    role: 'STUDENT',
+    student: {
+      is: {
+        semester: 5,
+        isGraduated: false
+      }
+    }
+  })
+})
+
 test('createStudentFromApplication blocks coordinators from converting another department application', async () => {
   const { createStudentFromApplication } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
     '../utils/prisma': {
@@ -2724,4 +2784,303 @@ test('createRoutine blocks coordinators from creating routines outside their dep
   assert.deepEqual(res.body, {
     message: 'You can only manage routines in your own department'
   })
+})
+
+test('getActivity marks the current session by id without selecting tokenHash in the sessions query', async () => {
+  const refreshTokenFindManyCalls = []
+  const refreshTokenFindFirstCalls = []
+
+  const { getActivity } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      auditLog: {
+        findMany: async () => ([
+          {
+            id: 'audit-1',
+            action: 'LOGIN_SUCCESS',
+            entityType: 'AUTH',
+            metadata: { ipAddress: '127.0.0.1' },
+            createdAt: new Date('2026-04-13T08:00:00.000Z')
+          }
+        ])
+      },
+      refreshToken: {
+        findFirst: async (payload) => {
+          refreshTokenFindFirstCalls.push(payload)
+          return { id: 'session-2' }
+        },
+        findMany: async (payload) => {
+          refreshTokenFindManyCalls.push(payload)
+          return [
+            {
+              id: 'session-1',
+              ipAddress: '127.0.0.1',
+              userAgent: 'Browser A',
+              createdAt: new Date('2026-04-13T08:00:00.000Z'),
+              lastUsedAt: new Date('2026-04-13T09:00:00.000Z'),
+              expiresAt: new Date('2026-04-20T09:00:00.000Z')
+            },
+            {
+              id: 'session-2',
+              ipAddress: '127.0.0.2',
+              userAgent: 'Browser B',
+              createdAt: new Date('2026-04-13T10:00:00.000Z'),
+              lastUsedAt: new Date('2026-04-13T11:00:00.000Z'),
+              expiresAt: new Date('2026-04-20T11:00:00.000Z')
+            }
+          ]
+        }
+      }
+    },
+    '../utils/token': {
+      signAccessToken: () => 'access-token',
+      signRefreshToken: () => 'refresh-token',
+      verifyRefreshToken: () => ({ id: 'user-1' }),
+      hashToken: () => 'current-hash',
+      getRefreshTokenExpiry: () => new Date(),
+      getRefreshCookieOptions: () => ({})
+    }
+  }))
+
+  const req = {
+    cookies: {
+      refreshToken: 'refresh-token'
+    },
+    user: {
+      id: 'user-1'
+    }
+  }
+  const res = createResponse()
+
+  await getActivity(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(refreshTokenFindFirstCalls.length, 1)
+  assert.deepEqual(refreshTokenFindFirstCalls[0].select, { id: true })
+  assert.equal(refreshTokenFindFirstCalls[0].where.tokenHash, 'current-hash')
+  assert.equal(refreshTokenFindManyCalls.length, 1)
+  assert.equal(refreshTokenFindManyCalls[0].select.tokenHash, undefined)
+  assert.deepEqual(res.body.sessions.map((session) => ({
+    id: session.id,
+    current: session.current
+  })), [
+    { id: 'session-1', current: false },
+    { id: 'session-2', current: true }
+  ])
+  assert.equal(Object.prototype.hasOwnProperty.call(res.body.sessions[0], 'tokenHash'), false)
+})
+
+test('submitStudentIntake sanitizes profile fields before persisting the application', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+
+  const upsertCalls = []
+  const { submitStudentIntake } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      studentApplication: {
+        findUnique: async () => null,
+        upsert: async (payload) => {
+          upsertCalls.push(payload)
+          return payload
+        }
+      },
+      user: {
+        findUnique: async () => null
+      }
+    }
+  }))
+
+  const req = {
+    body: {
+      fullName: '<b>Arman Dev</b>',
+      email: 'arman@example.com',
+      phone: '<i>9800000000</i>',
+      fatherName: '<script>alert(1)</script>Father Name',
+      motherName: '<div>Mother Name</div>',
+      fatherPhone: '<span>9800000001</span>',
+      motherPhone: '<span>9800000002</span>',
+      bloodGroup: '<b>A+</b>',
+      localGuardianName: '<p>Guardian Name</p>',
+      localGuardianAddress: '<img src=x onerror=1>Kathmandu',
+      localGuardianPhone: '<span>9800000003</span>',
+      permanentAddress: '<div>Bhaktapur</div>',
+      temporaryAddress: '<div>Lalitpur</div>',
+      dateOfBirth: '2005-01-01',
+      preferredDepartment: 'BCA'
+    }
+  }
+  const res = createResponse()
+
+  await submitStudentIntake(req, res)
+
+  assert.equal(res.statusCode, 201)
+  assert.equal(upsertCalls.length, 1)
+  assert.deepEqual(upsertCalls[0].create, {
+    fullName: 'Arman Dev',
+    phone: '9800000000',
+    fatherName: 'Father Name',
+    motherName: 'Mother Name',
+    fatherPhone: '9800000001',
+    motherPhone: '9800000002',
+    bloodGroup: 'A+',
+    localGuardianName: 'Guardian Name',
+    localGuardianAddress: 'Kathmandu',
+    localGuardianPhone: '9800000003',
+    permanentAddress: 'Bhaktapur',
+    temporaryAddress: 'Lalitpur',
+    email: 'arman@example.com',
+    dateOfBirth: '2005-01-01',
+    preferredDepartment: 'BCA',
+    preferredSemester: 1,
+    preferredSection: null
+  })
+})
+
+test('updateUser sanitizes plain-text profile fields before persisting', async () => {
+  const userUpdates = []
+  const studentUpdates = []
+  const { updateUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({
+          id: 'user-1',
+          role: 'STUDENT',
+          student: {
+            id: 'student-1',
+            semester: 3,
+            section: 'A',
+            department: 'BCA'
+          },
+          instructor: null,
+          coordinator: null
+        }),
+        update: async (payload) => {
+          userUpdates.push(payload)
+          return {
+            id: 'user-1',
+            name: payload.data.name
+          }
+        }
+      },
+      student: {
+        update: async (payload) => {
+          studentUpdates.push(payload)
+          return {
+            id: 'student-1',
+            semester: 3,
+            section: payload.data.section,
+            department: 'BCA'
+          }
+        }
+      }
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    params: { id: 'user-1' },
+    body: {
+      name: '<b>Student One</b>',
+      phone: '<span>9800000000</span>',
+      address: '<img src=x onerror=1>Kathmandu',
+      section: '<i>B</i>'
+    },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await updateUser(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(userUpdates.length, 1)
+  assert.deepEqual(userUpdates[0].data, {
+    name: 'Student One',
+    phone: '9800000000',
+    address: 'Kathmandu'
+  })
+  assert.equal(studentUpdates.length, 1)
+  assert.equal(studentUpdates[0].data.section, 'B')
+})
+
+test('addMarks sanitizes remarks before storing them', async () => {
+  const createCalls = []
+  const { addMarks } = loadWithMocks(resolveFromTest('src', 'controllers', 'marks.controller.js'), {
+    '../utils/prisma': {
+      subject: {
+        findUnique: async () => ({
+          id: 'subject-1',
+          instructorId: 'instructor-1',
+          instructor: {
+            id: 'instructor-1',
+            user: { name: 'Instructor One', email: 'instructor@example.com' }
+          }
+        })
+      },
+      subjectEnrollment: {
+        findUnique: async () => ({ subjectId: 'subject-1', studentId: 'student-1' })
+      },
+      mark: {
+        create: async (payload) => {
+          createCalls.push(payload)
+          return {
+            id: 'mark-1',
+            studentId: 'student-1',
+            subjectId: 'subject-1',
+            obtainedMarks: payload.data.obtainedMarks,
+            totalMarks: payload.data.totalMarks,
+            remarks: payload.data.remarks,
+            student: { user: { name: 'Arman Dev' } },
+            subject: { name: 'Database Systems', code: 'DBS101' }
+          }
+        }
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 10, skip: 0 })
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/notifications': {
+      createNotifications: async () => {}
+    },
+    pdfkit: class MockPdfDocument {}
+  })
+
+  const req = {
+    body: {
+      studentId: 'student-1',
+      subjectId: 'subject-1',
+      examType: 'FINAL',
+      totalMarks: 100,
+      obtainedMarks: 88,
+      remarks: '<img src=x onerror=1>Great&nbsp;work'
+    },
+    user: { id: 'instructor-user-1', role: 'INSTRUCTOR' },
+    instructor: { id: 'instructor-1' }
+  }
+  const res = createResponse()
+
+  await addMarks(req, res)
+
+  assert.equal(res.statusCode, 201)
+  assert.equal(createCalls.length, 1)
+  assert.equal(createCalls[0].data.remarks, 'Great work')
+  assert.equal(res.body.mark.remarks, 'Great work')
 })

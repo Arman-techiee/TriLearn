@@ -10,6 +10,7 @@ const { sendMail } = require('../utils/mailer')
 const { passwordResetTemplate } = require('../utils/emailTemplates')
 const { hashPassword } = require('../utils/security')
 const { signQrPayload } = require('../utils/qrSigning')
+const { sanitizePlainText } = require('../utils/sanitize')
 const {
   signAccessToken,
   signRefreshToken,
@@ -59,6 +60,7 @@ const waitForMinimumDuration = async (startedAt, minDurationMs) => {
 }
 
 const isMobileClient = (req) => String(req.headers?.['x-client-type'] || '').toLowerCase() === 'mobile'
+const sanitizeOptionalPlainText = (value) => (value == null ? value : sanitizePlainText(value))
 
 const issueAuthSession = async (user, res, req, previousRefreshToken) => {
   const accessToken = signAccessToken(user)
@@ -203,6 +205,20 @@ const submitStudentIntake = async (req, res) => {
       dateOfBirth,
       preferredDepartment
     } = req.body
+    const sanitizedApplication = {
+      fullName: sanitizePlainText(fullName),
+      phone: sanitizeOptionalPlainText(phone),
+      fatherName: sanitizePlainText(fatherName),
+      motherName: sanitizePlainText(motherName),
+      fatherPhone: sanitizeOptionalPlainText(fatherPhone),
+      motherPhone: sanitizeOptionalPlainText(motherPhone),
+      bloodGroup: sanitizeOptionalPlainText(bloodGroup),
+      localGuardianName: sanitizeOptionalPlainText(localGuardianName),
+      localGuardianAddress: sanitizeOptionalPlainText(localGuardianAddress),
+      localGuardianPhone: sanitizeOptionalPlainText(localGuardianPhone),
+      permanentAddress: sanitizeOptionalPlainText(permanentAddress),
+      temporaryAddress: sanitizeOptionalPlainText(temporaryAddress)
+    }
 
     const existingApplication = await prisma.studentApplication.findUnique({ where: { email } })
 
@@ -221,18 +237,7 @@ const submitStudentIntake = async (req, res) => {
     await prisma.studentApplication.upsert({
       where: { email },
       update: {
-        fullName,
-        phone,
-        fatherName,
-        motherName,
-        fatherPhone,
-        motherPhone,
-        bloodGroup,
-        localGuardianName,
-        localGuardianAddress,
-        localGuardianPhone,
-        permanentAddress,
-        temporaryAddress,
+        ...sanitizedApplication,
         dateOfBirth,
         preferredDepartment,
         preferredSemester: 1,
@@ -243,19 +248,8 @@ const submitStudentIntake = async (req, res) => {
         linkedUserId: null
       },
       create: {
-        fullName,
+        ...sanitizedApplication,
         email,
-        phone,
-        fatherName,
-        motherName,
-        fatherPhone,
-        motherPhone,
-        bloodGroup,
-        localGuardianName,
-        localGuardianAddress,
-        localGuardianPhone,
-        permanentAddress,
-        temporaryAddress,
         dateOfBirth,
         preferredDepartment,
         preferredSemester: 1,
@@ -437,12 +431,26 @@ const updateProfile = async (req, res) => {
       dateOfBirth,
       section
     } = req.body
+    const sanitizedProfile = {
+      address: sanitizeOptionalPlainText(address),
+      fatherName: sanitizeOptionalPlainText(fatherName),
+      motherName: sanitizeOptionalPlainText(motherName),
+      fatherPhone: sanitizeOptionalPlainText(fatherPhone),
+      motherPhone: sanitizeOptionalPlainText(motherPhone),
+      bloodGroup: sanitizeOptionalPlainText(bloodGroup),
+      localGuardianName: sanitizeOptionalPlainText(localGuardianName),
+      localGuardianAddress: sanitizeOptionalPlainText(localGuardianAddress),
+      localGuardianPhone: sanitizeOptionalPlainText(localGuardianPhone),
+      permanentAddress: sanitizeOptionalPlainText(permanentAddress),
+      temporaryAddress: sanitizeOptionalPlainText(temporaryAddress),
+      section: sanitizeOptionalPlainText(section)
+    }
 
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
         phone: phone ?? undefined,
-        address: address ?? temporaryAddress ?? undefined
+        address: sanitizedProfile.address ?? sanitizedProfile.temporaryAddress ?? undefined
       }
     })
 
@@ -450,19 +458,19 @@ const updateProfile = async (req, res) => {
       await prisma.student.update({
         where: { userId: req.user.id },
         data: {
-          guardianName: fatherName ?? undefined,
-          guardianPhone: fatherPhone ?? undefined,
-          fatherName: fatherName ?? undefined,
-          motherName: motherName ?? undefined,
-          fatherPhone: fatherPhone ?? undefined,
-          motherPhone: motherPhone ?? undefined,
-          bloodGroup: bloodGroup ?? undefined,
-          localGuardianName: localGuardianName ?? undefined,
-          localGuardianAddress: localGuardianAddress ?? undefined,
-          localGuardianPhone: localGuardianPhone ?? undefined,
-          permanentAddress: permanentAddress ?? undefined,
-          temporaryAddress: temporaryAddress ?? address ?? undefined,
-          section: section ?? undefined,
+          guardianName: sanitizedProfile.fatherName ?? undefined,
+          guardianPhone: sanitizedProfile.fatherPhone ?? undefined,
+          fatherName: sanitizedProfile.fatherName ?? undefined,
+          motherName: sanitizedProfile.motherName ?? undefined,
+          fatherPhone: sanitizedProfile.fatherPhone ?? undefined,
+          motherPhone: sanitizedProfile.motherPhone ?? undefined,
+          bloodGroup: sanitizedProfile.bloodGroup ?? undefined,
+          localGuardianName: sanitizedProfile.localGuardianName ?? undefined,
+          localGuardianAddress: sanitizedProfile.localGuardianAddress ?? undefined,
+          localGuardianPhone: sanitizedProfile.localGuardianPhone ?? undefined,
+          permanentAddress: sanitizedProfile.permanentAddress ?? undefined,
+          temporaryAddress: sanitizedProfile.temporaryAddress ?? sanitizedProfile.address ?? undefined,
+          section: sanitizedProfile.section ?? undefined,
           dateOfBirth: dateOfBirth ?? undefined
         }
       })
@@ -583,6 +591,19 @@ const completeProfile = async (req, res) => {
       dateOfBirth,
       section
     } = req.body
+    const sanitizedProfile = {
+      fatherName: sanitizePlainText(fatherName),
+      motherName: sanitizePlainText(motherName),
+      fatherPhone: sanitizeOptionalPlainText(fatherPhone),
+      motherPhone: sanitizeOptionalPlainText(motherPhone),
+      bloodGroup: sanitizeOptionalPlainText(bloodGroup),
+      localGuardianName: sanitizeOptionalPlainText(localGuardianName),
+      localGuardianAddress: sanitizeOptionalPlainText(localGuardianAddress),
+      localGuardianPhone: sanitizeOptionalPlainText(localGuardianPhone),
+      permanentAddress: sanitizeOptionalPlainText(permanentAddress),
+      temporaryAddress: sanitizeOptionalPlainText(temporaryAddress),
+      section: sanitizeOptionalPlainText(section)
+    }
 
     const student = await prisma.student.findUnique({
       where: { userId: req.user.id }
@@ -597,26 +618,26 @@ const completeProfile = async (req, res) => {
           where: { id: req.user.id },
           data: {
             phone,
-            address: temporaryAddress,
+            address: sanitizedProfile.temporaryAddress,
             profileCompleted: true
           }
         }),
         prisma.student.update({
           where: { userId: req.user.id },
           data: {
-            guardianName: fatherName,
-            guardianPhone: fatherPhone,
-            fatherName,
-            motherName,
-            fatherPhone,
-            motherPhone,
-            bloodGroup,
-            localGuardianName,
-            localGuardianAddress,
-            localGuardianPhone,
-            permanentAddress,
-            temporaryAddress,
-            section,
+            guardianName: sanitizedProfile.fatherName,
+            guardianPhone: sanitizedProfile.fatherPhone,
+            fatherName: sanitizedProfile.fatherName,
+            motherName: sanitizedProfile.motherName,
+            fatherPhone: sanitizedProfile.fatherPhone,
+            motherPhone: sanitizedProfile.motherPhone,
+            bloodGroup: sanitizedProfile.bloodGroup,
+            localGuardianName: sanitizedProfile.localGuardianName,
+            localGuardianAddress: sanitizedProfile.localGuardianAddress,
+            localGuardianPhone: sanitizedProfile.localGuardianPhone,
+            permanentAddress: sanitizedProfile.permanentAddress,
+            temporaryAddress: sanitizedProfile.temporaryAddress,
+            section: sanitizedProfile.section,
             dateOfBirth
           }
       })
@@ -856,23 +877,36 @@ const getActivity = async (req, res) => {
   try {
     const currentRefreshToken = req.cookies?.refreshToken
     const currentTokenHash = currentRefreshToken ? hashToken(currentRefreshToken) : null
+    const now = new Date()
 
-    const [activity, sessions] = await Promise.all([
+    const [activity, currentSession, sessions] = await Promise.all([
       prisma.auditLog.findMany({
         where: { actorId: req.user.id },
         orderBy: { createdAt: 'desc' },
         take: 10
       }),
+      currentTokenHash
+        ? prisma.refreshToken.findFirst({
+          where: {
+            userId: req.user.id,
+            tokenHash: currentTokenHash,
+            revokedAt: null,
+            expiresAt: { gt: now }
+          },
+          select: {
+            id: true
+          }
+        })
+        : null,
       prisma.refreshToken.findMany({
         where: {
           userId: req.user.id,
           revokedAt: null,
-          expiresAt: { gt: new Date() }
+          expiresAt: { gt: now }
         },
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          tokenHash: true,
           ipAddress: true,
           userAgent: true,
           createdAt: true,
@@ -897,7 +931,7 @@ const getActivity = async (req, res) => {
         createdAt: session.createdAt,
         lastUsedAt: session.lastUsedAt,
         expiresAt: session.expiresAt,
-        current: currentTokenHash ? session.tokenHash === currentTokenHash : false
+        current: currentSession ? session.id === currentSession.id : false
       }))
     })
   } catch (error) {

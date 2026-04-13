@@ -470,3 +470,34 @@ test('createStudent does not return plaintext temporary passwords', async () => 
   assert.equal(JSON.stringify(res.body).includes('TempPass123!'), false)
   assert.equal(auditCalls.length, 1)
 })
+
+test('uploadImage rejects files with image-looking filenames when the MIME type is not an image', async () => {
+  const { uploadImage } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const app = express()
+  app.post('/upload-avatar', uploadImage.single('avatar'), (_req, res) => {
+    res.status(201).json({ ok: true })
+  })
+
+  const response = await request(app)
+    .post('/upload-avatar')
+    .attach('avatar', Buffer.from('not really an image'), {
+      filename: 'shell.php.png',
+      contentType: 'text/plain'
+    })
+
+  assert.equal(response.status, 400)
+  assert.deepEqual(response.body, { message: 'Only image files are allowed' })
+})

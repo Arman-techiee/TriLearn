@@ -11,6 +11,7 @@ const { recordAuditLog } = require('../utils/audit')
 const { sendMail } = require('../utils/mailer')
 const { welcomeTemplate } = require('../utils/emailTemplates')
 const { hashPassword, getStudentTemporaryPassword } = require('../utils/security')
+const { sanitizePlainText } = require('../utils/sanitize')
 const {
   normalizeDepartmentList
 } = require('../utils/instructorDepartments')
@@ -24,6 +25,7 @@ const clearStatsCache = () => {
   statsCache = null
   statsCacheExpiresAt = 0
 }
+const sanitizeOptionalPlainText = (value) => (value == null ? value : sanitizePlainText(value))
 
 const buildContainsSearch = (search) => ({
   contains: search,
@@ -157,22 +159,26 @@ const createStudentAccountRecord = async ({
 }) => {
   const temporaryPassword = getStudentTemporaryPassword()
   const hashedPassword = await hashPassword(temporaryPassword)
+  const sanitizedName = sanitizePlainText(name)
+  const sanitizedPhone = sanitizeOptionalPlainText(phone)
+  const sanitizedAddress = sanitizeOptionalPlainText(address)
+  const sanitizedSection = sanitizeOptionalPlainText(section)
 
   const user = await prisma.user.create({
     data: {
-      name,
+      name: sanitizedName,
       email,
       password: hashedPassword,
       role: 'STUDENT',
-      phone,
-      address,
+      phone: sanitizedPhone,
+      address: sanitizedAddress,
       mustChangePassword: true,
       profileCompleted: false,
       student: {
         create: {
           rollNumber: studentId,
           semester,
-          section,
+          section: sanitizedSection,
           department
         }
       }
@@ -433,7 +439,7 @@ const getAllUsers = async (req, res) => {
       const studentFilters = {}
 
       if (semester !== undefined) {
-        studentFilters.semester = semester
+        studentFilters.semester = Number(semester)
       }
 
       if (graduated !== undefined) {
@@ -547,6 +553,9 @@ const createCoordinator = async (req, res) => {
   try {
     const { name, email, password, phone, address, department } = req.body
     const normalizedDepartment = department?.trim() || null
+    const sanitizedName = sanitizePlainText(name)
+    const sanitizedPhone = sanitizeOptionalPlainText(phone)
+    const sanitizedAddress = sanitizeOptionalPlainText(address)
 
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
@@ -564,12 +573,12 @@ const createCoordinator = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: sanitizedName,
         email,
         password: hashedPassword,
         role: 'COORDINATOR',
-        phone,
-        address,
+        phone: sanitizedPhone,
+        address: sanitizedAddress,
         coordinator: {
           create: { department: normalizedDepartment }
         }
@@ -611,6 +620,9 @@ const createCoordinator = async (req, res) => {
 const createGatekeeper = async (req, res) => {
   try {
     const { name, email, password, phone, address } = req.body
+    const sanitizedName = sanitizePlainText(name)
+    const sanitizedPhone = sanitizeOptionalPlainText(phone)
+    const sanitizedAddress = sanitizeOptionalPlainText(address)
 
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
@@ -621,12 +633,12 @@ const createGatekeeper = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: sanitizedName,
         email,
         password: hashedPassword,
         role: 'GATEKEEPER',
-        phone,
-        address
+        phone: sanitizedPhone,
+        address: sanitizedAddress
       }
     })
     clearStatsCache()
@@ -660,6 +672,9 @@ const createGatekeeper = async (req, res) => {
 const createInstructor = async (req, res) => {
   try {
     const { name, email, password, phone, address, department, departments } = req.body
+    const sanitizedName = sanitizePlainText(name)
+    const sanitizedPhone = sanitizeOptionalPlainText(phone)
+    const sanitizedAddress = sanitizeOptionalPlainText(address)
 
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
@@ -683,12 +698,12 @@ const createInstructor = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: sanitizedName,
         email,
         password: hashedPassword,
         role: 'INSTRUCTOR',
-        phone,
-        address,
+        phone: sanitizedPhone,
+        address: sanitizedAddress,
         instructor: {
           create: {
             department: instructorDepartments.primaryDepartment,
@@ -739,6 +754,7 @@ const createStudent = async (req, res) => {
     const normalizedDepartment = department?.trim() || null
     const normalizedStudentId = studentId.trim().toUpperCase()
     const normalizedEmail = email.trim().toLowerCase()
+    const sanitizedSection = sanitizePlainText(section)
 
     const [existingUser, existingStudent] = await Promise.all([
       prisma.user.findUnique({ where: { email: normalizedEmail } }),
@@ -771,7 +787,7 @@ const createStudent = async (req, res) => {
       phone,
       address,
       semester: semester || 1,
-      section,
+      section: sanitizedSection,
       department: normalizedDepartment
     })
     const welcomeEmailSent = await sendStudentWelcomeEmail({
@@ -825,6 +841,10 @@ const updateUser = async (req, res) => {
     const { id } = req.params
     const { name, phone, address, department, departments, semester, section } = req.body
     const normalizedDepartment = department?.trim() || null
+    const sanitizedName = name === undefined ? undefined : sanitizePlainText(name)
+    const sanitizedPhone = phone === undefined ? undefined : sanitizeOptionalPlainText(phone)
+    const sanitizedAddress = address === undefined ? undefined : sanitizeOptionalPlainText(address)
+    const sanitizedSection = section === undefined ? undefined : sanitizeOptionalPlainText(section)
     const hasInstructorDepartmentUpdate = (
       Object.prototype.hasOwnProperty.call(req.body, 'department') ||
       Object.prototype.hasOwnProperty.call(req.body, 'departments')
@@ -873,7 +893,7 @@ const updateUser = async (req, res) => {
 
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { name, phone, address }
+      data: { name: sanitizedName, phone: sanitizedPhone, address: sanitizedAddress }
     })
 
     if (user.role === 'INSTRUCTOR' && hasInstructorDepartmentUpdate) {
@@ -938,7 +958,7 @@ const updateUser = async (req, res) => {
         where: { userId: id },
         data: {
           semester,
-          section,
+          section: sanitizedSection,
           department: normalizedDepartment ?? undefined,
           ...(shouldResetGraduation
             ? {
@@ -1279,8 +1299,12 @@ const importStudents = async (req, res) => {
       const normalizedDepartmentKey = normalizeDepartmentValue(row.department).toLowerCase()
       const resolvedDepartment = departmentLookup[normalizedDepartmentKey] || null
       const semester = Number.parseInt(row.semester, 10)
+      const sanitizedName = sanitizePlainText(row.name)
+      const sanitizedPhone = sanitizeOptionalPlainText(row.phone) || null
+      const sanitizedAddress = sanitizeOptionalPlainText(row.address) || null
+      const sanitizedSection = sanitizePlainText(row.section)
 
-      if (!row.name || row.name.trim().length < 2) {
+      if (!sanitizedName || sanitizedName.length < 2) {
         failures.push(buildStudentImportError(row.rowNumber, 'Name must be at least 2 characters long', row))
         return
       }
@@ -1310,7 +1334,7 @@ const importStudents = async (req, res) => {
         return
       }
 
-      if (!row.section || row.section.trim().length < 1) {
+      if (!sanitizedSection || sanitizedSection.length < 1) {
         failures.push(buildStudentImportError(row.rowNumber, 'Section is required', row))
         return
       }
@@ -1330,14 +1354,14 @@ const importStudents = async (req, res) => {
 
       normalizedRows.push({
         rowNumber: row.rowNumber,
-        name: row.name.trim(),
+        name: sanitizedName,
         email: normalizedEmail,
         studentId: normalizedStudentId,
-        phone: row.phone.trim() || null,
-        address: row.address.trim() || null,
+        phone: sanitizedPhone,
+        address: sanitizedAddress,
         department: resolvedDepartment,
         semester,
-        section: row.section.trim()
+        section: sanitizedSection
       })
     })
 
@@ -1656,32 +1680,32 @@ const createStudentFromApplication = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        name: application.fullName,
+        name: sanitizePlainText(application.fullName),
         email: application.email.toLowerCase(),
         password: hashedPassword,
         role: 'STUDENT',
-        phone: application.phone,
-        address: application.temporaryAddress,
+        phone: sanitizeOptionalPlainText(application.phone),
+        address: sanitizeOptionalPlainText(application.temporaryAddress),
         mustChangePassword: true,
         profileCompleted: true,
         student: {
           create: {
             rollNumber: normalizedStudentId,
             semester,
-            section: section || application.preferredSection,
+            section: sanitizeOptionalPlainText(section || application.preferredSection),
             department: normalizedDepartment,
-            guardianName: application.fatherName,
-            guardianPhone: application.fatherPhone,
-            fatherName: application.fatherName,
-            motherName: application.motherName,
-            fatherPhone: application.fatherPhone,
-            motherPhone: application.motherPhone,
-            bloodGroup: application.bloodGroup,
-            localGuardianName: application.localGuardianName,
-            localGuardianAddress: application.localGuardianAddress,
-            localGuardianPhone: application.localGuardianPhone,
-            permanentAddress: application.permanentAddress,
-            temporaryAddress: application.temporaryAddress,
+            guardianName: sanitizeOptionalPlainText(application.fatherName),
+            guardianPhone: sanitizeOptionalPlainText(application.fatherPhone),
+            fatherName: sanitizeOptionalPlainText(application.fatherName),
+            motherName: sanitizeOptionalPlainText(application.motherName),
+            fatherPhone: sanitizeOptionalPlainText(application.fatherPhone),
+            motherPhone: sanitizeOptionalPlainText(application.motherPhone),
+            bloodGroup: sanitizeOptionalPlainText(application.bloodGroup),
+            localGuardianName: sanitizeOptionalPlainText(application.localGuardianName),
+            localGuardianAddress: sanitizeOptionalPlainText(application.localGuardianAddress),
+            localGuardianPhone: sanitizeOptionalPlainText(application.localGuardianPhone),
+            permanentAddress: sanitizeOptionalPlainText(application.permanentAddress),
+            temporaryAddress: sanitizeOptionalPlainText(application.temporaryAddress),
             dateOfBirth: application.dateOfBirth
           }
         }
