@@ -1,5 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const crypto = require('node:crypto')
 const path = require('node:path')
 const { createRequire } = require('node:module')
 
@@ -58,6 +59,10 @@ const createResponse = () => {
       this.cookies.push(args)
       return this
     },
+    clearCookie(...args) {
+      this.cookies.push(['clearCookie', ...args])
+      return this
+    },
     setHeader(name, value) {
       this.headers[name] = value
       return this
@@ -104,14 +109,31 @@ const authControllerMocks = (overrides = {}) => ({
   ...overrides
 })
 
+const createSignedStudentIdQr = (payload, secret = 'test-qr-secret') => {
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(payload))
+    .digest('hex')
+
+  return JSON.stringify({ payload, signature })
+}
+
 test('login returns generic invalid credentials when user does not exist', async () => {
   process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+  const compareCalls = []
 
   const { login } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
     '../utils/prisma': {
       user: {
         findUnique: async () => null
       }
+    },
+    'bcryptjs': {
+      compare: async (...args) => {
+        compareCalls.push(args)
+        return false
+      },
+      hash: async () => 'hashed'
     }
   }))
 
@@ -127,6 +149,8 @@ test('login returns generic invalid credentials when user does not exist', async
 
   assert.equal(res.statusCode, 401)
   assert.deepEqual(res.body, { message: 'Invalid credentials' })
+  assert.equal(compareCalls.length, 1)
+  assert.equal(compareCalls[0][0], 'wrong-password')
 })
 
 test('login locks the account after repeated failed password attempts', async () => {
@@ -296,25 +320,12 @@ test('register blocks self-registration when OPEN_REGISTRATION is disabled', asy
   }
 })
 
-test('register returns a generic response when the email already exists', async () => {
+test('register blocks self-registration even when OPEN_REGISTRATION is enabled', async () => {
   const previousOpenRegistration = process.env.OPEN_REGISTRATION
   process.env.OPEN_REGISTRATION = 'true'
 
   try {
-    const { register } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
-      '../utils/prisma': {
-        user: {
-          findUnique: async () => ({
-            id: 'user-1',
-            email: 'student@example.com'
-          })
-        }
-      },
-      '../utils/security': {
-        hashPassword: async () => 'hashed-password',
-        getRequiredSecret: () => 'test-secret'
-      }
-    }))
+    const { register } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks())
 
     const req = {
       body: {
@@ -327,9 +338,9 @@ test('register returns a generic response when the email already exists', async 
 
     await register(req, res)
 
-    assert.equal(res.statusCode, 200)
+    assert.equal(res.statusCode, 403)
     assert.deepEqual(res.body, {
-      message: 'If this email is eligible, you will receive further instructions.'
+      message: 'Self-registration has been deprecated. Please apply through the student intake form.'
     })
   } finally {
     if (previousOpenRegistration === undefined) {
@@ -338,6 +349,55 @@ test('register returns a generic response when the email already exists', async 
       process.env.OPEN_REGISTRATION = previousOpenRegistration
     }
   }
+})
+
+test('auth dateOfBirth schemas parse strict YYYY-MM-DD values into Date objects', () => {
+  const { schemas } = require(resolveFromTest('src', 'validators', 'schemas.js'))
+
+  const completeProfileBody = schemas.auth.completeProfile.body.parse({
+    phone: '9800000000',
+    fatherName: 'Father',
+    motherName: 'Mother',
+    fatherPhone: '9800000001',
+    motherPhone: '9800000002',
+    bloodGroup: 'A+',
+    localGuardianName: 'Guardian',
+    localGuardianAddress: 'Kathmandu',
+    localGuardianPhone: '9800000003',
+    permanentAddress: 'Bhaktapur',
+    temporaryAddress: 'Lalitpur',
+    dateOfBirth: '2005-01-01',
+    section: 'A'
+  })
+
+  assert.ok(completeProfileBody.dateOfBirth instanceof Date)
+  assert.equal(completeProfileBody.dateOfBirth.toISOString(), '2005-01-01T00:00:00.000Z')
+})
+
+test('auth dateOfBirth schemas reject invalid and out-of-range values', () => {
+  const { schemas } = require(resolveFromTest('src', 'validators', 'schemas.js'))
+
+  assert.throws(() => schemas.auth.updateProfile.body.parse({
+    dateOfBirth: 'not-a-date'
+  }))
+
+  assert.throws(() => schemas.auth.studentIntake.body.parse({
+    fullName: 'Student User',
+    email: 'student@example.com',
+    phone: '9800000000',
+    fatherName: 'Father',
+    motherName: 'Mother',
+    fatherPhone: '9800000001',
+    motherPhone: '9800000002',
+    bloodGroup: 'A+',
+    localGuardianName: 'Guardian',
+    localGuardianAddress: 'Kathmandu',
+    localGuardianPhone: '9800000003',
+    permanentAddress: 'Bhaktapur',
+    temporaryAddress: 'Lalitpur',
+    dateOfBirth: '1919-12-31',
+    preferredDepartment: 'BCA'
+  }))
 })
 
 test('submitStudentIntake returns a generic response when a matching user already exists', async () => {
@@ -386,6 +446,42 @@ test('submitStudentIntake returns a generic response when a matching user alread
   assert.deepEqual(res.body, {
     message: 'If this email is eligible, you will receive further instructions.'
   })
+})
+
+test('logout still runs a token revocation query when no refresh token is provided', async () => {
+  const updateManyCalls = []
+  const { logout } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      refreshToken: {
+        updateMany: async (payload) => {
+          updateManyCalls.push(payload)
+          return { count: 0 }
+        }
+      }
+    },
+    '../utils/token': {
+      signAccessToken: () => 'access-token',
+      signRefreshToken: () => 'refresh-token',
+      verifyRefreshToken: () => ({ id: 'user-1' }),
+      hashToken: (value) => `hash:${value}`,
+      getRefreshTokenExpiry: () => new Date(),
+      getRefreshCookieOptions: () => ({})
+    }
+  }))
+
+  const req = {
+    body: {},
+    cookies: {},
+    ip: '127.0.0.1'
+  }
+  const res = createResponse()
+
+  await logout(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.body, { message: 'Logged out successfully' })
+  assert.equal(updateManyCalls.length, 1)
+  assert.equal(updateManyCalls[0].where.tokenHash, 'hash:logout-placeholder:127.0.0.1')
 })
 
 test('login hides suspension reasons from the response', async () => {
@@ -489,7 +585,8 @@ test('getAdminStats returns fresh server-side aggregate counts', async () => {
       hash: async () => 'hashed'
     },
     '../utils/enrollment': {
-      enrollStudentInMatchingSubjects: async () => {}
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
     },
     '../utils/logger': {
       error: () => {}
@@ -557,7 +654,8 @@ test('updateUser does not wipe coordinator department when no department is prov
       hash: async () => 'hashed'
     },
     '../utils/enrollment': {
-      enrollStudentInMatchingSubjects: async () => {}
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
     },
     '../utils/logger': {
       error: () => {}
@@ -631,7 +729,8 @@ test('updateUser does not wipe student department when no department is provided
       hash: async () => 'hashed'
     },
     '../utils/enrollment': {
-      enrollStudentInMatchingSubjects: async () => {}
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
     },
     '../utils/logger': {
       error: () => {}
@@ -670,6 +769,80 @@ test('updateUser does not wipe student department when no department is provided
   assert.equal(studentUpdates[0].data.department, undefined)
   assert.equal(studentUpdates[0].data.semester, 4)
   assert.equal(studentUpdates[0].data.section, 'B')
+})
+
+test('promoteStudentSemester increments the student semester and syncs enrollments', async () => {
+  const enrollmentSyncCalls = []
+  const auditCalls = []
+  const { promoteStudentSemester } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({
+          id: 'user-1',
+          role: 'STUDENT',
+          name: 'Student One',
+          student: {
+            id: 'student-1',
+            semester: 3,
+            department: 'BCA'
+          }
+        })
+      },
+      student: {
+        update: async () => ({
+          id: 'student-1',
+          semester: 4,
+          department: 'BCA',
+          section: 'A',
+          rollNumber: 'BCA-001'
+        })
+      }
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async (payload) => {
+        enrollmentSyncCalls.push(payload)
+      }
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async (payload) => {
+        auditCalls.push(payload)
+      }
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    params: { id: 'user-1' },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await promoteStudentSemester(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.body.student.semester, 4)
+  assert.deepEqual(enrollmentSyncCalls, [{
+    studentId: 'student-1',
+    semester: 4,
+    department: 'BCA'
+  }])
+  assert.equal(auditCalls.length, 1)
+  assert.equal(auditCalls[0].action, 'STUDENT_SEMESTER_PROMOTED')
 })
 
 test('getAllUsers scopes coordinator queries to their department', async () => {
@@ -1722,6 +1895,175 @@ test('markAttendanceQR creates a present attendance record for eligible students
   assert.equal(upsertCalls.length, 1)
   assert.equal(upsertCalls[0].create.studentId, 'student-1')
   assert.equal(upsertCalls[0].create.subjectId, 'subject-1')
+})
+
+test('getStudentIdQr includes an expiry timestamp in the signed student QR payload', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+  let encodedPayload = null
+
+  const { getStudentIdQr } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          name: 'Arman Dev',
+          email: 'student@example.com',
+          phone: '9800000000',
+          role: 'STUDENT',
+          student: {
+            id: 'student-1',
+            rollNumber: 'BCA-001',
+            department: 'BCA',
+            semester: 4,
+            section: 'A'
+          }
+        })
+      }
+    },
+    qrcode: {
+      toDataURL: async (value) => {
+        encodedPayload = value
+        return 'data:image/png;base64,qr'
+      }
+    }
+  }))
+
+  const req = {
+    user: { id: 'user-1', role: 'STUDENT' }
+  }
+  const res = createResponse()
+
+  const startedAt = Date.now()
+  await getStudentIdQr(req, res)
+  const finishedAt = Date.now()
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.body.qrCode, 'data:image/png;base64,qr')
+
+  const parsed = JSON.parse(encodedPayload)
+  const expiresAt = new Date(parsed.payload.expiresAt)
+  assert.equal(parsed.payload.type, 'STUDENT_ID_CARD')
+  assert.equal(parsed.payload.studentId, 'student-1')
+  assert.equal(parsed.payload.semester, 4)
+  assert.ok(!Number.isNaN(expiresAt.getTime()))
+
+  const minExpiry = startedAt + (23 * 60 * 60 * 1000)
+  const maxExpiry = finishedAt + (24 * 60 * 60 * 1000) + 5_000
+  assert.ok(expiresAt.getTime() >= minExpiry)
+  assert.ok(expiresAt.getTime() <= maxExpiry)
+})
+
+test('getStudentByIdCardQr rejects expired student ID QR payloads', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+
+  const { getStudentByIdCardQr } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
+    '../../utils/prisma': {
+      student: {
+        findUnique: async () => {
+          throw new Error('should not query student for expired QR')
+        }
+      }
+    },
+    '../../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../../utils/security': {
+      getRequiredSecret: () => 'test-qr-secret'
+    }
+  })
+
+  const qrData = createSignedStudentIdQr({
+    type: 'STUDENT_ID_CARD',
+    studentId: 'student-1',
+    semester: 4,
+    expiresAt: new Date(Date.now() - 60_000).toISOString()
+  })
+
+  const result = await getStudentByIdCardQr(qrData)
+
+  assert.deepEqual(result, {
+    error: {
+      status: 400,
+      message: 'Student ID QR code has expired'
+    }
+  })
+})
+
+test('getStudentByIdCardQr rejects student ID QR payloads after the semester changes', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+
+  const { getStudentByIdCardQr } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
+    '../../utils/prisma': {
+      student: {
+        findUnique: async () => ({
+          id: 'student-1',
+          semester: 5,
+          user: {
+            id: 'user-1',
+            name: 'Arman Dev',
+            email: 'student@example.com',
+            isActive: true
+          }
+        })
+      }
+    },
+    '../../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../../utils/security': {
+      getRequiredSecret: () => 'test-qr-secret'
+    }
+  })
+
+  const qrData = createSignedStudentIdQr({
+    type: 'STUDENT_ID_CARD',
+    studentId: 'student-1',
+    semester: 4,
+    expiresAt: new Date(Date.now() + 60_000).toISOString()
+  })
+
+  const result = await getStudentByIdCardQr(qrData)
+
+  assert.deepEqual(result, {
+    error: {
+      status: 400,
+      message: 'Student ID QR code is no longer valid for the current semester'
+    }
+  })
+})
+
+test('getOwnedSubject blocks coordinators from managing attendance outside their department', async () => {
+  const { getOwnedSubject } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
+    '../../utils/prisma': {
+      subject: {
+        findUnique: async () => ({
+          id: 'subject-nursing-1',
+          name: 'Clinical Practice',
+          department: 'NURSING',
+          instructorId: 'instructor-1',
+          instructor: null
+        })
+      }
+    },
+    '../../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../../utils/security': {
+      getRequiredSecret: () => 'test-qr-secret'
+    }
+  })
+
+  const result = await getOwnedSubject('subject-nursing-1', {
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'CS' }
+  })
+
+  assert.deepEqual(result, {
+    error: {
+      status: 403,
+      message: 'You can only manage attendance for subjects in your department'
+    }
+  })
 })
 
 test('exportMyMarksheetPdf streams a semester marksheet for published student results', async () => {

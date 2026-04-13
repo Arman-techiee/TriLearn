@@ -33,6 +33,56 @@ const enrollStudentInMatchingSubjects = async ({ studentId, semester, department
   }
 }
 
+const syncStudentEnrollmentForSemester = async ({ studentId, semester, department }) => {
+  const [matchingSubjects, existingEnrollments] = await Promise.all([
+    prisma.subject.findMany({
+      where: getMatchingSubjectFilter(semester, department),
+      select: { id: true }
+    }),
+    prisma.subjectEnrollment.findMany({
+      where: { studentId },
+      select: {
+        subjectId: true,
+        subject: {
+          select: {
+            semester: true,
+            department: true
+          }
+        }
+      }
+    })
+  ])
+
+  const matchingSubjectIds = matchingSubjects.map((subject) => subject.id)
+  const matchingSubjectIdSet = new Set(matchingSubjectIds)
+  const obsoleteSubjectIds = existingEnrollments
+    .filter((enrollment) => !matchingSubjectIdSet.has(enrollment.subjectId))
+    .map((enrollment) => enrollment.subjectId)
+
+  await prisma.$transaction([
+    prisma.subjectEnrollment.deleteMany({
+      where: {
+        studentId,
+        ...(obsoleteSubjectIds.length > 0 ? { subjectId: { in: obsoleteSubjectIds } } : { subjectId: { in: [] } })
+      }
+    }),
+    prisma.subjectEnrollment.createMany({
+      data: matchingSubjectIds.map((subjectId) => ({
+        subjectId,
+        studentId
+      })),
+      skipDuplicates: true
+    })
+  ])
+
+  return {
+    enrolledCount: matchingSubjectIds.length,
+    subjectIds: matchingSubjectIds,
+    removedCount: obsoleteSubjectIds.length,
+    removedSubjectIds: obsoleteSubjectIds
+  }
+}
+
 const getMatchingStudentFilter = (semester, department) => ({
   semester,
   user: { isActive: true },
@@ -102,6 +152,7 @@ const syncMatchingStudentsForSubject = async ({ subjectId, semester, department 
 
 module.exports = {
   enrollStudentInMatchingSubjects,
+  syncStudentEnrollmentForSemester,
   enrollMatchingStudentsInSubject,
   syncMatchingStudentsForSubject
 }

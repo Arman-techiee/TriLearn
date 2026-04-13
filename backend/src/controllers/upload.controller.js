@@ -43,7 +43,11 @@ const getSafeContentType = (fileName) => {
 const sendUploadFile = (res, fileName, { forceAttachment = false } = {}) => {
   setUploadSecurityHeaders(res)
   const contentType = getSafeContentType(fileName)
-  const shouldForceAttachment = forceAttachment || contentType === 'application/octet-stream'
+  const shouldForceAttachment = (
+    forceAttachment ||
+    contentType === 'application/octet-stream' ||
+    contentType === 'application/pdf'
+  )
 
   res.sendFile(path.join(uploadPath, fileName), {
     headers: {

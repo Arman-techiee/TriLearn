@@ -112,3 +112,62 @@ test('syncMatchingStudentsForSubject returns empty state when no students match'
     studentIds: []
   })
 })
+
+test('syncStudentEnrollmentForSemester removes obsolete enrollments and adds matching semester subjects', async () => {
+  const transactions = []
+  const deleteCalls = []
+  const createCalls = []
+  const modulePath = path.resolve(__dirname, '../src/utils/enrollment.js')
+  const { syncStudentEnrollmentForSemester } = loadWithMocks(modulePath, {
+    './prisma': {
+      subject: {
+        findMany: async () => [{ id: 'subject-4a' }, { id: 'subject-4b' }]
+      },
+      subjectEnrollment: {
+        findMany: async () => ([
+          { subjectId: 'subject-3a', subject: { semester: 3, department: 'BCA' } },
+          { subjectId: 'subject-4a', subject: { semester: 4, department: 'BCA' } }
+        ]),
+        deleteMany: (payload) => {
+          deleteCalls.push(payload)
+          return { action: 'deleteMany', payload }
+        },
+        createMany: (payload) => {
+          createCalls.push(payload)
+          return { action: 'createMany', payload }
+        }
+      },
+      $transaction: async (operations) => {
+        transactions.push(operations)
+        return operations
+      }
+    }
+  })
+
+  const result = await syncStudentEnrollmentForSemester({
+    studentId: 'student-1',
+    semester: 4,
+    department: 'BCA'
+  })
+
+  assert.equal(transactions.length, 1)
+  assert.deepEqual(deleteCalls[0], {
+    where: {
+      studentId: 'student-1',
+      subjectId: { in: ['subject-3a'] }
+    }
+  })
+  assert.deepEqual(createCalls[0], {
+    data: [
+      { subjectId: 'subject-4a', studentId: 'student-1' },
+      { subjectId: 'subject-4b', studentId: 'student-1' }
+    ],
+    skipDuplicates: true
+  })
+  assert.deepEqual(result, {
+    enrolledCount: 2,
+    subjectIds: ['subject-4a', 'subject-4b'],
+    removedCount: 1,
+    removedSubjectIds: ['subject-3a']
+  })
+})

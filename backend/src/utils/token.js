@@ -50,13 +50,29 @@ const getRefreshTokenExpiry = () => {
   return expiresAt
 }
 
-const getRefreshCookieOptions = () => {
-  const isProduction = process.env.NODE_ENV === 'production'
+const getRequestHost = (req) => String(req?.hostname || req?.headers?.host || '')
+  .split(':')[0]
+  .trim()
+  .toLowerCase()
+
+const isLocalHost = (host) => ['localhost', '127.0.0.1', '::1'].includes(host)
+
+const isSecureRequest = (req) => {
+  const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase()
+
+  return req?.secure === true || forwardedProto === 'https'
+}
+
+const getRefreshCookieOptions = (req) => {
+  const secure = isSecureRequest(req) || !isLocalHost(getRequestHost(req))
 
   return {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure,
+    sameSite: secure ? 'none' : 'lax',
     path: '/api/v1/auth',
     expires: getRefreshTokenExpiry()
   }

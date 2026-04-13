@@ -3,6 +3,7 @@ const path = require('path')
 const crypto = require('crypto')
 const multer = require('multer')
 const sharp = require('sharp')
+const { PDFDocument } = require('pdf-lib')
 const logger = require('../utils/logger')
 const { uploadPath } = require('../utils/fileStorage')
 
@@ -30,8 +31,15 @@ const getUploadLimitForRole = (role) => {
 }
 
 const formatBytesInMb = (bytes) => `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`
+const sanitizeUploadedOriginalName = (originalname, fallback = 'upload.pdf') => {
+  const normalized = String(originalname || fallback).replace(/\\/g, '/')
+  const baseName = normalized.split('/').pop() || fallback
+  const safeName = baseName.replace(/[^a-zA-Z0-9.-]/g, '_')
+  return safeName || fallback
+}
+
 const generateUploadedFileName = (originalname) => {
-  const safeName = String(originalname || 'upload.pdf').replace(/[^a-zA-Z0-9.-]/g, '_')
+  const safeName = sanitizeUploadedOriginalName(originalname)
   return `${crypto.randomUUID()}-${safeName}`
 }
 
@@ -45,6 +53,7 @@ const storage = multer.diskStorage({
 })
 
 const pdfOnly = (_req, file, cb) => {
+  file.originalname = sanitizeUploadedOriginalName(file.originalname)
   const isPdf = String(file.mimetype || '').toLowerCase() === 'application/pdf'
 
   if (!isPdf) {
@@ -55,6 +64,7 @@ const pdfOnly = (_req, file, cb) => {
 }
 
 const spreadsheetOnly = (_req, file, cb) => {
+  file.originalname = sanitizeUploadedOriginalName(file.originalname, 'upload.csv')
   const mimeType = String(file.mimetype || '').toLowerCase()
   const fileName = String(file.originalname || '').toLowerCase()
   const isSpreadsheet = (
@@ -74,6 +84,7 @@ const spreadsheetOnly = (_req, file, cb) => {
 }
 
 const imageOnly = (_req, file, cb) => {
+  file.originalname = sanitizeUploadedOriginalName(file.originalname, 'upload-image')
   const mimeType = String(file.mimetype || '').toLowerCase()
   const fileName = String(file.originalname || '').toLowerCase()
   const isImage = mimeType.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(fileName)
@@ -183,11 +194,14 @@ const validateUploadedPdf = async (req, res, next) => {
   }
 
   try {
+    req.file.originalname = sanitizeUploadedOriginalName(req.file.originalname)
     const signatureBuffer = req.file.buffer.subarray(0, 5)
 
     if (signatureBuffer.toString() !== '%PDF-') {
       return res.status(400).json({ message: 'Uploaded file content is not a valid PDF' })
     }
+
+    await PDFDocument.load(req.file.buffer)
 
     const fileName = generateUploadedFileName(req.file.originalname)
     const filePath = path.join(uploadPath, fileName)

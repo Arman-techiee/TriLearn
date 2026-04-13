@@ -20,6 +20,7 @@ const {
   createStudent,
   importStudents,
   updateUser,
+  promoteStudentSemester,
   toggleUserStatus,
   deleteUser
 } = require('../controllers/admin.controller')
@@ -40,6 +41,7 @@ router.post('/users/instructor', allowRoles('ADMIN', 'COORDINATOR'), validate(sc
 router.post('/users/student', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.createStudent), createStudent)
 router.post('/users/student-import', allowRoles('ADMIN', 'COORDINATOR'), staffUploadLimiter, uploadSpreadsheet.single('file'), importStudents)
 router.put('/users/:id', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.updateUser), updateUser)
+router.patch('/users/:id/promote-semester', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.userId), promoteStudentSemester)
 router.patch('/users/:id/toggle-status', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.userId), toggleUserStatus)
 router.delete('/users/:id', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.userId), deleteUser)
 

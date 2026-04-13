@@ -14,7 +14,7 @@ export const ReferenceDataProvider = ({ children }) => {
       return subjects
     }
 
-    if (!force && subjectRequestRef.current) {
+    if (subjectRequestRef.current) {
       return subjectRequestRef.current
     }
 
@@ -43,7 +43,7 @@ export const ReferenceDataProvider = ({ children }) => {
       return departments
     }
 
-    if (!force && departmentRequestRef.current) {
+    if (departmentRequestRef.current) {
       return departmentRequestRef.current
     }
 

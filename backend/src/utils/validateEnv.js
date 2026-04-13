@@ -57,7 +57,7 @@ const validateEnv = () => {
   // existing trusted frontend origin configuration.
 
   if (process.env.NODE_ENV === 'production' && process.env.OPEN_REGISTRATION === 'true') {
-    console.warn('Warning: OPEN_REGISTRATION is enabled in production')
+    console.warn('Warning: OPEN_REGISTRATION is deprecated and ignored. Use the student intake review flow instead.')
   }
 
   const configuredStudentPassword = String(process.env.DEFAULT_STUDENT_PASSWORD || '').trim()

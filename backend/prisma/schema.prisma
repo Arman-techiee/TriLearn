@@ -103,6 +103,9 @@ model Student {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rollNumber   String   @unique
   semester     Int
+  isGraduated  Boolean  @default(false)
+  graduationYear Int?
+  graduatedAt  DateTime?
   section      String?
   department   String?
   departmentDetails Department? @relation("StudentDepartment", fields: [department], references: [name], onDelete: SetNull, onUpdate: Cascade)
@@ -129,6 +132,7 @@ model Student {
   @@index([semester])
   @@index([department])
   @@index([semester, department])
+  @@index([isGraduated])
 }
 
 // ================================

@@ -3,7 +3,7 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const ExcelJS = require('exceljs')
-const { enrollStudentInMatchingSubjects } = require('../utils/enrollment')
+const { enrollStudentInMatchingSubjects, syncStudentEnrollmentForSemester } = require('../utils/enrollment')
 const { getPagination } = require('../utils/pagination')
 const logger = require('../utils/logger')
 const { ensureDepartmentExists } = require('./department.controller')
@@ -16,6 +16,7 @@ const {
 } = require('../utils/instructorDepartments')
 
 const STATS_CACHE_TTL = 30 * 1000 // 30 seconds
+const MAX_STUDENT_SEMESTER = 8
 let statsCache = null
 let statsCacheExpiresAt = 0
 
@@ -33,6 +34,8 @@ const normalizeImportHeader = (value) => String(value || '')
   .trim()
   .toLowerCase()
   .replace(/[^a-z0-9]/g, '')
+
+const getGraduationYear = (date = new Date()) => date.getFullYear()
 
 const STUDENT_IMPORT_HEADER_ALIASES = {
   name: ['name', 'fullname', 'studentname'],
@@ -353,7 +356,7 @@ const getAdminStats = async (req, res) => {
 // ================================
 const getAllUsers = async (req, res) => {
   try {
-    const { role, isActive, search, includeAssignable } = req.query
+    const { role, isActive, search, includeAssignable, semester, graduated } = req.query
     const { page, limit, skip } = getPagination(req.query)
 
     const filters = { deletedAt: null }
@@ -426,6 +429,25 @@ const getAllUsers = async (req, res) => {
     }
 
     if (isActive !== undefined) filters.isActive = isActive === 'true'
+    if (semester !== undefined || graduated !== undefined) {
+      const studentFilters = {}
+
+      if (semester !== undefined) {
+        studentFilters.semester = semester
+      }
+
+      if (graduated !== undefined) {
+        studentFilters.isGraduated = graduated === 'true'
+      }
+
+      andFilters.push({
+        role: 'STUDENT',
+        student: {
+          is: studentFilters
+        }
+      })
+    }
+
     if (search) {
       andFilters.push({
         OR: [
@@ -906,16 +928,29 @@ const updateUser = async (req, res) => {
         return res.status(403).json({ message: 'You can only manage users in your own department' })
       }
 
+      if (semester !== undefined && semester > MAX_STUDENT_SEMESTER) {
+        return res.status(400).json({ message: `Semester must be between 1 and ${MAX_STUDENT_SEMESTER}` })
+      }
+
+      const shouldResetGraduation = semester !== undefined
+
       const updatedStudent = await prisma.student.update({
         where: { userId: id },
         data: {
           semester,
           section,
-          department: normalizedDepartment ?? undefined
+          department: normalizedDepartment ?? undefined,
+          ...(shouldResetGraduation
+            ? {
+                isGraduated: false,
+                graduationYear: null,
+                graduatedAt: null
+              }
+            : {})
         }
       })
 
-      await enrollStudentInMatchingSubjects({
+      await syncStudentEnrollmentForSemester({
         studentId: updatedStudent.id,
         semester: updatedStudent.semester,
         department: updatedStudent.department
@@ -1091,6 +1126,133 @@ const deleteUser = async (req, res) => {
   }
 }
 
+const promoteStudentSemester = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        student: {
+          select: {
+            id: true,
+            semester: true,
+            department: true,
+            isGraduated: true,
+            graduationYear: true
+          }
+        }
+      }
+    })
+
+    if (!user || user.role !== 'STUDENT' || !user.student) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    if (!coordinatorCanManageUser(req, user)) {
+      return res.status(403).json({ message: 'You can only manage users in your own department' })
+    }
+
+    if (user.student.isGraduated) {
+      return res.status(400).json({ message: `Student already graduated in ${user.student.graduationYear || 'the recorded year'}` })
+    }
+
+    if (user.student.semester >= MAX_STUDENT_SEMESTER) {
+      const graduatedAt = new Date()
+      const graduationYear = getGraduationYear(graduatedAt)
+      const graduatedStudent = await prisma.student.update({
+        where: { userId: id },
+        data: {
+          isGraduated: true,
+          graduationYear,
+          graduatedAt
+        },
+        select: {
+          id: true,
+          semester: true,
+          department: true,
+          section: true,
+          rollNumber: true,
+          isGraduated: true,
+          graduationYear: true,
+          graduatedAt: true
+        }
+      })
+
+      res.json({
+        message: `${user.name} marked as graduated for ${graduationYear}.`,
+        student: graduatedStudent
+      })
+
+      await recordAuditLog({
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        action: 'STUDENT_GRADUATED',
+        entityType: 'Student',
+        entityId: graduatedStudent.id,
+        metadata: {
+          userId: id,
+          finalSemester: user.student.semester,
+          graduationYear,
+          department: graduatedStudent.department
+        }
+      })
+
+      return
+    }
+
+    const nextSemester = user.student.semester + 1
+    const updatedStudent = await prisma.student.update({
+      where: { userId: id },
+      data: {
+        semester: nextSemester,
+        isGraduated: false,
+        graduationYear: null,
+        graduatedAt: null
+      },
+      select: {
+        id: true,
+        semester: true,
+        department: true,
+        section: true,
+        rollNumber: true,
+        isGraduated: true,
+        graduationYear: true
+      }
+    })
+
+    await syncStudentEnrollmentForSemester({
+      studentId: updatedStudent.id,
+      semester: updatedStudent.semester,
+      department: updatedStudent.department
+    })
+
+    res.json({
+      message: `Student promoted to semester ${updatedStudent.semester} successfully!`,
+      student: updatedStudent
+    })
+
+    await recordAuditLog({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: 'STUDENT_SEMESTER_PROMOTED',
+      entityType: 'Student',
+      entityId: updatedStudent.id,
+      metadata: {
+        userId: id,
+        previousSemester: user.student.semester,
+        newSemester: updatedStudent.semester,
+        department: updatedStudent.department
+      }
+    })
+  } catch (error) {
+    res.internalError(error)
+  }
+}
+
 const importStudents = async (req, res) => {
   const uploadedFilePath = req.file?.path
 
@@ -1143,8 +1305,8 @@ const importStudents = async (req, res) => {
         return
       }
 
-      if (!Number.isInteger(semester) || semester < 1 || semester > 12) {
-        failures.push(buildStudentImportError(row.rowNumber, 'Semester must be a number between 1 and 12', row))
+      if (!Number.isInteger(semester) || semester < 1 || semester > MAX_STUDENT_SEMESTER) {
+        failures.push(buildStudentImportError(row.rowNumber, `Semester must be a number between 1 and ${MAX_STUDENT_SEMESTER}`, row))
         return
       }
 
@@ -1644,6 +1806,7 @@ module.exports = {
   createStudent,
   importStudents,
   updateUser,
+  promoteStudentSemester,
   toggleUserStatus,
   deleteUser
 }

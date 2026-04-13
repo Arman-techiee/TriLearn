@@ -59,7 +59,6 @@ app.use((req, res, next) => {
 
   next()
 })
-app.use(apiLimiter)
 app.use(csrfProtection)
 app.get(`${uploadPublicPath}/:filename`, protect, serveUploadedFile)
 
@@ -78,6 +77,7 @@ const notificationRoutes = require('./routes/notification.routes')
 const apiV1 = express.Router()
 
 apiV1.use('/auth', authRoutes)
+apiV1.use(apiLimiter)
 apiV1.use('/admin', adminRoutes)
 apiV1.use('/subjects', subjectRoutes)
 apiV1.use('/attendance', attendanceRoutes)

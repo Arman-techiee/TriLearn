@@ -11,6 +11,73 @@ const optionalString = (max = 255) => z.preprocess(
   z.string().trim().max(max).optional()
 )
 const searchQuery = optionalString(100)
+const studentSemesterSchema = z.coerce.number().int().min(1).max(8)
+const MIN_DATE_OF_BIRTH = new Date(Date.UTC(1920, 0, 1))
+
+const parseDateOnlyToUtc = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) {
+    return null
+  }
+
+  const year = Number.parseInt(match[1], 10)
+  const month = Number.parseInt(match[2], 10)
+  const day = Number.parseInt(match[3], 10)
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return parsed
+}
+
+const isDateOfBirthInRange = (value) => {
+  const today = new Date()
+  const maxDate = new Date(Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  ))
+
+  return value >= MIN_DATE_OF_BIRTH && value <= maxDate
+}
+
+const dateOfBirthSchema = z.string()
+  .trim()
+  .max(10, 'Date of birth must use the YYYY-MM-DD format')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must use the YYYY-MM-DD format')
+  .transform((value, ctx) => {
+    const parsed = parseDateOnlyToUtc(value)
+
+    if (!parsed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Date of birth must be a real calendar date'
+      })
+      return z.NEVER
+    }
+
+    if (!isDateOfBirthInRange(parsed)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Date of birth must be between 1920-01-01 and today'
+      })
+      return z.NEVER
+    }
+
+    return parsed
+  })
+
+const optionalDateOfBirthSchema = z.preprocess(
+  emptyToUndefined,
+  dateOfBirthSchema.optional()
+)
 
 const uuidParam = z.object({
   id: z.string().uuid()
@@ -69,7 +136,7 @@ const selfProfileBody = z.object({
   localGuardianPhone: z.string().trim().min(7).max(30),
   permanentAddress: z.string().trim().min(5).max(255),
   temporaryAddress: z.string().trim().min(5).max(255),
-  dateOfBirth: z.string().trim().min(1),
+  dateOfBirth: dateOfBirthSchema,
   section: z.string().trim().min(1).max(20)
 })
 
@@ -87,7 +154,7 @@ const studentApplicationBody = z.object({
   localGuardianPhone: z.string().trim().min(7).max(30),
   permanentAddress: z.string().trim().min(5).max(255),
   temporaryAddress: z.string().trim().min(5).max(255),
-  dateOfBirth: z.string().trim().min(1),
+  dateOfBirth: dateOfBirthSchema,
   preferredDepartment: z.string().trim().min(2).max(100)
 })
 
@@ -104,7 +171,7 @@ const profileUpdateBody = z.object({
   localGuardianPhone: optionalString(30),
   permanentAddress: optionalString(255),
   temporaryAddress: optionalString(255),
-  dateOfBirth: optionalString(50),
+  dateOfBirth: optionalDateOfBirthSchema,
   section: optionalString(20)
 })
 
@@ -332,7 +399,9 @@ const schemas = {
         ...paginationQuery,
         role: roleEnum.optional(),
         isActive: z.enum(['true', 'false']).optional(),
-        search: searchQuery
+        search: searchQuery,
+        semester: z.preprocess(emptyToUndefined, studentSemesterSchema.optional()),
+        graduated: z.enum(['true', 'false']).optional()
       })
     },
     userId: { params: uuidParam },
@@ -361,7 +430,7 @@ const schemas = {
         phone: optionalString(30),
         address: optionalString(255),
         department: z.string().trim().min(2).max(100),
-        semester: z.coerce.number().int().min(1).max(12),
+        semester: studentSemesterSchema,
         section: z.string().trim().min(1).max(20)
       })
     },
@@ -373,7 +442,7 @@ const schemas = {
         address: optionalString(255),
         department: optionalString(100),
         departments: departmentListSchema.optional(),
-        semester: z.coerce.number().int().min(1).max(12).optional(),
+        semester: studentSemesterSchema.optional(),
         section: optionalString(20)
       })
     },
@@ -397,7 +466,7 @@ const schemas = {
       body: z.object({
         studentId: z.string().trim().min(1).max(50),
         department: z.string().trim().min(2).max(100),
-        semester: z.coerce.number().int().min(1).max(12),
+        semester: studentSemesterSchema,
         section: optionalString(20)
       })
     }

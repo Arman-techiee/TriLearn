@@ -35,8 +35,11 @@ const buildAuthUser = (user) => ({
 const isPasswordResetEnabled = () => process.env.ENABLE_PASSWORD_RESET === 'true'
 const MAX_FAILED_LOGIN_ATTEMPTS = 5
 const LOGIN_LOCKOUT_MINUTES = 15
+const STUDENT_ID_QR_VALIDITY_HOURS = 24
+const LOGOUT_MIN_RESPONSE_MS = 75
 const GENERIC_ELIGIBILITY_MESSAGE = 'If this email is eligible, you will receive further instructions.'
 const GENERIC_DISABLED_ACCOUNT_MESSAGE = 'Your account has been disabled. Please contact the administration.'
+const DUMMY_PASSWORD_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
 
 const createSignedQrPayload = (payload) => JSON.stringify({
   payload,
@@ -50,6 +53,17 @@ const getRequestUserAgent = (req) => String(req.get('user-agent') || '').slice(0
 
 const getRequestIpAddress = (req) => {
   return String(req.ip || req.socket?.remoteAddress || '').slice(0, 64) || null
+}
+
+const waitForMinimumDuration = async (startedAt, minDurationMs) => {
+  const elapsed = Date.now() - startedAt
+  if (elapsed >= minDurationMs) {
+    return
+  }
+
+  await new Promise((resolve) => {
+    setTimeout(resolve, minDurationMs - elapsed)
+  })
 }
 
 const generateStudentRollNumber = () => `STU-${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`
@@ -103,7 +117,7 @@ const issueAuthSession = async (user, res, req, previousRefreshToken) => {
   })
 
   if (!isMobileClient(req)) {
-    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions())
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(req))
   }
 
   return {
@@ -115,6 +129,12 @@ const issueAuthSession = async (user, res, req, previousRefreshToken) => {
 const getResetTokenExpiry = () => {
   const expiresAt = new Date()
   expiresAt.setMinutes(expiresAt.getMinutes() + 30)
+  return expiresAt
+}
+
+const getStudentIdQrExpiry = () => {
+  const expiresAt = new Date()
+  expiresAt.setHours(expiresAt.getHours() + STUDENT_ID_QR_VALIDITY_HOURS)
   return expiresAt
 }
 
@@ -176,61 +196,14 @@ const getProfileSelect = () => ({
 // ================================
 const register = async (req, res) => {
   try {
-    if (process.env.OPEN_REGISTRATION !== 'true') {
+    if (process.env.OPEN_REGISTRATION === 'true') {
       return res.status(403).json({
-        message: 'Self-registration is disabled. Please apply through the student intake form.'
+        message: 'Self-registration has been deprecated. Please apply through the student intake form.'
       })
     }
 
-    const { name, email, password, phone, address } = req.body
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    })
-
-    if (existingUser) {
-      return res.status(200).json({ message: GENERIC_ELIGIBILITY_MESSAGE })
-    }
-
-    const hashedPassword = await hashPassword(password)
-    const rollNumber = await generateUniqueStudentRollNumber()
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role: 'STUDENT',
-        phone,
-        address
-      }
-    })
-
-    const student = await prisma.student.create({
-      data: {
-        userId: user.id,
-        rollNumber,
-        semester: 1
-      }
-    })
-
-    await enrollStudentInMatchingSubjects({
-      studentId: student.id,
-      semester: student.semester,
-      department: student.department
-    })
-
-    const session = await issueAuthSession(user, res, req)
-    const authUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: getProfileSelect()
-    })
-
-    res.status(201).json({
-      message: 'User registered successfully!',
-      token: session.accessToken,
-      refreshToken: session.refreshToken,
-      user: buildAuthUser(authUser || user)
+    return res.status(403).json({
+      message: 'Self-registration is disabled. Please apply through the student intake form.'
     })
   } catch (error) {
     res.internalError(error)
@@ -286,7 +259,7 @@ const submitStudentIntake = async (req, res) => {
         localGuardianPhone,
         permanentAddress,
         temporaryAddress,
-        dateOfBirth: new Date(dateOfBirth),
+        dateOfBirth,
         preferredDepartment,
         preferredSemester: 1,
         preferredSection: null,
@@ -309,7 +282,7 @@ const submitStudentIntake = async (req, res) => {
         localGuardianPhone,
         permanentAddress,
         temporaryAddress,
-        dateOfBirth: new Date(dateOfBirth),
+        dateOfBirth,
         preferredDepartment,
         preferredSemester: 1,
         preferredSection: null
@@ -333,6 +306,9 @@ const login = async (req, res) => {
       where: { email }
     })
 
+    const passwordHash = user?.password || DUMMY_PASSWORD_HASH
+    const isPasswordValid = await bcrypt.compare(password, passwordHash)
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
@@ -347,7 +323,6 @@ const login = async (req, res) => {
       })
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       const failedLoginAttempts = (user.failedLoginAttempts || 0) + 1
       const shouldLockAccount = failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS
@@ -455,7 +430,8 @@ const getStudentIdQr = async (req, res) => {
       phone: user.phone || '',
       department: user.student.department || '',
       semester: user.student.semester,
-      section: user.student.section || ''
+      section: user.student.section || '',
+      expiresAt: getStudentIdQrExpiry().toISOString()
     })
 
     const qrCode = await QRCode.toDataURL(qrPayload, {
@@ -513,7 +489,7 @@ const updateProfile = async (req, res) => {
           permanentAddress: permanentAddress ?? undefined,
           temporaryAddress: temporaryAddress ?? address ?? undefined,
           section: section ?? undefined,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined
+          dateOfBirth: dateOfBirth ?? undefined
         }
       })
     }
@@ -667,7 +643,7 @@ const completeProfile = async (req, res) => {
             permanentAddress,
             temporaryAddress,
             section,
-            dateOfBirth: new Date(dateOfBirth)
+            dateOfBirth
           }
       })
     ])
@@ -863,21 +839,22 @@ const refresh = async (req, res) => {
 }
 
 const logout = async (req, res) => {
+  const startedAt = Date.now()
+
   try {
     const refreshToken = req.body?.refreshToken || req.cookies?.refreshToken
+    const tokenToHash = refreshToken || `logout-placeholder:${req.ip || 'unknown'}`
 
-    if (refreshToken) {
-      await prisma.refreshToken.updateMany({
-        where: {
-          tokenHash: hashToken(refreshToken),
-          revokedAt: null
-        },
-        data: { revokedAt: new Date() }
-      })
-    }
+    await prisma.refreshToken.updateMany({
+      where: {
+        tokenHash: hashToken(tokenToHash),
+        revokedAt: null
+      },
+      data: { revokedAt: new Date() }
+    })
 
     res.clearCookie('refreshToken', {
-      ...getRefreshCookieOptions(),
+      ...getRefreshCookieOptions(req),
       expires: new Date(0)
     })
 
@@ -894,6 +871,7 @@ const logout = async (req, res) => {
       })
     }
 
+    await waitForMinimumDuration(startedAt, LOGOUT_MIN_RESPONSE_MS)
     res.json({ message: 'Logged out successfully' })
   } catch (error) {
     res.internalError(error)
@@ -964,7 +942,7 @@ const logoutAll = async (req, res) => {
     })
 
     res.clearCookie('refreshToken', {
-      ...getRefreshCookieOptions(),
+      ...getRefreshCookieOptions(req),
       expires: new Date(0)
     })
 

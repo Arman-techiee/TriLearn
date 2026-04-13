@@ -89,6 +89,13 @@ const refreshLimiter = createLimiter({
   message: 'Too many session refresh attempts, please try again shortly'
 })
 
+const logoutLimiter = createLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  message: 'Too many logout attempts, please try again shortly',
+  keyGenerator: actorRateLimitKey
+})
+
 const uploadLimiter = createLimiter({
   max: 40,
   message: 'Too many upload attempts, please try again later'
@@ -130,6 +137,7 @@ module.exports = {
   authLimiter,
   loginLimiter,
   refreshLimiter,
+  logoutLimiter,
   uploadLimiter,
   studentUploadLimiter,
   staffUploadLimiter,

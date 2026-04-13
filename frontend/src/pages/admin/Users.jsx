@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FileSpreadsheet, Power, Trash2, Upload, UserPlus } from 'lucide-react'
+import { ArrowUpCircle, FileSpreadsheet, Power, Trash2, Upload, UserPlus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
@@ -33,11 +33,30 @@ const initialUserValues = {
 
 const allVisibleRoles = ['', 'ADMIN', 'COORDINATOR', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT']
 const coordinatorVisibleRoles = ['', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT']
+const semesterFilterOptions = [
+  { value: '', label: 'All semesters' },
+  ...Array.from({ length: 8 }, (_, index) => ({
+    value: String(index + 1),
+    label: `Semester ${index + 1}`
+  })),
+  { value: 'graduate', label: 'Graduates' }
+]
 const getInstructorDepartments = (instructor) => (
   Array.isArray(instructor?.departments) && instructor.departments.length > 0
     ? instructor.departments
     : [instructor?.department].filter(Boolean)
 )
+const getStudentDetails = (student) => {
+  if (!student) {
+    return ''
+  }
+
+  const academicLabel = student.isGraduated
+    ? `Graduate${student.graduationYear ? ` ${student.graduationYear}` : ''}`
+    : `Sem ${student.semester}`
+
+  return `${academicLabel} · ${student.rollNumber}`
+}
 
 const Users = () => {
   const { user: currentUser } = useAuth()
@@ -55,11 +74,14 @@ const Users = () => {
   const [deletingUser, setDeletingUser] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [importingStudents, setImportingStudents] = useState(false)
+  const [promotingStudent, setPromotingStudent] = useState(false)
   const [importFile, setImportFile] = useState(null)
   const [importResult, setImportResult] = useState(null)
+  const [studentToPromote, setStudentToPromote] = useState(null)
   const [error, setError] = useState('')
   const { showToast } = useToast()
   const [filterRole, setFilterRole] = useState('')
+  const [semesterFilter, setSemesterFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
   const visibleRoles = isCoordinator ? coordinatorVisibleRoles : allVisibleRoles
@@ -121,7 +143,13 @@ const Users = () => {
 
   useEffect(() => {
     setPage(1)
-  }, [filterRole, debouncedSearchTerm])
+  }, [filterRole, semesterFilter, debouncedSearchTerm])
+
+  useEffect(() => {
+    if (filterRole && filterRole !== 'STUDENT' && semesterFilter) {
+      setSemesterFilter('')
+    }
+  }, [filterRole, semesterFilter])
 
   useEffect(() => {
     void loadDepartments().catch((fetchError) => {
@@ -140,6 +168,12 @@ const Users = () => {
       if (filterRole) {
         params.set('role', filterRole)
       }
+      if (semesterFilter === 'graduate') {
+        params.set('graduated', 'true')
+      } else if (semesterFilter) {
+        params.set('semester', semesterFilter)
+        params.set('graduated', 'false')
+      }
       if (debouncedSearchTerm.trim()) {
         params.set('search', debouncedSearchTerm.trim())
       }
@@ -156,7 +190,7 @@ const Users = () => {
         setLoading(false)
       }
     }
-  }, [debouncedSearchTerm, filterRole, limit, page])
+  }, [debouncedSearchTerm, filterRole, limit, page, semesterFilter])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -258,6 +292,43 @@ const Users = () => {
       setError(getFriendlyErrorMessage(err, 'Unable to delete the user right now.'))
     } finally {
       setDeletingUser(false)
+    }
+  }
+
+  const handlePromoteSemester = async () => {
+    if (!studentToPromote?.student) return
+
+    const target = studentToPromote
+    const previousUsers = users
+    const isGraduationAction = Number(target.student.semester) >= 8
+
+    try {
+      setPromotingStudent(true)
+      setStudentToPromote(null)
+      const response = await api.patch(`/admin/users/${target.id}/promote-semester`)
+      const updatedStudent = response.data.student
+      setUsers((current) => current.map((entry) => (
+        entry.id === target.id
+          ? {
+              ...entry,
+              student: {
+                ...entry.student,
+                ...updatedStudent
+              }
+            }
+          : entry
+      )))
+      showToast({
+        title: isGraduationAction ? 'Student marked as graduated.' : 'Student promoted successfully.',
+        description: isGraduationAction
+          ? `${target.name} graduated in ${updatedStudent?.graduationYear || new Date().getFullYear()}.`
+          : `${target.name} is now in semester ${updatedStudent?.semester}.`
+      })
+    } catch (err) {
+      setUsers(previousUsers)
+      setError(getFriendlyErrorMessage(err, 'Unable to promote the student right now.'))
+    } finally {
+      setPromotingStudent(false)
     }
   }
 
@@ -382,12 +453,37 @@ const Users = () => {
               className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+          {(filterRole === '' || filterRole === 'STUDENT') && (
+            <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
+              <label className="mb-2 block text-sm font-medium text-[var(--color-page-text)]">Filter students by semester</label>
+              <select
+                value={semesterFilter}
+                onChange={(event) => {
+                  const nextValue = event.target.value
+                  setSemesterFilter(nextValue)
+                  if (nextValue && filterRole !== 'STUDENT') {
+                    setFilterRole('STUDENT')
+                  }
+                }}
+                className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {semesterFilterOptions.map((option) => (
+                  <option key={option.value || 'all-semesters'} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex flex-wrap gap-3">
             {visibleRoles.map((role) => (
               <button
                 key={role}
                 type="button"
-                onClick={() => setFilterRole(role)}
+                onClick={() => {
+                  setFilterRole(role)
+                  if (role && role !== 'STUDENT') {
+                    setSemesterFilter('')
+                  }
+                }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition
                   ${filterRole === role
                     ? 'bg-primary text-white'
@@ -465,7 +561,7 @@ const Users = () => {
                         <StatusBadge status={user.role} />
                       </td>
                       <td className="px-6 py-4 text-sm text-[--color-text-muted] dark:text-slate-400">
-                        {user.student && `Sem ${user.student.semester} · ${user.student.rollNumber}`}
+                        {user.student && getStudentDetails(user.student)}
                         {user.instructor && `${getInstructorDepartments(user.instructor).join(', ') || 'No dept'}`}
                         {user.coordinator && `${user.coordinator.department || 'No dept'} coordinator`}
                         {user.role === 'GATEKEEPER' && 'Gate QR operator'}
@@ -477,6 +573,18 @@ const Users = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
+                          {user.student && !user.student.isGraduated ? (
+                            <button
+                              type="button"
+                              onClick={() => setStudentToPromote(user)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary-100 text-primary transition hover:bg-primary-200"
+                              aria-label={Number(user.student.semester) >= 8
+                                ? `Mark ${user.name} as graduated`
+                                : `Promote ${user.name} to semester ${Number(user.student.semester) + 1}`}
+                            >
+                              <ArrowUpCircle className="h-4 w-4" />
+                            </button>
+                          ) : null}
                           {canToggleStatus(user) ? (
                             <button
                               type="button"
@@ -805,6 +913,21 @@ const Users = () => {
           </div>
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={!!studentToPromote}
+        title={Number(studentToPromote?.student?.semester || 0) >= 8 ? 'Mark as Graduate' : 'Promote Semester'}
+        message={studentToPromote
+          ? Number(studentToPromote.student?.semester || 0) >= 8
+            ? `Mark ${studentToPromote.name} as graduated for ${new Date().getFullYear()}? Use this after semester 8 has been fully completed.`
+            : `Move ${studentToPromote.name} from semester ${studentToPromote.student?.semester} to semester ${Number(studentToPromote.student?.semester || 0) + 1}? This should be used only after the current semester has ended.`
+          : ''}
+        confirmText={Number(studentToPromote?.student?.semester || 0) >= 8 ? 'Mark Graduate' : 'Promote Student'}
+        tone="primary"
+        busy={promotingStudent}
+        onClose={() => setStudentToPromote(null)}
+        onConfirm={handlePromoteSemester}
+      />
 
       <ConfirmDialog
         open={!!userToDelete}

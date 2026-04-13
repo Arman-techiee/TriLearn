@@ -111,6 +111,7 @@ test('POST /api/v1/auth/login returns the controller response through the real r
       authLimiter: (_req, _res, next) => next(),
       loginLimiter: (_req, _res, next) => next(),
       refreshLimiter: (_req, _res, next) => next(),
+      logoutLimiter: (_req, _res, next) => next(),
       uploadLimiter: (_req, _res, next) => next()
     },
     '../middleware/upload.middleware': {
@@ -164,6 +165,7 @@ test('POST /api/v1/auth/login returns 401 for a wrong password through the real 
       authLimiter: (_req, _res, next) => next(),
       loginLimiter: (_req, _res, next) => next(),
       refreshLimiter: (_req, _res, next) => next(),
+      logoutLimiter: (_req, _res, next) => next(),
       uploadLimiter: (_req, _res, next) => next()
     },
     '../middleware/upload.middleware': {
@@ -223,6 +225,7 @@ test('POST /api/v1/auth/refresh returns a new token when the refresh cookie is v
       authLimiter: (_req, _res, next) => next(),
       loginLimiter: (_req, _res, next) => next(),
       refreshLimiter: (_req, _res, next) => next(),
+      logoutLimiter: (_req, _res, next) => next(),
       uploadLimiter: (_req, _res, next) => next()
     },
     '../middleware/upload.middleware': {
@@ -272,6 +275,7 @@ test('POST /api/v1/auth/refresh returns 401 when the refresh cookie is missing',
       authLimiter: (_req, _res, next) => next(),
       loginLimiter: (_req, _res, next) => next(),
       refreshLimiter: (_req, _res, next) => next(),
+      logoutLimiter: (_req, _res, next) => next(),
       uploadLimiter: (_req, _res, next) => next()
     },
     '../middleware/upload.middleware': {
@@ -291,6 +295,135 @@ test('POST /api/v1/auth/refresh returns 401 when the refresh cookie is missing',
 
   assert.equal(response.status, 401)
   assert.deepEqual(response.body, { message: 'Refresh token is required' })
+})
+
+test('POST /api/v1/auth/logout runs the logout limiter before the controller', async () => {
+  let logoutLimiterCalled = false
+
+  const authRoutes = loadWithMocks(resolveFromTest('src', 'routes', 'auth.routes.js'), {
+    '../controllers/auth.controller': {
+      register: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      submitStudentIntake: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      login: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      refresh: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      logout: async (_req, res) => res.status(200).json({ message: 'Logged out successfully' }),
+      getMe: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      getStudentIdQr: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      updateProfile: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      uploadAvatar: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      changePassword: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      completeProfile: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      forgotPassword: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      resetPassword: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      getActivity: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      logoutAll: async (_req, res) => res.status(501).json({ message: 'unused' })
+    },
+    '../middleware/auth.middleware': {
+      protect: (_req, _res, next) => next(),
+      allowRoles: () => (_req, _res, next) => next()
+    },
+    '../middleware/rateLimit.middleware': {
+      authLimiter: (_req, _res, next) => next(),
+      loginLimiter: (_req, _res, next) => next(),
+      refreshLimiter: (_req, _res, next) => next(),
+      logoutLimiter: (_req, _res, next) => {
+        logoutLimiterCalled = true
+        next()
+      },
+      uploadLimiter: (_req, _res, next) => next()
+    },
+    '../middleware/upload.middleware': {
+      uploadImage: {
+        single: () => (_req, _res, next) => next()
+      },
+      validateUploadedImage: (_req, _res, next) => next()
+    }
+  })
+
+  const testApp = express()
+  testApp.use(express.json())
+  testApp.use('/api/v1/auth', authRoutes)
+
+  const response = await request(testApp)
+    .post('/api/v1/auth/logout')
+    .send({ refreshToken: 'token-1' })
+
+  assert.equal(response.status, 200)
+  assert.equal(logoutLimiterCalled, true)
+  assert.deepEqual(response.body, { message: 'Logged out successfully' })
+})
+
+test('PATCH /api/v1/auth/complete-profile rejects invalid dateOfBirth values before the controller runs', async () => {
+  let controllerCalled = false
+
+  const authRoutes = loadWithMocks(resolveFromTest('src', 'routes', 'auth.routes.js'), {
+    '../controllers/auth.controller': {
+      register: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      submitStudentIntake: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      login: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      refresh: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      logout: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      getMe: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      getStudentIdQr: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      updateProfile: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      uploadAvatar: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      changePassword: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      completeProfile: async (_req, res) => {
+        controllerCalled = true
+        res.status(200).json({ message: 'unused' })
+      },
+      forgotPassword: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      resetPassword: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      getActivity: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      logoutAll: async (_req, res) => res.status(501).json({ message: 'unused' })
+    },
+    '../middleware/auth.middleware': {
+      protect: (req, _res, next) => {
+        req.user = { id: 'student-1', role: 'STUDENT' }
+        next()
+      },
+      allowRoles: () => (_req, _res, next) => next()
+    },
+    '../middleware/rateLimit.middleware': {
+      authLimiter: (_req, _res, next) => next(),
+      loginLimiter: (_req, _res, next) => next(),
+      refreshLimiter: (_req, _res, next) => next(),
+      logoutLimiter: (_req, _res, next) => next(),
+      uploadLimiter: (_req, _res, next) => next()
+    },
+    '../middleware/upload.middleware': {
+      uploadImage: {
+        single: () => (_req, _res, next) => next()
+      },
+      validateUploadedImage: (_req, _res, next) => next()
+    }
+  })
+
+  const testApp = express()
+  testApp.use(express.json())
+  testApp.use('/api/v1/auth', authRoutes)
+
+  const response = await request(testApp)
+    .patch('/api/v1/auth/complete-profile')
+    .send({
+      phone: '9800000000',
+      fatherName: 'Father',
+      motherName: 'Mother',
+      fatherPhone: '9800000001',
+      motherPhone: '9800000002',
+      bloodGroup: 'A+',
+      localGuardianName: 'Guardian',
+      localGuardianAddress: 'Kathmandu',
+      localGuardianPhone: '9800000003',
+      permanentAddress: 'Bhaktapur',
+      temporaryAddress: 'Lalitpur',
+      dateOfBirth: 'not-a-date',
+      section: 'A'
+    })
+
+  assert.equal(response.status, 400)
+  assert.equal(controllerCalled, false)
+  assert.equal(response.body.message, 'Validation failed')
 })
 
 test('GET /api/v1/admin/stats denies instructors through the real admin route', async () => {
@@ -314,6 +447,7 @@ test('GET /api/v1/admin/stats denies instructors through the real admin route', 
       createStudent: async (_req, res) => res.json({}),
       importStudents: async (_req, res) => res.json({}),
       updateUser: async (_req, res) => res.json({}),
+      promoteStudentSemester: async (_req, res) => res.json({}),
       toggleUserStatus: async (_req, res) => res.json({}),
       deleteUser: async (_req, res) => res.json({})
     },

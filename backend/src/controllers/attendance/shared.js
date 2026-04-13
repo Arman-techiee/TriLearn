@@ -157,6 +157,20 @@ const getOwnedSubject = async (subjectId, req) => {
     return { error: { status: 404, message: 'Subject not found' } }
   }
 
+  if (user.role === 'COORDINATOR') {
+    const coordinatorDepartments = [req.coordinator?.department].filter(Boolean)
+
+    if (coordinatorDepartments.length === 0) {
+      return { error: { status: 403, message: 'Coordinator department is not configured yet' } }
+    }
+
+    if (!subject.department || !coordinatorDepartments.includes(subject.department)) {
+      return { error: { status: 403, message: 'You can only manage attendance for subjects in your department' } }
+    }
+
+    return { subject }
+  }
+
   if (user.role === 'INSTRUCTOR') {
     if (!instructor) {
       return { error: { status: 403, message: 'Instructor profile not found' } }
@@ -480,6 +494,15 @@ const getStudentByIdCardQr = async (qrData) => {
     return { error: { status: 400, message: 'Invalid student ID QR code' } }
   }
 
+  const qrExpiresAt = new Date(parsedQr.expiresAt)
+  if (
+    typeof parsedQr.expiresAt !== 'string' ||
+    Number.isNaN(qrExpiresAt.getTime()) ||
+    new Date() >= qrExpiresAt
+  ) {
+    return { error: { status: 400, message: 'Student ID QR code has expired' } }
+  }
+
   const student = await prisma.student.findUnique({
     where: { id: parsedQr.studentId },
     include: {
@@ -496,6 +519,10 @@ const getStudentByIdCardQr = async (qrData) => {
 
   if (!student || !student.user?.isActive) {
     return { error: { status: 404, message: 'Student was not found or is inactive' } }
+  }
+
+  if (parsedQr.semester !== student.semester) {
+    return { error: { status: 400, message: 'Student ID QR code is no longer valid for the current semester' } }
   }
 
   return { student, parsedQr }

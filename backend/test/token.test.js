@@ -60,3 +60,50 @@ test('hashToken is deterministic and produces a sha256 digest', () => {
   assert.equal(left.length, 64)
   assert.match(left, /^[a-f0-9]+$/)
 })
+
+test('getRefreshCookieOptions keeps localhost development cookies non-secure', () => {
+  const { getRefreshCookieOptions } = loadTokenUtils()
+
+  const cookieOptions = getRefreshCookieOptions({
+    secure: false,
+    hostname: 'localhost',
+    headers: {
+      host: 'localhost:5173'
+    }
+  })
+
+  assert.equal(cookieOptions.secure, false)
+  assert.equal(cookieOptions.sameSite, 'lax')
+})
+
+test('getRefreshCookieOptions forces secure cookies for non-local hosts even outside production', () => {
+  const { getRefreshCookieOptions } = loadTokenUtils()
+
+  const cookieOptions = getRefreshCookieOptions({
+    secure: false,
+    hostname: 'staging.school.edu',
+    headers: {
+      host: 'staging.school.edu',
+      'x-forwarded-proto': 'http'
+    }
+  })
+
+  assert.equal(cookieOptions.secure, true)
+  assert.equal(cookieOptions.sameSite, 'none')
+})
+
+test('getRefreshCookieOptions respects forwarded https when behind a proxy', () => {
+  const { getRefreshCookieOptions } = loadTokenUtils()
+
+  const cookieOptions = getRefreshCookieOptions({
+    secure: false,
+    hostname: 'school.edu',
+    headers: {
+      host: 'school.edu',
+      'x-forwarded-proto': 'https'
+    }
+  })
+
+  assert.equal(cookieOptions.secure, true)
+  assert.equal(cookieOptions.sameSite, 'none')
+})

@@ -166,7 +166,7 @@ const Assignments = () => {
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadSubjects({ force: true, signal: controller.signal }).catch((loadError) => {
+    void loadSubjects({ signal: controller.signal }).catch((loadError) => {
       if (isRequestCanceled(loadError)) {
         return
       }

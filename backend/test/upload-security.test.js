@@ -112,6 +112,11 @@ test('validateUploadedPdf writes a valid PDF to disk only after in-memory valida
         unlink: async () => {}
       }
     },
+    'pdf-lib': {
+      PDFDocument: {
+        load: async () => ({})
+      }
+    },
     sharp: () => ({
       rotate: () => ({
         toFile: async () => {}
@@ -143,7 +148,49 @@ test('validateUploadedPdf writes a valid PDF to disk only after in-memory valida
   assert.equal(writeCalls.length, 1)
   assert.match(writeCalls[0].filePath, /assignment\.pdf$/i)
   assert.equal(req.file.filename.endsWith('-assignment.pdf'), true)
+  assert.equal(req.file.originalname, 'assignment.pdf')
   assert.match(String(req.file.path), /assignment\.pdf$/i)
+})
+
+test('validateUploadedPdf sanitizes the uploaded original filename before it propagates', async () => {
+  const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        writeFile: async () => {},
+        unlink: async () => {}
+      }
+    },
+    'pdf-lib': {
+      PDFDocument: {
+        load: async () => ({})
+      }
+    },
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const req = {
+    file: {
+      originalname: '../../../../etc/passwd.pdf',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7 valid payload')
+    }
+  }
+  const res = createResponse()
+
+  await validateUploadedPdf(req, res, () => {})
+
+  assert.equal(req.file.originalname, 'passwd.pdf')
+  assert.match(req.file.filename, /passwd\.pdf$/i)
 })
 
 test('validateUploadedPdf rejects invalid PDF content before any disk write', async () => {
@@ -155,6 +202,13 @@ test('validateUploadedPdf rejects invalid PDF content before any disk write', as
           writeCalls.push(args)
         },
         unlink: async () => {}
+      }
+    },
+    'pdf-lib': {
+      PDFDocument: {
+        load: async () => {
+          throw new Error('invalid pdf')
+        }
       }
     },
     sharp: () => ({
@@ -189,6 +243,57 @@ test('validateUploadedPdf rejects invalid PDF content before any disk write', as
   assert.deepEqual(res.body, { message: 'Uploaded file content is not a valid PDF' })
   assert.equal(writeCalls.length, 0)
   assert.equal(req.file.path, undefined)
+})
+
+test('validateUploadedPdf rejects files that spoof the PDF header but fail structural parsing', async () => {
+  const writeCalls = []
+  const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        writeFile: async (...args) => {
+          writeCalls.push(args)
+        },
+        unlink: async () => {}
+      }
+    },
+    'pdf-lib': {
+      PDFDocument: {
+        load: async () => {
+          throw new Error('unexpected object')
+        }
+      }
+    },
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const req = {
+    file: {
+      originalname: 'evil.pdf',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 <html><script>alert(1)</script>')
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await validateUploadedPdf(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, false)
+  assert.equal(res.statusCode, 400)
+  assert.deepEqual(res.body, { message: 'Unable to validate uploaded file' })
+  assert.equal(writeCalls.length, 0)
 })
 
 test('uploadPdf rejects files unless the MIME type is application/pdf', async () => {
@@ -266,7 +371,7 @@ test('serveUploadedFile serves assignment PDFs with hardened headers', async () 
   assert.equal(res.headers['X-Content-Type-Options'], 'nosniff')
   assert.match(res.headers['Content-Security-Policy'], /sandbox allow-scripts allow-downloads/)
   assert.equal(res.sentFile.options.headers['Content-Type'], 'application/pdf')
-  assert.equal(res.sentFile.options.headers['Content-Disposition'], 'inline')
+  assert.match(res.sentFile.options.headers['Content-Disposition'], /^attachment; filename="assignment\.pdf"$/i)
 })
 
 test('createStudent does not return plaintext temporary passwords', async () => {
