@@ -97,3 +97,29 @@ test('validateEnv rejects disabling rate limits in production', async () => {
     restoreEnv(originalEnv)
   }
 })
+
+test('validateEnv rejects enabling debug errors in production', async () => {
+  const originalEnv = { ...process.env }
+  Object.assign(process.env, baseEnv, {
+    NODE_ENV: 'production',
+    REDIS_URL: 'redis://localhost:6379',
+    MAIL_FROM: 'TriLearn <no-reply@example.com>',
+    RESEND_SMTP_HOST: 'smtp.resend.com',
+    RESEND_SMTP_PORT: '465',
+    RESEND_SMTP_USER: 'resend',
+    RESEND_SMTP_PASS: 'secret',
+    DEBUG_ERRORS: 'true'
+  })
+
+  try {
+    await withPatchedConsoleError(async (errorCalls) => {
+      await withPatchedExit(async (exitCalls) => {
+        assert.throws(() => validateEnv(), /process\.exit:1/)
+        assert.deepEqual(exitCalls, [1])
+        assert.match(errorCalls[0], /DEBUG_ERRORS=true is not allowed in production/)
+      })
+    })
+  } finally {
+    restoreEnv(originalEnv)
+  }
+})

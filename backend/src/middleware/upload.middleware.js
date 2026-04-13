@@ -95,6 +95,18 @@ const imageOnly = (_req, file, cb) => {
   cb(null, true)
 }
 
+const getImageSignatureFlags = (buffer) => {
+  const signatureBuffer = Buffer.from(buffer || []).subarray(0, 12)
+  const header = signatureBuffer.toString('hex')
+
+  return {
+    isPng: header.startsWith('89504e470d0a1a0a'),
+    isJpeg: header.startsWith('ffd8ff'),
+    isGif: signatureBuffer.toString('ascii', 0, 6) === 'GIF87a' || signatureBuffer.toString('ascii', 0, 6) === 'GIF89a',
+    isWebp: signatureBuffer.toString('ascii', 0, 4) === 'RIFF' && signatureBuffer.toString('ascii', 8, 12) === 'WEBP'
+  }
+}
+
 const createUploadMiddleware = (role) => multer({
   storage: multer.memoryStorage(),
   fileFilter: pdfOnly,
@@ -104,7 +116,7 @@ const createUploadMiddleware = (role) => multer({
 })
 
 const createImageUploadMiddleware = (maxBytes = 3 * 1024 * 1024) => multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: imageOnly,
   limits: {
     fileSize: maxBytes
@@ -218,45 +230,40 @@ const validateUploadedPdf = async (req, res, next) => {
 }
 
 const validateUploadedImage = async (req, res, next) => {
-  if (!req.file?.path) {
+  if (!req.file?.buffer) {
     return next()
   }
 
   try {
-    const fileHandle = await fs.promises.open(req.file.path, 'r')
-    const signatureBuffer = Buffer.alloc(12)
-    await fileHandle.read(signatureBuffer, 0, 12, 0)
-    await fileHandle.close()
-
-    const header = signatureBuffer.toString('hex')
-    const isPng = header.startsWith('89504e470d0a1a0a')
-    const isJpeg = header.startsWith('ffd8ff')
-    const isGif = signatureBuffer.toString('ascii', 0, 6) === 'GIF87a' || signatureBuffer.toString('ascii', 0, 6) === 'GIF89a'
-    const isWebp = signatureBuffer.toString('ascii', 0, 4) === 'RIFF' && signatureBuffer.toString('ascii', 8, 12) === 'WEBP'
+    req.file.originalname = sanitizeUploadedOriginalName(req.file.originalname, 'upload-image')
+    const { isPng, isJpeg, isGif, isWebp } = getImageSignatureFlags(req.file.buffer)
 
     if (!isPng && !isJpeg && !isGif && !isWebp) {
-      await fs.promises.unlink(req.file.path).catch(() => {})
       return res.status(400).json({ message: 'Uploaded file content is not a valid image' })
     }
 
-    const cleanedPath = `${req.file.path}_clean`
+    const fileName = generateUploadedFileName(req.file.originalname)
+    const filePath = path.join(uploadPath, fileName)
 
     try {
-      await sharp(req.file.path)
+      await sharp(req.file.buffer)
         .rotate()
-        .toFile(cleanedPath)
-      await fs.promises.rename(cleanedPath, req.file.path)
+        .toFile(filePath)
     } catch (sharpError) {
-      await fs.promises.unlink(cleanedPath).catch(() => {})
-      await fs.promises.unlink(req.file.path).catch(() => {})
+      await fs.promises.unlink(filePath).catch(() => {})
       logger.error(sharpError.message, { stack: sharpError.stack })
       return res.status(400).json({ message: 'Could not process uploaded image' })
     }
 
+    req.file.filename = fileName
+    req.file.path = filePath
+
     next()
   } catch (error) {
     logger.error(error.message, { stack: error.stack })
-    await fs.promises.unlink(req.file.path).catch(() => {})
+    if (req.file?.path) {
+      await fs.promises.unlink(req.file.path).catch(() => {})
+    }
     res.status(400).json({ message: 'Unable to validate uploaded image' })
   }
 }

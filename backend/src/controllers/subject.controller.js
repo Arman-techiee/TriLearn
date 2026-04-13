@@ -45,13 +45,17 @@ const buildSubjectVisibilityFilter = async (req, filters = {}) => {
   const { user } = req
 
   if (user.role === 'INSTRUCTOR') {
-    const instructor = await prisma.instructor.findUnique({
-      where: { userId: user.id }
-    })
-
     return {
-      ...filters,
-      instructorId: instructor?.id || '__no_subjects__'
+      AND: [
+        filters,
+        {
+          instructor: {
+            is: {
+              userId: user.id
+            }
+          }
+        }
+      ]
     }
   }
 
@@ -466,14 +470,14 @@ const getSubjectEnrollments = async (req, res) => {
     const { id } = req.params
 
     if (req.user.role === 'INSTRUCTOR') {
-      const instructor = await prisma.instructor.findUnique({
-        where: { userId: req.user.id }
-      })
-
       const allowedSubject = await prisma.subject.findFirst({
         where: {
           id,
-          instructorId: instructor?.id || '__no_subject__'
+          instructor: {
+            is: {
+              userId: req.user.id
+            }
+          }
         }
       })
 

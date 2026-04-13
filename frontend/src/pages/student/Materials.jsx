@@ -1,47 +1,117 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import EmptyState from '../../components/EmptyState'
 import PageHeader from '../../components/PageHeader'
 import StudentLayout from '../../layouts/StudentLayout'
-import useApi from '../../hooks/useApi'
 import { useToast } from '../../components/Toast'
 import api, { fetchFileBlob, openFileUrl } from '../../utils/api'
+import Alert from '../../components/Alert'
+import { isRequestCanceled } from '../../utils/http'
+import logger from '../../utils/logger'
 
 const StudentMaterials = () => {
+  const materialRequestRef = useRef(null)
+  const subjectRequestRef = useRef(null)
   const [filterSubject, setFilterSubject] = useState('')
   const [previewFile, setPreviewFile] = useState(null)
+  const [materials, setMaterials] = useState([])
+  const [subjects, setSubjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const { showToast } = useToast()
-  const {
-    data: materials = [],
-    loading,
-    execute: executeMaterials
-  } = useApi({ initialData: [], initialLoading: true })
-  const {
-    data: subjects = [],
-    execute: executeSubjects
-  } = useApi({ initialData: [] })
 
   const fetchMaterials = useCallback(async () => {
-    await executeMaterials(
-      (signal) => api.get('/materials', { signal }),
-      {
-        transform: (response) => response.data.materials
+    if (materialRequestRef.current) {
+      materialRequestRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    materialRequestRef.current = controller
+
+    try {
+      const response = await api.get('/materials', {
+        signal: controller.signal,
+        params: { limit: 100 }
+      })
+
+      if (controller.signal.aborted) {
+        return
       }
-    )
-  }, [executeMaterials])
+
+      setMaterials(response.data.materials || [])
+    } catch (fetchError) {
+      if (isRequestCanceled(fetchError)) {
+        return
+      }
+
+      logger.error('Failed to load student materials', fetchError)
+      setMaterials([])
+      setError(fetchError.response?.data?.message || 'Unable to load study materials right now.')
+      throw fetchError
+    } finally {
+      if (materialRequestRef.current === controller) {
+        materialRequestRef.current = null
+      }
+    }
+  }, [])
 
   const fetchSubjects = useCallback(async () => {
-    await executeSubjects(
-      (signal) => api.get('/subjects', { signal }),
-      {
-        transform: (response) => response.data.subjects
+    if (subjectRequestRef.current) {
+      subjectRequestRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    subjectRequestRef.current = controller
+
+    try {
+      const response = await api.get('/subjects', {
+        signal: controller.signal,
+        params: { limit: 100 }
+      })
+
+      if (controller.signal.aborted) {
+        return
       }
-    )
-  }, [executeSubjects])
+
+      setSubjects(response.data.subjects || [])
+    } catch (fetchError) {
+      if (isRequestCanceled(fetchError)) {
+        return
+      }
+
+      logger.error('Failed to load student subjects for materials', fetchError)
+      setSubjects([])
+      setError((current) => current || fetchError.response?.data?.message || 'Unable to load your subjects right now.')
+      throw fetchError
+    } finally {
+      if (subjectRequestRef.current === controller) {
+        subjectRequestRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
-    void fetchMaterials()
-    void fetchSubjects()
+    setLoading(true)
+    setError('')
+
+    void Promise.allSettled([
+      fetchMaterials(),
+      fetchSubjects()
+    ]).finally(() => {
+      setLoading(false)
+    })
+
+    return () => {
+      if (materialRequestRef.current) {
+        materialRequestRef.current.abort()
+        materialRequestRef.current = null
+      }
+
+      if (subjectRequestRef.current) {
+        subjectRequestRef.current.abort()
+        subjectRequestRef.current = null
+      }
+    }
   }, [fetchMaterials, fetchSubjects])
 
   useEffect(() => {
@@ -133,6 +203,8 @@ const StudentMaterials = () => {
           subtitle="Access learning resources shared by your instructors"
           breadcrumbs={['Student', 'Materials']}
         />
+
+        <Alert type="error" message={error} />
 
         {/* Subject Filter */}
         <div className="flex gap-2 mb-6 flex-wrap">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import Alert from '../../components/Alert'
@@ -11,14 +11,17 @@ import Modal from '../../components/Modal'
 import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
-import useApi from '../../hooks/useApi'
+import { useReferenceData } from '../../context/ReferenceDataContext'
 import api, { fetchFileBlob, openFileUrl } from '../../utils/api'
+import { isRequestCanceled } from '../../utils/http'
+import logger from '../../utils/logger'
 
 const InstructorMaterials = () => {
   const { user } = useAuth()
   const isCoordinator = user?.role === 'COORDINATOR'
   const Layout = isCoordinator ? CoordinatorLayout : InstructorLayout
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const materialRequestRef = useRef(null)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ title: '', description: '', fileUrl: '', subjectId: '' })
   const [materialPdf, setMaterialPdf] = useState(null)
@@ -27,41 +30,132 @@ const InstructorMaterials = () => {
   const [materialToDelete, setMaterialToDelete] = useState(null)
   const [deletingMaterial, setDeletingMaterial] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
-  const {
-    data: materials = [],
-    loading,
-    error,
-    setError,
-    execute: executeMaterials
-  } = useApi({ initialData: [], initialLoading: true })
-  const {
-    data: subjects = [],
-    execute: executeSubjects
-  } = useApi({ initialData: [] })
+  const [materials, setMaterials] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const { subjects = [], loadSubjects } = useReferenceData()
 
   const fetchMaterials = useCallback(async () => {
-    await executeMaterials(
-      (signal) => api.get('/materials', { signal }),
-      {
-        fallbackMessage: 'Unable to load materials',
-        transform: (response) => response.data.materials
-      }
-    )
-  }, [executeMaterials])
+    if (materialRequestRef.current) {
+      materialRequestRef.current.abort()
+    }
 
-  const fetchSubjects = useCallback(async () => {
-    await executeSubjects(
-      (signal) => api.get('/subjects', { signal }),
-      {
-        transform: (response) => response.data.subjects
+    const controller = new AbortController()
+    materialRequestRef.current = controller
+
+    try {
+      setLoading(true)
+      setError('')
+
+      const response = await api.get('/materials', {
+        signal: controller.signal,
+        params: { limit: 100 }
+      })
+
+      if (controller.signal.aborted) {
+        return
       }
-    )
-  }, [executeSubjects])
+
+      setMaterials(response.data.materials || [])
+    } catch (fetchError) {
+      if (isRequestCanceled(fetchError)) {
+        return
+      }
+
+      logger.error('Failed to load materials', fetchError)
+      setMaterials([])
+      setError(fetchError.response?.data?.message || 'Unable to load materials right now.')
+      throw fetchError
+    } finally {
+      if (materialRequestRef.current === controller) {
+        materialRequestRef.current = null
+      }
+
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
+    }
+  }, [])
+
+  const syncSubjectInUrl = useCallback((nextSubjectId) => {
+    const nextParams = new URLSearchParams(searchParams)
+
+    if (nextSubjectId) {
+      nextParams.set('subject', nextSubjectId)
+    } else {
+      nextParams.delete('subject')
+    }
+
+    const currentQuery = searchParams.toString()
+    const nextQuery = nextParams.toString()
+
+    if (currentQuery !== nextQuery) {
+      setSearchParams(nextParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
+  const handleSubjectChange = useCallback((nextSubjectId) => {
+    setFilterSubject(nextSubjectId)
+    syncSubjectInUrl(nextSubjectId)
+    setForm((current) => ({
+      ...current,
+      subjectId: nextSubjectId || current.subjectId
+    }))
+  }, [syncSubjectInUrl])
 
   useEffect(() => {
-    void fetchMaterials()
-    void fetchSubjects()
-  }, [fetchMaterials, fetchSubjects])
+    void fetchMaterials().catch((fetchError) => {
+      if (isRequestCanceled(fetchError)) {
+        return
+      }
+    })
+
+    return () => {
+      if (materialRequestRef.current) {
+        materialRequestRef.current.abort()
+        materialRequestRef.current = null
+      }
+    }
+  }, [fetchMaterials])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void loadSubjects({ signal: controller.signal }).catch((loadError) => {
+      if (isRequestCanceled(loadError)) {
+        return
+      }
+
+      setError('Unable to load your modules right now.')
+    })
+
+    return () => controller.abort()
+  }, [loadSubjects, setError])
+
+  useEffect(() => {
+    if (subjects.length === 0) {
+      setFilterSubject('')
+      setForm((current) => ({ ...current, subjectId: '' }))
+      return
+    }
+
+    const hasSelectedSubject = filterSubject
+      ? subjects.some((subject) => subject.id === filterSubject)
+      : true
+
+    if (!hasSelectedSubject) {
+      setFilterSubject('')
+      syncSubjectInUrl('')
+    }
+
+    setForm((current) => ({
+      ...current,
+      subjectId: current.subjectId && subjects.some((subject) => subject.id === current.subjectId)
+        ? current.subjectId
+        : (filterSubject && subjects.some((subject) => subject.id === filterSubject)
+            ? filterSubject
+            : subjects[0]?.id || '')
+    }))
+  }, [filterSubject, subjects, syncSubjectInUrl])
 
   useEffect(() => {
     return () => {
@@ -90,9 +184,13 @@ const InstructorMaterials = () => {
       await api.post('/materials', payload)
       showToast({ title: 'Material uploaded successfully.' })
       setShowModal(false)
-      setForm({ title: '', description: '', fileUrl: '', subjectId: '' })
+      setForm({ title: '', description: '', fileUrl: '', subjectId: form.subjectId || filterSubject || subjects[0]?.id || '' })
       setMaterialPdf(null)
-      fetchMaterials()
+      await fetchMaterials().catch((fetchError) => {
+        if (isRequestCanceled(fetchError)) {
+          return
+        }
+      })
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
@@ -105,7 +203,11 @@ const InstructorMaterials = () => {
       await api.delete(`/materials/${materialToDelete.id}`)
       setMaterialToDelete(null)
       showToast({ title: 'Material deleted.' })
-      fetchMaterials()
+      await fetchMaterials().catch((fetchError) => {
+        if (isRequestCanceled(fetchError)) {
+          return
+        }
+      })
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     } finally {
@@ -185,12 +287,18 @@ const InstructorMaterials = () => {
             label: 'Add Study Material',
             icon: Plus,
             variant: 'primary',
+            disabled: !isCoordinator && subjects.length === 0,
             onClick: () => {
+              if (!subjects.length) {
+                setError('No assigned modules found. Ask an admin or coordinator to assign a module to this instructor first.')
+                return
+              }
+
               setShowModal(true)
               setError('')
               setForm((current) => ({
                 ...current,
-                subjectId: filterSubject || current.subjectId
+                subjectId: filterSubject || subjects[0]?.id || current.subjectId
               }))
             }
           }]}
@@ -201,7 +309,7 @@ const InstructorMaterials = () => {
         {/* Subject Filter */}
         <div className="flex gap-2 mb-6 flex-wrap">
           <button
-            onClick={() => setFilterSubject('')}
+            onClick={() => handleSubjectChange('')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition
               ${!filterSubject ? 'bg-primary text-white' : 'bg-[--color-bg-card] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 border hover:bg-[--color-bg] dark:bg-slate-900'}`}
           >
@@ -210,7 +318,7 @@ const InstructorMaterials = () => {
           {subjects.map(s => (
             <button
               key={s.id}
-              onClick={() => setFilterSubject(s.id)}
+              onClick={() => handleSubjectChange(s.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition
                 ${filterSubject === s.id ? 'bg-primary text-white' : 'bg-[--color-bg-card] dark:bg-slate-800 text-[--color-text-muted] dark:text-slate-400 border hover:bg-[--color-bg] dark:bg-slate-900'}`}
             >
@@ -220,7 +328,15 @@ const InstructorMaterials = () => {
         </div>
 
         {/* Materials Grid */}
-        {loading ? (
+        {!isCoordinator && subjects.length === 0 && !loading ? (
+          <div className="rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 p-10 shadow-sm dark:shadow-slate-900/50">
+            <EmptyState
+              icon="📚"
+              title="No modules available yet"
+              description="Your assigned modules will appear here once an admin or coordinator links them to your account."
+            />
+          </div>
+        ) : loading ? (
           <LoadingSkeleton rows={6} itemClassName="h-56" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

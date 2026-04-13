@@ -38,6 +38,7 @@ const MAX_FAILED_LOGIN_ATTEMPTS = 5
 const LOGIN_LOCKOUT_MINUTES = 15
 const STUDENT_ID_QR_VALIDITY_HOURS = 24
 const LOGOUT_MIN_RESPONSE_MS = 75
+const STUDENT_INTAKE_MIN_RESPONSE_MS = 75
 const GENERIC_ELIGIBILITY_MESSAGE = 'If this email is eligible, you will receive further instructions.'
 const GENERIC_DISABLED_ACCOUNT_MESSAGE = 'Your account has been disabled. Please contact the administration.'
 const DUMMY_PASSWORD_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
@@ -57,6 +58,11 @@ const waitForMinimumDuration = async (startedAt, minDurationMs) => {
   await new Promise((resolve) => {
     setTimeout(resolve, minDurationMs - elapsed)
   })
+}
+
+const respondGenericEligibility = async (res, startedAt) => {
+  await waitForMinimumDuration(startedAt, STUDENT_INTAKE_MIN_RESPONSE_MS)
+  return res.status(200).json({ message: GENERIC_ELIGIBILITY_MESSAGE })
 }
 
 const isMobileClient = (req) => String(req.headers?.['x-client-type'] || '').toLowerCase() === 'mobile'
@@ -187,6 +193,8 @@ const register = async (req, res) => {
 }
 
 const submitStudentIntake = async (req, res) => {
+  const startedAt = Date.now()
+
   try {
     const {
       fullName,
@@ -223,7 +231,7 @@ const submitStudentIntake = async (req, res) => {
     const existingApplication = await prisma.studentApplication.findUnique({ where: { email } })
 
     if (existingApplication && !['CONVERTED', 'REVIEWED'].includes(existingApplication.status)) {
-      return res.status(200).json({ message: GENERIC_ELIGIBILITY_MESSAGE })
+      return respondGenericEligibility(res, startedAt)
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -231,7 +239,7 @@ const submitStudentIntake = async (req, res) => {
     })
 
     if (existingUser) {
-      return res.status(200).json({ message: GENERIC_ELIGIBILITY_MESSAGE })
+      return respondGenericEligibility(res, startedAt)
     }
 
     await prisma.studentApplication.upsert({
@@ -257,7 +265,7 @@ const submitStudentIntake = async (req, res) => {
       }
     })
 
-    res.status(201).json({ message: GENERIC_ELIGIBILITY_MESSAGE })
+    return respondGenericEligibility(res, startedAt)
   } catch (error) {
     res.internalError(error)
   }

@@ -78,6 +78,39 @@ test('unknown routes return a JSON 404 response', async () => {
   assert.deepEqual(response.body, { message: 'Route not found' })
 })
 
+test('getErrorMessage hides internal exception text unless DEBUG_ERRORS is enabled', async () => {
+  const { getErrorMessage } = require('../src/index')
+  const originalDebugErrors = process.env.DEBUG_ERRORS
+  const originalNodeEnv = process.env.NODE_ENV
+
+  try {
+    process.env.NODE_ENV = 'development'
+    delete process.env.DEBUG_ERRORS
+    assert.equal(
+      getErrorMessage(new Error("Invalid value for argument 'where'."), 'Something went wrong'),
+      'Something went wrong'
+    )
+
+    process.env.DEBUG_ERRORS = 'true'
+    assert.equal(
+      getErrorMessage(new Error("Invalid value for argument 'where'."), 'Something went wrong'),
+      "Invalid value for argument 'where'."
+    )
+  } finally {
+    if (originalDebugErrors === undefined) {
+      delete process.env.DEBUG_ERRORS
+    } else {
+      process.env.DEBUG_ERRORS = originalDebugErrors
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = originalNodeEnv
+    }
+  }
+})
+
 test('POST /api/v1/auth/login returns the controller response through the real route', async () => {
   const login = async (req, res) => {
     res.status(200).json({

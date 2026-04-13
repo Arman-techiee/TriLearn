@@ -1,16 +1,29 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import api from '../utils/api'
+import { useAuth } from './AuthContext'
 
 const ReferenceDataContext = createContext(null)
 
 export const ReferenceDataProvider = ({ children }) => {
+  const { user } = useAuth()
   const [subjects, setSubjects] = useState([])
   const [departments, setDepartments] = useState([])
   const subjectRequestRef = useRef(null)
   const departmentRequestRef = useRef(null)
 
+  useEffect(() => {
+    subjectRequestRef.current = null
+    departmentRequestRef.current = null
+    setSubjects([])
+    setDepartments([])
+  }, [user?.id, user?.role])
+
   const loadSubjects = useCallback(async ({ force = false, signal } = {}) => {
     if (!force && subjects.length > 0) {
+      return subjects
+    }
+
+    if (signal?.aborted) {
       return subjects
     }
 
@@ -18,15 +31,12 @@ export const ReferenceDataProvider = ({ children }) => {
       return subjectRequestRef.current
     }
 
+    // Keep the shared request independent from any single caller's AbortController.
+    // Otherwise one unmount can cancel subject loading for every consumer.
     subjectRequestRef.current = api.get('/subjects', {
-      signal,
       params: { limit: 100 }
     })
       .then((response) => {
-        if (signal?.aborted) {
-          return subjects
-        }
-
         const nextSubjects = response.data.subjects || []
         setSubjects(nextSubjects)
         return nextSubjects
@@ -35,7 +45,31 @@ export const ReferenceDataProvider = ({ children }) => {
         subjectRequestRef.current = null
       })
 
-    return subjectRequestRef.current
+    const request = subjectRequestRef.current
+
+    if (!signal) {
+      return request
+    }
+
+    return new Promise((resolve, reject) => {
+      const handleAbort = () => {
+        signal.removeEventListener('abort', handleAbort)
+        reject(new DOMException('Aborted', 'AbortError'))
+      }
+
+      signal.addEventListener('abort', handleAbort, { once: true })
+
+      request.then(
+        (value) => {
+          signal.removeEventListener('abort', handleAbort)
+          resolve(value)
+        },
+        (error) => {
+          signal.removeEventListener('abort', handleAbort)
+          reject(error)
+        }
+      )
+    })
   }, [subjects])
 
   const loadDepartments = useCallback(async ({ force = false, signal } = {}) => {
@@ -43,16 +77,18 @@ export const ReferenceDataProvider = ({ children }) => {
       return departments
     }
 
+    if (signal?.aborted) {
+      return departments
+    }
+
     if (departmentRequestRef.current) {
       return departmentRequestRef.current
     }
 
-    departmentRequestRef.current = api.get('/departments', { signal })
+    // Keep the shared request independent from any single caller's AbortController.
+    // Otherwise one unmount can cancel department loading for every consumer.
+    departmentRequestRef.current = api.get('/departments')
       .then((response) => {
-        if (signal?.aborted) {
-          return departments
-        }
-
         const nextDepartments = response.data.departments || []
         setDepartments(nextDepartments)
         return nextDepartments
@@ -61,7 +97,31 @@ export const ReferenceDataProvider = ({ children }) => {
         departmentRequestRef.current = null
       })
 
-    return departmentRequestRef.current
+    const request = departmentRequestRef.current
+
+    if (!signal) {
+      return request
+    }
+
+    return new Promise((resolve, reject) => {
+      const handleAbort = () => {
+        signal.removeEventListener('abort', handleAbort)
+        reject(new DOMException('Aborted', 'AbortError'))
+      }
+
+      signal.addEventListener('abort', handleAbort, { once: true })
+
+      request.then(
+        (value) => {
+          signal.removeEventListener('abort', handleAbort)
+          resolve(value)
+        },
+        (error) => {
+          signal.removeEventListener('abort', handleAbort)
+          reject(error)
+        }
+      )
+    })
   }, [departments])
 
   const value = useMemo(() => ({

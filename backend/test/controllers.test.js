@@ -401,6 +401,20 @@ test('auth dateOfBirth schemas reject invalid and out-of-range values', () => {
 })
 
 test('submitStudentIntake returns a generic response when a matching user already exists', async () => {
+  const originalNow = Date.now
+  const originalSetTimeout = global.setTimeout
+  const timeoutDelays = []
+
+  Date.now = (() => {
+    const values = [1000, 1000]
+    return () => values.shift() ?? 1000
+  })()
+  global.setTimeout = (callback, delay, ...args) => {
+    timeoutDelays.push(delay)
+    callback(...args)
+    return 0
+  }
+
   const { submitStudentIntake } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
     '../utils/prisma': {
       studentApplication: {
@@ -440,12 +454,18 @@ test('submitStudentIntake returns a generic response when a matching user alread
   }
   const res = createResponse()
 
-  await submitStudentIntake(req, res)
+  try {
+    await submitStudentIntake(req, res)
 
-  assert.equal(res.statusCode, 200)
-  assert.deepEqual(res.body, {
-    message: 'If this email is eligible, you will receive further instructions.'
-  })
+    assert.equal(res.statusCode, 200)
+    assert.deepEqual(res.body, {
+      message: 'If this email is eligible, you will receive further instructions.'
+    })
+    assert.deepEqual(timeoutDelays, [75])
+  } finally {
+    Date.now = originalNow
+    global.setTimeout = originalSetTimeout
+  }
 })
 
 test('logout still runs a token revocation query when no refresh token is provided', async () => {
@@ -1724,7 +1744,7 @@ test('submitStudentIntake upserts the application payload and returns success', 
 
   await submitStudentIntake(req, res)
 
-  assert.equal(res.statusCode, 201)
+  assert.equal(res.statusCode, 200)
   assert.equal(res.body.message, 'If this email is eligible, you will receive further instructions.')
   assert.equal(upsertCalls.length, 1)
   assert.equal(upsertCalls[0].where.email, 'arman@example.com')
@@ -1773,7 +1793,7 @@ test('submitStudentIntake allows resubmission when a prior application was revie
 
   await submitStudentIntake(req, res)
 
-  assert.equal(res.statusCode, 201)
+  assert.equal(res.statusCode, 200)
   assert.equal(upsertCalls.length, 1)
   assert.equal(upsertCalls[0].update.status, 'PENDING')
   assert.equal(upsertCalls[0].update.reviewedAt, null)
@@ -1893,7 +1913,7 @@ test('toggleUserStatus returns 409 when another request already changed the stat
 })
 
 test('markAttendanceQR creates a present attendance record for eligible students', async () => {
-  const upsertCalls = []
+  const createCalls = []
   const { markAttendanceQR } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {
     './shared': {
       QR_VALIDITY_MINUTES: 15,
@@ -1905,12 +1925,13 @@ test('markAttendanceQR creates a present attendance record for eligible students
           findUnique: async () => ({ id: 'enrollment-1' })
         },
         attendance: {
-          upsert: async (payload) => {
-            upsertCalls.push(payload)
+          findUnique: async () => null,
+          create: async (payload) => {
+            createCalls.push(payload)
             return {
               id: 'attendance-1',
               status: 'PRESENT',
-              date: payload.create.date,
+              date: payload.data.date,
               subject: { name: 'Database Systems', code: 'DBS101' },
               student: { user: { name: 'Arman Dev' } }
             }
@@ -1952,9 +1973,72 @@ test('markAttendanceQR creates a present attendance record for eligible students
 
   assert.equal(res.statusCode, 201)
   assert.match(res.body.message, /attendance marked successfully/i)
-  assert.equal(upsertCalls.length, 1)
-  assert.equal(upsertCalls[0].create.studentId, 'student-1')
-  assert.equal(upsertCalls[0].create.subjectId, 'subject-1')
+  assert.equal(createCalls.length, 1)
+  assert.equal(createCalls[0].data.studentId, 'student-1')
+  assert.equal(createCalls[0].data.subjectId, 'subject-1')
+})
+
+test('markAttendanceQR rejects replay when attendance already exists for the same student and subject', async () => {
+  const createCalls = []
+  const { markAttendanceQR } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {
+    './shared': {
+      QR_VALIDITY_MINUTES: 15,
+      prisma: {
+        subject: {
+          findUnique: async () => ({ id: 'subject-1', name: 'Database Systems' })
+        },
+        subjectEnrollment: {
+          findUnique: async () => ({ id: 'enrollment-1' })
+        },
+        attendance: {
+          findUnique: async () => ({
+            id: 'attendance-existing',
+            status: 'ABSENT'
+          }),
+          create: async (payload) => {
+            createCalls.push(payload)
+            return payload
+          }
+        }
+      },
+      getDayRange: () => ({
+        start: new Date('2026-04-03T00:00:00.000Z'),
+        end: new Date('2026-04-04T00:00:00.000Z')
+      }),
+      getOwnedSubject: async () => ({}),
+      createSignedQrPayload: () => 'signed',
+      parseQrPayload: () => ({
+        subjectId: 'subject-1',
+        instructorId: 'instructor-1',
+        expiresAt: new Date(Date.now() + 60_000).toISOString()
+      }),
+      getDailyGateWindows: async () => ({}),
+      normalizeSemesterList: () => [],
+      getEligibleGateAttendanceForStudent: async () => ({}),
+      upsertPresentAttendanceForRoutines: async () => ({}),
+      syncClosedRoutineAbsences: async () => {},
+      getStudentByIdCardQr: async () => ({}),
+      recordAuditLog: async () => {}
+    },
+    qrcode: {
+      toDataURL: async () => 'data:image/png;base64,qr'
+    }
+  })
+
+  const req = {
+    body: { qrData: 'qr-payload' },
+    user: { id: 'user-1', role: 'STUDENT' },
+    student: { id: 'student-1' }
+  }
+  const res = createResponse()
+
+  await markAttendanceQR(req, res)
+
+  assert.equal(res.statusCode, 409)
+  assert.deepEqual(res.body, {
+    message: 'Attendance has already been recorded for this subject today.'
+  })
+  assert.equal(createCalls.length, 0)
 })
 
 test('getStudentIdQr includes an expiry timestamp in the signed student QR payload', async () => {
@@ -2417,6 +2501,165 @@ test('publishMarks publishes marks for a coordinator department and returns coun
   assert.equal(updateManyCalls[0].where.subject.department, 'BCA')
   assert.equal(updateManyCalls[0].where.subjectId, 'subject-1')
   assert.equal(updateManyCalls[0].where.examType, 'MIDTERM')
+})
+
+test('deleteMarks blocks coordinators from deleting marks outside their department', async () => {
+  const deleteCalls = []
+  const { deleteMarks } = loadWithMocks(resolveFromTest('src', 'controllers', 'marks.controller.js'), {
+    '../utils/prisma': {
+      mark: {
+        findUnique: async () => ({
+          id: 'mark-1',
+          studentId: 'student-1',
+          subjectId: 'subject-1',
+          examType: 'FINAL'
+        }),
+        delete: async (payload) => {
+          deleteCalls.push(payload)
+          return payload
+        }
+      },
+      subject: {
+        findUnique: async () => ({
+          id: 'subject-1',
+          name: 'Accounting',
+          code: 'ACC101',
+          department: 'BBS',
+          instructorId: 'instructor-1',
+          instructor: null
+        })
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/notifications': {
+      createNotifications: async () => {}
+    },
+    pdfkit: class MockPdfDocument {}
+  })
+
+  const req = {
+    params: { id: 'mark-1' },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await deleteMarks(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'You can only manage marks for subjects in your department'
+  })
+  assert.equal(deleteCalls.length, 0)
+})
+
+test('getMarksBySubject blocks coordinators from subjects outside their department', async () => {
+  const findManyCalls = []
+  const { getMarksBySubject } = loadWithMocks(resolveFromTest('src', 'controllers', 'marks.controller.js'), {
+    '../utils/prisma': {
+      subject: {
+        findUnique: async () => ({
+          id: 'subject-1',
+          name: 'Accounting',
+          code: 'ACC101',
+          department: 'BBS',
+          instructorId: 'instructor-1',
+          instructor: null
+        })
+      },
+      mark: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        },
+        count: async () => 0
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/notifications': {
+      createNotifications: async () => {}
+    },
+    pdfkit: class MockPdfDocument {}
+  })
+
+  const req = {
+    params: { subjectId: 'subject-1' },
+    query: {},
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await getMarksBySubject(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'You can only manage marks for subjects in your department'
+  })
+  assert.equal(findManyCalls.length, 0)
+})
+
+test('getMarksReview scopes coordinator queries to their department', async () => {
+  const findManyCalls = []
+  const countCalls = []
+  const { getMarksReview } = loadWithMocks(resolveFromTest('src', 'controllers', 'marks.controller.js'), {
+    '../utils/prisma': {
+      mark: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        },
+        count: async (payload) => {
+          countCalls.push(payload)
+          return 0
+        }
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/notifications': {
+      createNotifications: async () => {}
+    },
+    pdfkit: class MockPdfDocument {}
+  })
+
+  const req = {
+    query: {
+      examType: 'FINAL',
+      subjectId: 'subject-1'
+    },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { department: 'BCA' }
+  }
+  const res = createResponse()
+
+  await getMarksReview(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(findManyCalls.length, 1)
+  assert.equal(countCalls.length, 1)
+  assert.deepEqual(findManyCalls[0].where, {
+    subjectId: 'subject-1',
+    examType: 'FINAL',
+    subject: {
+      department: 'BCA'
+    }
+  })
+  assert.deepEqual(countCalls[0].where, findManyCalls[0].where)
 })
 
 test('createRoutine blocks instructor double-booking with a specific error', async () => {
@@ -2911,7 +3154,7 @@ test('submitStudentIntake sanitizes profile fields before persisting the applica
 
   await submitStudentIntake(req, res)
 
-  assert.equal(res.statusCode, 201)
+  assert.equal(res.statusCode, 200)
   assert.equal(upsertCalls.length, 1)
   assert.deepEqual(upsertCalls[0].create, {
     fullName: 'Arman Dev',

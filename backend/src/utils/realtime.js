@@ -14,9 +14,13 @@ const getSocketAccessSecret = () => {
   return process.env.JWT_SECRET
 }
 
+const isDevelopmentEnvironment = () => process.env.NODE_ENV === 'development'
+
 const buildCorsOriginValidator = (allowedOrigins = []) => (origin, callback) => {
   if (!origin) {
-    return callback(null, true)
+    return isDevelopmentEnvironment()
+      ? callback(null, true)
+      : callback(new Error('Not allowed by CORS'))
   }
 
   if (allowedOrigins.includes(origin)) {
@@ -128,6 +132,7 @@ const closeRealtime = async () => {
 }
 
 module.exports = {
+  buildCorsOriginValidator,
   initRealtime,
   closeRealtime,
   emitNotificationCreated,

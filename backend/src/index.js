@@ -9,8 +9,8 @@ const validateEnv = require('./utils/validateEnv')
 const { apiLimiter } = require('./middleware/rateLimit.middleware')
 const { protect } = require('./middleware/auth.middleware')
 const { requestId } = require('./middleware/requestId.middleware')
-const { uploadPublicPath } = require('./utils/fileStorage')
-const { csrfProtection, getRuntimeEnv, getTrustedOrigins, isTrustedOrigin } = require('./middleware/csrf.middleware')
+const { uploadPublicPaths } = require('./utils/fileStorage')
+const { csrfProtection, getTrustedOrigins, isTrustedOrigin } = require('./middleware/csrf.middleware')
 const { serveUploadedFile } = require('./controllers/upload.controller')
 const prisma = require('./utils/prisma')
 const { scheduleMaintenance } = require('./utils/maintenance')
@@ -20,12 +20,16 @@ dotenv.config()
 validateEnv()
 
 const app = express()
-const runtimeEnv = getRuntimeEnv()
-const isDevelopment = runtimeEnv === 'development'
 const allowedOrigins = getTrustedOrigins()
 let server = null
 let maintenance = null
 let isShuttingDown = false
+
+const shouldExposeInternalErrors = () => String(process.env.DEBUG_ERRORS || '').trim().toLowerCase() === 'true'
+const getErrorMessage = (error, fallbackMessage = 'Something went wrong') => {
+  const errorMessage = error instanceof Error ? error.message : String(error)
+  return shouldExposeInternalErrors() ? (errorMessage || fallbackMessage) : fallbackMessage
+}
 
 app.set('trust proxy', 1)
 app.use(requestId)
@@ -66,14 +70,16 @@ app.use((req, res, next) => {
     const errorMessage = error instanceof Error ? error.message : String(error)
     req.logger.error(errorMessage, { stack: error?.stack })
     return res.status(500).json({
-      message: isDevelopment ? (errorMessage || fallbackMessage) : fallbackMessage
+      message: getErrorMessage(error, fallbackMessage)
     })
   }
 
   next()
 })
 app.use(csrfProtection)
-app.get(`${uploadPublicPath}/:filename`, protect, serveUploadedFile)
+uploadPublicPaths.forEach((publicPath) => {
+  app.get(`${publicPath}/:filename`, protect, serveUploadedFile)
+})
 
 // Routes
 const authRoutes = require('./routes/auth.routes')
@@ -124,9 +130,7 @@ app.use((error, req, res, _next) => {
   const errorMessage = error instanceof Error ? error.message : String(error)
   ;(req.logger || logger).error(errorMessage, { stack: error?.stack })
   res.status(500).json({
-    message: isDevelopment
-      ? (errorMessage || 'Something went wrong')
-      : 'Something went wrong'
+    message: getErrorMessage(error, 'Something went wrong')
   })
 })
 
@@ -186,6 +190,8 @@ if (require.main === module) {
 module.exports = {
   app,
   startServer,
-  shutdown
+  shutdown,
+  getErrorMessage,
+  shouldExposeInternalErrors
 }
 

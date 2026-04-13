@@ -63,20 +63,24 @@ const markAttendanceQR = async (req, res) => {
     if (!enrollment) return res.status(403).json({ message: 'You are not eligible to mark attendance for this subject' })
 
     const todayRange = getDayRange()
-    const attendance = await prisma.attendance.upsert({
+    const existingAttendance = await prisma.attendance.findUnique({
       where: {
         studentId_subjectId_date: {
           studentId: student.id,
           subjectId,
           date: todayRange.start
         }
-      },
-      update: {
-        instructorId,
-        status: 'PRESENT',
-        qrCode: qrData
-      },
-      create: {
+      }
+    })
+
+    if (existingAttendance) {
+      return res.status(409).json({
+        message: 'Attendance has already been recorded for this subject today.'
+      })
+    }
+
+    const attendance = await prisma.attendance.create({
+      data: {
         studentId: student.id,
         subjectId,
         instructorId,

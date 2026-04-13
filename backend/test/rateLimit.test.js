@@ -6,8 +6,10 @@ const request = require('supertest')
 process.env.NODE_ENV = process.env.NODE_ENV || 'test'
 
 const {
+  loginRateLimitKey,
   studentQrScanLimiter,
-  staffStudentIdScanLimiter
+  staffStudentIdScanLimiter,
+  forgotPasswordRateLimitKey
 } = require('../src/middleware/rateLimit.middleware')
 
 const buildApp = (middleware, user) => {
@@ -53,4 +55,19 @@ test('staffStudentIdScanLimiter throttles repeated scans per staff user', async 
   assert.deepEqual(blocked.body, {
     message: 'Too many student ID scan attempts, please wait a moment and try again'
   })
+})
+
+test('loginRateLimitKey combines IP and normalized email address', () => {
+  const req = {
+    ip: '127.0.0.1',
+    body: {
+      email: ' Student@Example.com '
+    }
+  }
+
+  const loginKey = loginRateLimitKey(req)
+  const forgotPasswordKey = forgotPasswordRateLimitKey(req)
+
+  assert.equal(loginKey, forgotPasswordKey)
+  assert.match(loginKey, /student@example\.com$/)
 })

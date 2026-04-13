@@ -110,6 +110,48 @@ test('serveUploadedFile denies access to another user avatar', async () => {
   assert.equal(auditCalls[0].entityId, 'avatar.png')
 })
 
+test('serveUploadedFile denies instructor access to another user avatar', async () => {
+  const auditCalls = []
+  const { serveUploadedFile } = loadWithMocks(resolveFromTest('src', 'controllers', 'upload.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({ id: 'avatar-owner-1' })
+      }
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads',
+      uploadPublicPath: '/api/v1/uploads'
+    },
+    '../utils/audit': {
+      recordAuditLog: async (payload) => {
+        auditCalls.push(payload)
+      }
+    },
+    '../middleware/csrf.middleware': {
+      getTrustedOrigins: () => []
+    }
+  })
+
+  const req = {
+    params: { filename: 'avatar.png' },
+    user: {
+      id: 'instructor-user-1',
+      role: 'INSTRUCTOR',
+      instructor: { id: 'instructor-1' }
+    }
+  }
+  const res = createResponse()
+
+  await serveUploadedFile(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, { message: 'Access denied' })
+  assert.equal(res.sentFile, null)
+  assert.equal(auditCalls.length, 1)
+  assert.equal(auditCalls[0].action, 'UPLOAD_FILE_ACCESS_DENIED')
+  assert.equal(auditCalls[0].entityId, 'avatar.png')
+})
+
 test('validateUploadedPdf writes a valid PDF to disk only after in-memory validation', async () => {
   const writeCalls = []
   const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
@@ -303,6 +345,100 @@ test('validateUploadedPdf rejects files that spoof the PDF header but fail struc
   assert.equal(res.statusCode, 400)
   assert.deepEqual(res.body, { message: 'Unable to validate uploaded file' })
   assert.equal(writeCalls.length, 0)
+})
+
+test('validateUploadedImage writes a valid image to disk only after in-memory validation', async () => {
+  const toFileCalls = []
+  const { validateUploadedImage } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        unlink: async () => {}
+      }
+    },
+    sharp: (input) => ({
+      rotate: () => ({
+        toFile: async (filePath) => {
+          toFileCalls.push({
+            input: Buffer.from(input),
+            filePath
+          })
+        }
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const req = {
+    file: {
+      originalname: 'avatar.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await validateUploadedImage(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, true)
+  assert.equal(toFileCalls.length, 1)
+  assert.equal(toFileCalls[0].input.equals(req.file.buffer), true)
+  assert.match(toFileCalls[0].filePath, /avatar\.png$/i)
+  assert.equal(req.file.filename.endsWith('-avatar.png'), true)
+  assert.equal(req.file.originalname, 'avatar.png')
+  assert.match(String(req.file.path), /avatar\.png$/i)
+})
+
+test('validateUploadedImage rejects invalid image content before any disk write', async () => {
+  let sharpCalls = 0
+  const { validateUploadedImage } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        unlink: async () => {}
+      }
+    },
+    sharp: () => {
+      sharpCalls += 1
+      return {
+        rotate: () => ({
+          toFile: async () => {}
+        })
+      }
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const req = {
+    file: {
+      originalname: 'avatar.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('not really an image')
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await validateUploadedImage(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, false)
+  assert.equal(res.statusCode, 400)
+  assert.deepEqual(res.body, { message: 'Uploaded file content is not a valid image' })
+  assert.equal(sharpCalls, 0)
+  assert.equal(req.file.path, undefined)
 })
 
 test('uploadPdf rejects files unless the MIME type is application/pdf', async () => {

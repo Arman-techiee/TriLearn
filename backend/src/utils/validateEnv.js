@@ -52,6 +52,11 @@ const validateEnv = () => {
     process.exit(1)
   }
 
+  if (process.env.NODE_ENV === 'production' && process.env.DEBUG_ERRORS === 'true') {
+    console.error('Invalid configuration: DEBUG_ERRORS=true is not allowed in production.')
+    process.exit(1)
+  }
+
   // Real-time notifications run over Socket.IO on the same backend server.
   // No separate env vars are required because it reuses JWT_SECRET and the
   // existing trusted frontend origin configuration.

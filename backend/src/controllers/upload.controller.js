@@ -1,10 +1,16 @@
+const fs = require('fs')
 const path = require('path')
 const prisma = require('../utils/prisma')
-const { uploadPath, uploadPublicPath } = require('../utils/fileStorage')
+const { uploadPath, legacyUploadPaths, uploadPublicPath, uploadPublicPaths } = require('../utils/fileStorage')
 const { getTrustedOrigins } = require('../middleware/csrf.middleware')
 const { recordAuditLog } = require('../utils/audit')
 
+const resolvedUploadPublicPaths = Array.isArray(uploadPublicPaths) && uploadPublicPaths.length > 0
+  ? uploadPublicPaths
+  : [uploadPublicPath || '/api/v1/uploads']
+
 const buildRelativeUploadPath = (fileName) => `${uploadPublicPath}/${fileName}`
+const buildRelativeUploadPaths = (fileName) => resolvedUploadPublicPaths.map((publicPath) => `${publicPath}/${fileName}`)
 
 const setUploadSecurityHeaders = (res) => {
   const allowedFrameAncestors = ["'self'"]
@@ -41,6 +47,19 @@ const getSafeContentType = (fileName) => {
   return 'application/octet-stream'
 }
 
+const resolveExistingUploadFilePath = (fileName) => {
+  const candidatePaths = [uploadPath, ...(Array.isArray(legacyUploadPaths) ? legacyUploadPaths : [])]
+
+  for (const basePath of candidatePaths) {
+    const absolutePath = path.join(basePath, fileName)
+    if (fs.existsSync(absolutePath)) {
+      return absolutePath
+    }
+  }
+
+  return path.join(uploadPath, fileName)
+}
+
 const sendUploadFile = (res, fileName, { forceAttachment = false } = {}) => {
   setUploadSecurityHeaders(res)
   const contentType = getSafeContentType(fileName)
@@ -49,8 +68,9 @@ const sendUploadFile = (res, fileName, { forceAttachment = false } = {}) => {
     contentType === 'application/octet-stream' ||
     contentType === 'application/pdf'
   )
+  const absolutePath = resolveExistingUploadFilePath(fileName)
 
-  res.sendFile(path.join(uploadPath, fileName), {
+  return res.sendFile(absolutePath, {
     headers: {
       'Cache-Control': 'private, no-store',
       'Content-Type': contentType,
@@ -58,6 +78,17 @@ const sendUploadFile = (res, fileName, { forceAttachment = false } = {}) => {
         ? `attachment; filename="${path.basename(fileName)}"`
         : 'inline'
     }
+  }, (error) => {
+    if (!error || res.headersSent) {
+      return
+    }
+
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ message: 'File not found' })
+      return
+    }
+
+    res.status(500).json({ message: 'Something went wrong' })
   })
 }
 
@@ -160,11 +191,12 @@ const serveUploadedFile = async (req, res) => {
     }
 
     const relativePath = buildRelativeUploadPath(fileName)
+    const relativePaths = buildRelativeUploadPaths(fileName)
 
     const user = req.user
 
     const avatar = await prisma.user.findFirst({
-      where: { avatar: relativePath },
+      where: { avatar: { in: relativePaths } },
       select: { id: true }
     })
 
@@ -178,7 +210,7 @@ const serveUploadedFile = async (req, res) => {
     }
 
     const assignment = await prisma.assignment.findFirst({
-      where: { questionPdfUrl: relativePath },
+      where: { questionPdfUrl: { in: relativePaths } },
       select: {
         id: true,
         subjectId: true,
@@ -196,7 +228,7 @@ const serveUploadedFile = async (req, res) => {
     }
 
     const submission = await prisma.submission.findFirst({
-      where: { fileUrl: relativePath },
+      where: { fileUrl: { in: relativePaths } },
       select: {
         id: true,
         studentId: true,
@@ -218,7 +250,7 @@ const serveUploadedFile = async (req, res) => {
     }
 
     const material = await prisma.studyMaterial.findFirst({
-      where: { fileUrl: relativePath },
+      where: { fileUrl: { in: relativePaths } },
       select: {
         id: true,
         subjectId: true,

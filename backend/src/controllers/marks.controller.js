@@ -466,7 +466,7 @@ const exportMyMarksheetPdf = async (req, res) => {
 }
 
 const getManagedSubject = async (subjectId, req) => {
-  const { user, instructor } = req
+  const { user, instructor, coordinator } = req
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
     include: {
@@ -480,6 +480,18 @@ const getManagedSubject = async (subjectId, req) => {
 
   if (!subject) {
     return { error: { status: 404, message: 'Subject not found' } }
+  }
+
+  if (user.role === 'COORDINATOR') {
+    if (!coordinator?.department) {
+      return { error: { status: 403, message: 'Coordinator department is not configured yet' } }
+    }
+
+    if (!subject.department || subject.department !== coordinator.department) {
+      return { error: { status: 403, message: 'You can only manage marks for subjects in your department' } }
+    }
+
+    return { subject, coordinator }
   }
 
   if (user.role === 'INSTRUCTOR') {
@@ -501,7 +513,7 @@ const getManagedSubject = async (subjectId, req) => {
   return { subject }
 }
 
-const buildStaffReviewFilters = ({ subjectId, examType }) => {
+const buildStaffReviewFilters = ({ req, subjectId, examType }) => {
   const where = {}
 
   if (subjectId) {
@@ -510,6 +522,12 @@ const buildStaffReviewFilters = ({ subjectId, examType }) => {
 
   if (examType) {
     where.examType = examType
+  }
+
+  if (req.user.role === 'COORDINATOR') {
+    where.subject = {
+      department: req.coordinator?.department || '__NO_COORDINATOR_DEPARTMENT__'
+    }
   }
 
   return where
@@ -947,6 +965,11 @@ const deleteMarks = async (req, res) => {
     const mark = await prisma.mark.findUnique({ where: { id } })
     if (!mark) {
       return res.status(404).json({ message: 'Mark not found' })
+    }
+
+    const access = await getManagedSubject(mark.subjectId, req)
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message })
     }
 
     await prisma.mark.delete({ where: { id } })
