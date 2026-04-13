@@ -342,6 +342,7 @@ docker run \
 - [ ] Unique random values for `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `QR_SIGNING_SECRET` (32+ characters each)
 - [ ] `REDIS_URL` configured — the server refuses to start in production without it
 - [ ] `FRONTEND_URL` set to the exact origin of the deployed frontend
+- [ ] Any future CDN-hosted frontend `<script src="...">` tags include both `integrity` and `crossorigin="anonymous"`
 - [ ] `npx prisma migrate deploy` executed before starting the server
 - [ ] Persistent volume or cloud storage configured for uploads
 - [ ] TLS termination via a reverse proxy (nginx or Caddy) in front of the Node process
