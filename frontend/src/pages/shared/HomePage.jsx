@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import BrandLogo from '../../components/BrandLogo'
+import SiteFooter from '../../components/SiteFooter'
 
 const platformPillars = [
   {
@@ -92,7 +93,7 @@ const HomePage = () => (
       </header>
 
       <main>
-        <section className="relative mx-auto max-w-7xl px-6 pb-16 pt-12 lg:px-10 lg:pb-24 lg:pt-18">
+        <section id="overview" className="relative mx-auto max-w-7xl px-6 pb-16 pt-12 lg:px-10 lg:pb-24 lg:pt-18">
           <div className="grid gap-10 lg:grid-cols-[1.02fr_0.98fr] lg:items-start">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary-200/80 bg-white/84 px-4 py-2 text-sm font-semibold text-primary shadow-[0_16px_34px_rgba(15,23,42,0.06)] dark:border-primary-700/30 dark:bg-slate-900/70 dark:text-primary-300">
@@ -226,7 +227,7 @@ const HomePage = () => (
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 py-14 lg:px-10 lg:py-18">
+        <section id="workflow" className="mx-auto max-w-7xl px-6 py-14 lg:px-10 lg:py-18">
           <div className="grid gap-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
             <div className="max-w-xl">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Operational flow</p>
@@ -288,6 +289,7 @@ const HomePage = () => (
           </div>
         </section>
       </main>
+      <SiteFooter />
     </div>
   </div>
 )

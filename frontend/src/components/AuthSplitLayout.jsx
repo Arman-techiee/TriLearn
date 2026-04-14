@@ -1,4 +1,5 @@
 import BrandLogo from './BrandLogo'
+import SiteFooter from './SiteFooter'
 
 const AuthSplitLayout = ({
   title,
@@ -63,27 +64,31 @@ const AuthSplitLayout = ({
           </aside>
         ) : null}
 
-        <main className={`flex min-h-screen bg-[var(--color-page-bg)] px-4 py-10 sm:px-8 lg:px-12 ${alignmentClassName} ${mainClassName}`}>
-          <div className={`mx-auto w-full ${contentWidthClassName}`}>
-            <div className={`ui-card overflow-hidden rounded-[1.75rem] border-[var(--color-card-border)] bg-[var(--color-card-surface)] shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] ${cardClassName}`}>
-              <div className="border-b border-[var(--color-card-border)] px-6 py-6 sm:px-8">
-                <h2 className="ui-heading-tight text-2xl font-semibold text-[var(--color-heading)]">{formTitle}</h2>
-                {formSubtitle ? (
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{formSubtitle}</p>
-                ) : null}
+        <main className={`flex min-h-screen flex-col bg-[var(--color-page-bg)] ${mainClassName}`}>
+          <div className={`flex flex-1 px-4 py-10 sm:px-8 lg:px-12 ${alignmentClassName}`}>
+            <div className={`mx-auto w-full ${contentWidthClassName}`}>
+              <div className={`ui-card overflow-hidden rounded-[1.75rem] border-[var(--color-card-border)] bg-[var(--color-card-surface)] shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] ${cardClassName}`}>
+                <div className="border-b border-[var(--color-card-border)] px-6 py-6 sm:px-8">
+                  <h2 className="ui-heading-tight text-2xl font-semibold text-[var(--color-heading)]">{formTitle}</h2>
+                  {formSubtitle ? (
+                    <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{formSubtitle}</p>
+                  ) : null}
+                </div>
+
+                <div className="px-6 py-6 sm:px-8 sm:py-8">
+                  {children}
+                </div>
               </div>
 
-              <div className="px-6 py-6 sm:px-8 sm:py-8">
-                {children}
-              </div>
+              {footer ? (
+                <div className="mt-6 text-center text-sm text-[var(--color-text-muted)]">
+                  {footer}
+                </div>
+              ) : null}
             </div>
-
-            {footer ? (
-              <div className="mt-6 text-center text-sm text-[var(--color-text-muted)]">
-                {footer}
-              </div>
-            ) : null}
           </div>
+
+          <SiteFooter compact />
         </main>
       </div>
     </div>

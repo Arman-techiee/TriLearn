@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useToast } from './Toast'
 import BrandLogo from './BrandLogo'
+import SiteFooter from './SiteFooter'
 import useLiveNotifications from '../hooks/useLiveNotifications'
 import useProtectedObjectUrl from '../hooks/useProtectedObjectUrl'
 
@@ -22,6 +23,13 @@ const roleThemeClasses = {
   instructor: 'ui-role-accent-instructor',
   student: 'ui-role-accent-student',
   gate: 'ui-role-accent-gate'
+}
+
+const roleDescriptions = {
+  admin: 'Institution controls',
+  instructor: 'Teaching workspace',
+  student: 'Learning workspace',
+  gate: 'Campus access desk'
 }
 
 const AppShell = ({
@@ -46,6 +54,7 @@ const AppShell = ({
   const { showToast } = useToast()
   const { resolvedTheme, toggleTheme } = useTheme()
   const roleThemeClass = roleThemeClasses[roleTheme] || roleThemeClasses.admin
+  const roleDescription = roleDescriptions[roleTheme] || 'Academic workspace'
   const isDesktopCollapsed = sidebarCollapsed && !mobileOpen
   const avatarUrl = useProtectedObjectUrl(user?.avatar)
 
@@ -133,6 +142,16 @@ const AppShell = ({
     })
   ), [topItems, unreadCount])
 
+  const enabledSidebarItems = useMemo(
+    () => sidebarItems.filter((item) => !item.disabled),
+    [sidebarItems]
+  )
+
+  const disabledSidebarItems = useMemo(
+    () => sidebarItems.filter((item) => item.disabled),
+    [sidebarItems]
+  )
+
   const markNotificationRead = async (notification) => {
     try {
       await api.patch(`/notifications/${notification.id}/read`)
@@ -217,30 +236,32 @@ const AppShell = ({
         <aside
           className={`ui-sidebar-shell fixed inset-y-4 left-4 z-40 flex h-[calc(100vh-2rem)] w-[260px] flex-col overflow-hidden rounded-[1.75rem] border shadow-sm dark:shadow-slate-900/50 transition-[width,transform] duration-300 ease-out md:static md:h-[calc(100vh-3rem)] md:translate-x-0 ${
             mobileOpen ? 'translate-x-0' : '-translate-x-[120%]'
-          } ${sidebarCollapsed ? 'md:w-[72px]' : 'md:w-[260px]'}`}
+          } ${sidebarCollapsed ? 'md:w-[88px]' : 'md:w-[260px]'}`}
         >
-          <div className="border-b border-white/10 px-4 py-4">
-            <div className={`flex items-start ${isDesktopCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
-              <div className={`flex min-w-0 overflow-hidden ${isDesktopCollapsed ? 'items-center justify-center' : 'items-start gap-3 pr-3'}`}>
-                <div className={`min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
-                  sidebarCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[160px] opacity-100'
-                }`}>
-                  <BrandLogo theme="dark" size="sm" className="max-w-full" />
-                  <span className="ui-role-surface ui-role-ring mt-2 inline-flex rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em]">
-                    {roleLabel}
-                  </span>
-                </div>
-                {sidebarCollapsed ? (
+          <div className="border-b border-white/10 px-3 pb-3 pt-4">
+            <div className={`relative flex ${isDesktopCollapsed ? 'flex-col items-center gap-2' : 'items-start justify-between gap-3'}`}>
+              <div className={`min-w-0 ${isDesktopCollapsed ? 'flex justify-center' : ''}`}>
+                {!isDesktopCollapsed ? (
+                  <>
+                    <BrandLogo theme="dark" size="sm" className="max-w-full" />
+                    <div className="mt-3 rounded-2xl border border-white/12 bg-white/8 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">{roleLabel}</p>
+                      <p className="mt-1 truncate text-xs text-slate-200">{roleDescription}</p>
+                    </div>
+                  </>
+                ) : (
                   <BrandLogo compact theme="dark" size="sm" />
-                ) : null}
+                )}
               </div>
 
-              <div className={`shrink-0 ${isDesktopCollapsed ? 'absolute right-3 top-4' : ''}`}>
+              <div className="shrink-0">
                 <button
                   type="button"
                   onClick={() => setSidebarCollapsed((value) => !value)}
-                  className={`hidden h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/8 text-slate-100 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)] transition hover:bg-[--color-bg-card] dark:bg-slate-800/14 hover:text-white md:inline-flex ${
-                    isDesktopCollapsed ? 'ring-1 ring-white/10' : ''
+                  className={`hidden items-center justify-center rounded-2xl border border-white/14 bg-white/8 text-slate-100 transition hover:bg-white/16 hover:text-white md:inline-flex ${
+                    isDesktopCollapsed ? 'h-8 w-8' : 'h-9 w-9'
+                  } ${
+                    isDesktopCollapsed ? 'ring-1 ring-white/12' : ''
                   }`}
                   aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                   title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -250,7 +271,7 @@ const AppShell = ({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-[--color-bg-card] dark:bg-slate-800/8 text-slate-100 transition hover:bg-[--color-bg-card] dark:bg-slate-800/14 hover:text-white md:hidden"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/14 bg-white/8 text-slate-100 transition hover:bg-white/16 hover:text-white md:hidden"
                   aria-label="Close sidebar"
                 >
                   <X className="h-4 w-4" />
@@ -259,102 +280,145 @@ const AppShell = ({
             </div>
           </div>
 
-          <nav className="flex-1 space-y-2 overflow-y-auto p-3">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon
-              const isActive = item.path && activePath === item.path
+          <nav className="flex-1 overflow-y-auto px-2 py-3">
+            <div className="space-y-1.5">
+              {enabledSidebarItems.map((item) => {
+                const Icon = item.icon
+                const isActive = item.path && activePath === item.path
 
-              const content = (
-                <div
-                  className={`flex rounded-xl border border-transparent transition ${
-                    isActive
-                      ? isDesktopCollapsed
-                        ? 'justify-center bg-[--color-bg-card] dark:bg-slate-800 text-[var(--color-role-accent)] shadow-[0_16px_38px_-24px_rgba(15,23,42,0.7)]'
-                        : 'items-center gap-3 border-l-4 border-l-[var(--color-role-accent)] bg-[--color-bg-card] dark:bg-slate-800 px-3 py-3 text-[var(--color-role-accent)] shadow-[0_16px_38px_-24px_rgba(15,23,42,0.7)]'
-                      : item.disabled
-                        ? isDesktopCollapsed
-                          ? 'justify-center py-3 text-slate-500'
-                          : 'items-center gap-3 px-3 py-3 text-slate-500'
-                        : isDesktopCollapsed
-                          ? 'justify-center py-3 text-slate-200 hover:bg-[--color-bg-card] dark:bg-slate-800/8 hover:text-white'
-                          : 'items-center gap-3 px-3 py-3 text-slate-200 hover:bg-[--color-bg-card] dark:bg-slate-800/8 hover:text-white'
-                  }`}
-                >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    isActive ? 'bg-[var(--color-surface-muted)] text-[var(--color-role-accent)]' : 'bg-[--color-bg-card] dark:bg-slate-800/8'
-                  }`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className={`min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
-                    sidebarCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[160px] opacity-100'
-                  }`}>
-                    <p className="truncate text-sm font-semibold">{item.label}</p>
-                    <p className={`truncate text-xs ${isActive ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-soft)]'}`}>{item.meta}</p>
-                  </div>
-                </div>
-              )
-
-              if (item.disabled) {
                 return (
-                  <button key={item.label} type="button" disabled className={`block w-full cursor-not-allowed ${isDesktopCollapsed ? '' : 'text-left'}`} title={item.label}>
-                    {content}
-                  </button>
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileOpen(false)}
+                    title={isDesktopCollapsed ? item.label : undefined}
+                    aria-label={isDesktopCollapsed ? item.label : undefined}
+                    className={`group relative flex rounded-2xl border px-2 py-2 transition ${
+                      isActive
+                        ? 'border-white/24 bg-white text-slate-900 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.9)]'
+                        : 'border-transparent text-slate-200 hover:border-white/16 hover:bg-white/10 hover:text-white'
+                    } ${isDesktopCollapsed ? 'justify-center p-2.5' : 'items-center gap-3'}`}
+                  >
+                    {isActive && !isDesktopCollapsed ? (
+                      <span className="absolute left-1 top-1/2 h-7 w-1 -translate-y-1/2 rounded-full bg-[var(--color-role-accent)]" />
+                    ) : null}
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                      isActive
+                        ? isDesktopCollapsed
+                          ? 'bg-[var(--color-role-accent)] text-white ring-2 ring-white/35'
+                          : 'bg-[color-mix(in_srgb,var(--color-role-accent)_16%,white)] text-[var(--color-role-accent)]'
+                        : 'bg-white/10 text-slate-100 group-hover:bg-white/16'
+                    }`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className={`min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
+                      isDesktopCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[160px] opacity-100'
+                    }`}>
+                      <p className="truncate text-sm font-semibold">{item.label}</p>
+                      <p className={`truncate text-xs ${isActive ? 'text-slate-600' : 'text-slate-300 group-hover:text-slate-200'}`}>{item.meta}</p>
+                    </div>
+                    {isDesktopCollapsed ? (
+                      <span className="pointer-events-none absolute left-[calc(100%+0.65rem)] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-page-text)] opacity-0 shadow-[0_12px_28px_-16px_rgba(15,23,42,0.45)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                        {item.label}
+                      </span>
+                    ) : null}
+                  </Link>
                 )
-              }
+              })}
+            </div>
 
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileOpen(false)}
-                  className="block"
-                  title={sidebarCollapsed ? item.label : undefined}
-                  aria-label={sidebarCollapsed ? item.label : undefined}
-                >
-                  {content}
-                </Link>
-              )
-            })}
+            {disabledSidebarItems.length > 0 ? (
+              <div className="mt-5 border-t border-white/10 pt-4">
+                {!isDesktopCollapsed ? (
+                  <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Coming Soon</p>
+                ) : null}
+                <div className="mt-2 space-y-1.5">
+                  {disabledSidebarItems.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <button
+                        key={item.label}
+                        type="button"
+                        disabled
+                        className={`group relative flex w-full cursor-not-allowed rounded-2xl border border-transparent px-2 py-2 text-slate-400/75 ${
+                          isDesktopCollapsed ? 'justify-center p-2.5' : 'items-center gap-3'
+                        }`}
+                        title={item.label}
+                        aria-label={item.label}
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className={`min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
+                          isDesktopCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[160px] opacity-100'
+                        }`}>
+                          <p className="truncate text-sm font-medium">{item.label}</p>
+                          <p className="truncate text-xs text-slate-500">{item.meta}</p>
+                        </div>
+                        {isDesktopCollapsed ? (
+                          <span className="pointer-events-none absolute left-[calc(100%+0.65rem)] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-page-text)] opacity-0 shadow-[0_12px_28px_-16px_rgba(15,23,42,0.45)] transition-opacity duration-150 group-hover:opacity-100">
+                            {item.label}
+                          </span>
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
           </nav>
 
           <div className="border-t border-white/10 p-3">
-            <div className={`mb-3 flex items-center gap-3 rounded-2xl bg-[--color-bg-card] dark:bg-slate-800/8 px-3 py-3 transition ${
-              isDesktopCollapsed ? 'justify-center px-2' : ''
+            <div className={`mb-3 flex items-center rounded-2xl ${
+              isDesktopCollapsed ? 'justify-center p-0' : 'gap-3 border border-white/12 bg-white/8 p-3'
             }`}>
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt={`${user?.name || 'User'} avatar`}
-                  className="h-11 w-11 shrink-0 rounded-full object-cover shadow-[0_16px_36px_rgba(15,23,42,0.28)]"
+                  className={`shrink-0 rounded-full object-cover shadow-[0_16px_36px_rgba(15,23,42,0.28)] ${
+                    isDesktopCollapsed ? 'h-10 w-10 ring-2 ring-white/25' : 'h-11 w-11'
+                  }`}
                 />
               ) : (
-                <div className="ui-role-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[13px] font-black leading-none shadow-[0_16px_36px_rgba(15,23,42,0.28)]">
+                <div className={`ui-role-fill flex shrink-0 items-center justify-center rounded-full text-[13px] font-black leading-none shadow-[0_16px_36px_rgba(15,23,42,0.28)] ${
+                  isDesktopCollapsed ? 'h-10 w-10 ring-2 ring-white/25' : 'h-11 w-11'
+                }`}>
                   {initialsFromName(user?.name)}
                 </div>
               )}
               <div className={`min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
-                sidebarCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[150px] opacity-100'
+                isDesktopCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[150px] opacity-100'
               }`}>
                 <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
                 <p className="truncate text-xs text-slate-300">{user?.email}</p>
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                  Active session
+                </p>
               </div>
             </div>
 
             <button
               type="button"
               onClick={onLogout}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-200 transition hover:bg-[--color-bg-card] dark:bg-slate-800/8 hover:text-white ${
-                isDesktopCollapsed ? 'justify-center px-2' : ''
+              className={`group relative flex w-full items-center rounded-xl border border-white/14 bg-white/8 text-sm font-semibold text-slate-100 transition hover:bg-white/16 hover:text-white ${
+                isDesktopCollapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2.5'
               }`}
-              title={sidebarCollapsed ? 'Logout' : undefined}
-              aria-label={sidebarCollapsed ? 'Logout' : undefined}
+              title={isDesktopCollapsed ? 'Logout' : undefined}
+              aria-label={isDesktopCollapsed ? 'Logout' : undefined}
             >
               <LogOut className="h-4 w-4 shrink-0" />
               <span className={`overflow-hidden transition-[max-width,opacity,transform] duration-300 ${
-                sidebarCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[120px] opacity-100'
+                isDesktopCollapsed ? 'max-w-0 translate-x-2 opacity-0' : 'max-w-[120px] opacity-100'
               }`}>
-                Logout
+                Sign out
               </span>
+              {isDesktopCollapsed ? (
+                <span className="pointer-events-none absolute left-[calc(100%+0.65rem)] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-page-text)] opacity-0 shadow-[0_12px_28px_-16px_rgba(15,23,42,0.45)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                  Sign out
+                </span>
+              ) : null}
             </button>
           </div>
         </aside>
@@ -534,7 +598,14 @@ const AppShell = ({
             </div>
           </header>
 
-          <main className="min-w-0 flex-1 overflow-y-auto pr-1">{children}</main>
+          <main className="min-w-0 flex-1 overflow-y-auto pr-1">
+            <div className="flex min-h-full flex-col">
+              <div className="flex-1">{children}</div>
+              <div className="mt-6">
+                <SiteFooter compact />
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     </div>
