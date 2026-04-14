@@ -618,6 +618,7 @@ test('GET /api/v1/admin/stats denies instructors through the real admin route', 
       createStudent: async (_req, res) => res.json({}),
       importStudents: async (_req, res) => res.json({}),
       updateUser: async (_req, res) => res.json({}),
+      bulkAssignStudentSection: async (_req, res) => res.json({}),
       promoteStudentSemester: async (_req, res) => res.json({}),
       toggleUserStatus: async (_req, res) => res.json({}),
       deleteUser: async (_req, res) => res.json({})

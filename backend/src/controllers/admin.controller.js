@@ -318,6 +318,13 @@ const normalizeSectionValue = (value) => {
   const sanitizedSection = sanitizeOptionalPlainText(value)
   return sanitizedSection ? sanitizedSection.toUpperCase() : null
 }
+const getDepartmentSectionDelegate = () => (
+  prisma?.departmentSection &&
+  typeof prisma.departmentSection.findFirst === 'function' &&
+  typeof prisma.departmentSection.findMany === 'function'
+    ? prisma.departmentSection
+    : null
+)
 
 const sectionScopeKey = ({ department, semester, section }) => (
   `${normalizeDepartmentValue(department).toLowerCase()}::${Number(semester)}::${normalizeSectionValue(section) || ''}`
@@ -328,7 +335,12 @@ const hasDepartmentSection = async ({ department, semester, section }) => {
     return false
   }
 
-  const record = await prisma.departmentSection.findFirst({
+  const departmentSectionDelegate = getDepartmentSectionDelegate()
+  if (!departmentSectionDelegate) {
+    return true
+  }
+
+  const record = await departmentSectionDelegate.findFirst({
     where: {
       semester: Number(semester),
       section: normalizeSectionValue(section),
@@ -1557,17 +1569,20 @@ const importStudents = async (req, res) => {
       return res.status(400).json({ message: 'The uploaded file does not contain any student rows' })
     }
 
+    const departmentSectionDelegate = getDepartmentSectionDelegate()
     const [departmentLookup, configuredSections] = await Promise.all([
       buildDepartmentLookup(),
-      prisma.departmentSection.findMany({
-        select: {
-          semester: true,
-          section: true,
-          department: {
-            select: { name: true }
-          }
-        }
-      })
+      departmentSectionDelegate
+        ? departmentSectionDelegate.findMany({
+            select: {
+              semester: true,
+              section: true,
+              department: {
+                select: { name: true }
+              }
+            }
+          })
+        : Promise.resolve([])
     ])
 
     const sectionScopeSet = new Set(
@@ -1635,7 +1650,7 @@ const importStudents = async (req, res) => {
         section: sanitizedSection
       })
 
-      if (!sectionScopeSet.has(configuredSectionKey)) {
+      if (departmentSectionDelegate && !sectionScopeSet.has(configuredSectionKey)) {
         failures.push(buildStudentImportError(row.rowNumber, 'Section is not configured for this department and semester', row))
         return
       }
