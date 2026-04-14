@@ -95,14 +95,14 @@ const loadStudentImportRows = async (filePath, originalName) => {
     const row = worksheet.getRow(rowNumber)
     const entry = {
       rowNumber,
-      name: columns.name ? row.getCell(columns.name).text.trim() : '',
-      email: columns.email ? row.getCell(columns.email).text.trim() : '',
-      studentId: columns.studentId ? row.getCell(columns.studentId).text.trim() : '',
-      phone: columns.phone ? row.getCell(columns.phone).text.trim() : '',
-      address: columns.address ? row.getCell(columns.address).text.trim() : '',
-      department: columns.department ? row.getCell(columns.department).text.trim() : '',
-      semester: columns.semester ? row.getCell(columns.semester).text.trim() : '',
-      section: columns.section ? row.getCell(columns.section).text.trim() : ''
+      name: columns.name ? sanitizePlainText(row.getCell(columns.name).text) : '',
+      email: columns.email ? sanitizePlainText(row.getCell(columns.email).text) : '',
+      studentId: columns.studentId ? sanitizePlainText(row.getCell(columns.studentId).text) : '',
+      phone: columns.phone ? sanitizePlainText(row.getCell(columns.phone).text) : '',
+      address: columns.address ? sanitizePlainText(row.getCell(columns.address).text) : '',
+      department: columns.department ? sanitizePlainText(row.getCell(columns.department).text) : '',
+      semester: columns.semester ? sanitizePlainText(row.getCell(columns.semester).text) : '',
+      section: columns.section ? sanitizePlainText(row.getCell(columns.section).text) : ''
     }
 
     const hasData = Object.values(entry).some((value) => value && String(value).trim() !== '')

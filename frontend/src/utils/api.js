@@ -397,20 +397,11 @@ export const refreshSession = async () => {
 
   if (!refreshPromise) {
     refreshPromise = refreshClient.post('/auth/refresh')
-      .then(async (response) => {
-        const { token } = response.data
-        const meResponse = await refreshClient.get('/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-
+      .then((response) => {
+        const { token, user } = response.data
         clearRefreshCooldown()
-        setAuthState({ token, user: meResponse.data.user })
-        return {
-          ...response.data,
-          user: meResponse.data.user
-        }
+        setAuthState({ token, user })
+        return response.data
       })
       .catch((error) => {
         if (error?.response?.status === 429) {

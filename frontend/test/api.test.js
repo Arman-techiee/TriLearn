@@ -67,21 +67,13 @@ describe('api auth persistence', () => {
     })
   })
 
-  it('hydrates the full user from /auth/me after refresh succeeds', async () => {
+  it('hydrates the full user from the refresh response without an extra /auth/me request', async () => {
     const apiClient = createAxiosClient()
     const refreshClient = createAxiosClient()
 
     refreshClient.post.mockResolvedValue({
       data: {
         token: 'fresh-access-token',
-        user: {
-          name: 'Snapshot Only',
-          role: 'ADMIN'
-        }
-      }
-    })
-    refreshClient.get.mockResolvedValue({
-      data: {
         user: {
           id: 'user-7',
           name: 'Jordan',
@@ -109,11 +101,7 @@ describe('api auth persistence', () => {
     const result = await refreshSession()
 
     expect(refreshClient.post).toHaveBeenCalledWith('/auth/refresh')
-    expect(refreshClient.get).toHaveBeenCalledWith('/auth/me', {
-      headers: {
-        Authorization: 'Bearer fresh-access-token'
-      }
-    })
+    expect(refreshClient.get).not.toHaveBeenCalled()
     expect(result.user).toMatchObject({
       id: 'user-7',
       email: 'admin@example.com',

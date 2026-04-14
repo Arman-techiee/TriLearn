@@ -607,6 +607,103 @@ test('createStudent does not return plaintext temporary passwords', async () => 
   assert.equal(auditCalls.length, 1)
 })
 
+test('importStudents sanitizes spreadsheet row values before reporting validation failures', async () => {
+  const { importStudents } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      department: {
+        findMany: async () => ([
+          { name: 'BCA', code: 'BCA' }
+        ])
+      },
+      user: {
+        findMany: async () => []
+      },
+      student: {
+        findMany: async () => []
+      }
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/security': {
+      getStudentTemporaryPassword: () => 'TempPass123!',
+      hashPassword: async () => 'hashed-temp-password'
+    },
+    '../utils/instructorDepartments': {
+      normalizeDepartmentList: (values) => values.filter(Boolean)
+    },
+    exceljs: {
+      Workbook: class MockWorkbook {
+        constructor() {
+          this.worksheets = [{
+            rowCount: 2,
+            getRow: (rowNumber) => {
+              if (rowNumber === 1) {
+                return {
+                  cellCount: 6,
+                  getCell: (index) => ({
+                    text: ['Name', 'Email', 'Student ID', 'Department', 'Semester', 'Section'][index - 1]
+                  })
+                }
+              }
+
+              return {
+                getCell: (index) => ({
+                  text: [
+                    '<img src=x onerror=1>A',
+                    'student@example.com',
+                    'stu-001',
+                    'BCA',
+                    '1',
+                    '<b>A</b>'
+                  ][index - 1]
+                })
+              }
+            }
+          }]
+          this.csv = {
+            readFile: async () => {}
+          }
+          this.xlsx = {
+            readFile: async () => {}
+          }
+        }
+      }
+    }
+  })
+
+  const req = {
+    file: {
+      path: 'students.csv',
+      originalname: 'students.csv'
+    },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await importStudents(req, res)
+
+  assert.equal(res.statusCode, 400)
+  assert.equal(res.body.summary.failed, 1)
+  assert.equal(res.body.failures[0].name, 'A')
+  assert.equal(res.body.failures[0].message, 'Name must be at least 2 characters long')
+})
+
 test('uploadImage rejects files with image-looking filenames when the MIME type is not an image', async () => {
   const { uploadImage } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
     sharp: () => ({
