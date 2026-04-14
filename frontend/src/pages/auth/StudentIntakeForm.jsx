@@ -275,15 +275,15 @@ const StudentIntakeForm = () => {
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Sections</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-950">4</p>
-                <p className="mt-1 text-sm text-slate-500">Clear grouped details</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-950 dark:text-slate-100">4</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Clear grouped details</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Estimated time</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-950">3 min</p>
-                <p className="mt-1 text-sm text-slate-500">For a complete submission</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-950 dark:text-slate-100">3 min</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">For a complete submission</p>
               </div>
             </div>
           </div>

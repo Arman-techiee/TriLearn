@@ -304,12 +304,6 @@ const getProfileSelect = () => ({
 // ================================
 const register = async (req, res) => {
   try {
-    if (process.env.OPEN_REGISTRATION === 'true') {
-      return res.status(403).json({
-        message: 'Self-registration has been deprecated. Please apply through the student intake form.'
-      })
-    }
-
     return res.status(403).json({
       message: 'Self-registration is disabled. Please apply through the student intake form.'
     })
@@ -322,6 +316,7 @@ const submitStudentIntake = async (req, res) => {
   const startedAt = Date.now()
 
   try {
+    const parsedBody = schemas.auth.studentIntake.body.parse(req.body)
     const {
       fullName,
       email,
@@ -338,30 +333,33 @@ const submitStudentIntake = async (req, res) => {
       temporaryAddress,
       dateOfBirth,
       preferredDepartment
-    } = req.body
+    } = parsedBody
+
+    const normalizedEmail = normalizeEmail(email)
     const sanitizedApplication = {
       fullName: sanitizePlainText(fullName),
-      phone: sanitizeOptionalPlainText(phone),
+      phone: sanitizePlainText(phone),
       fatherName: sanitizePlainText(fatherName),
       motherName: sanitizePlainText(motherName),
-      fatherPhone: sanitizeOptionalPlainText(fatherPhone),
-      motherPhone: sanitizeOptionalPlainText(motherPhone),
+      fatherPhone: sanitizePlainText(fatherPhone),
+      motherPhone: sanitizePlainText(motherPhone),
       bloodGroup: sanitizeOptionalPlainText(bloodGroup),
-      localGuardianName: sanitizeOptionalPlainText(localGuardianName),
-      localGuardianAddress: sanitizeOptionalPlainText(localGuardianAddress),
-      localGuardianPhone: sanitizeOptionalPlainText(localGuardianPhone),
-      permanentAddress: sanitizeOptionalPlainText(permanentAddress),
-      temporaryAddress: sanitizeOptionalPlainText(temporaryAddress)
+      localGuardianName: sanitizePlainText(localGuardianName),
+      localGuardianAddress: sanitizePlainText(localGuardianAddress),
+      localGuardianPhone: sanitizePlainText(localGuardianPhone),
+      permanentAddress: sanitizePlainText(permanentAddress),
+      temporaryAddress: sanitizePlainText(temporaryAddress),
+      preferredDepartment: sanitizePlainText(preferredDepartment)
     }
 
-    const existingApplication = await prisma.studentApplication.findUnique({ where: { email } })
+    const existingApplication = await prisma.studentApplication.findUnique({ where: { email: normalizedEmail } })
 
     if (existingApplication && !['CONVERTED', 'REVIEWED'].includes(existingApplication.status)) {
       return respondGenericEligibility(res, startedAt)
     }
 
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     })
 
     if (existingUser) {
@@ -369,11 +367,10 @@ const submitStudentIntake = async (req, res) => {
     }
 
     await prisma.studentApplication.upsert({
-      where: { email },
+      where: { email: normalizedEmail },
       update: {
         ...sanitizedApplication,
         dateOfBirth,
-        preferredDepartment,
         preferredSemester: 1,
         preferredSection: null,
         status: 'PENDING',
@@ -383,9 +380,8 @@ const submitStudentIntake = async (req, res) => {
       },
       create: {
         ...sanitizedApplication,
-        email,
+        email: normalizedEmail,
         dateOfBirth,
-        preferredDepartment,
         preferredSemester: 1,
         preferredSection: null
       }
@@ -393,6 +389,13 @@ const submitStudentIntake = async (req, res) => {
 
     return respondGenericEligibility(res, startedAt)
   } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: error.flatten()
+      })
+    }
+
     res.internalError(error)
   }
 }

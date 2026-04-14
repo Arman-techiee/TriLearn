@@ -681,16 +681,16 @@ const addMarksBulk = async (req, res) => {
       count: createdMarks.length
     })
 
-    await Promise.all(createdMarks.map((mark) => (
-      recordAuditLog({
+    await prisma.auditLog.createMany({
+      data: createdMarks.map((mark) => ({
         actorId: req.user.id,
         actorRole: req.user.role,
         action: 'MARK_CREATED',
         entityType: 'Mark',
         entityId: mark.id,
         metadata: { subjectId, studentId: mark.studentId, examType, bulk: true }
-      })
-    )))
+      }))
+    })
   } catch (error) {
     if (error.code === 'P2002') {
       return res.status(400).json({ message: 'One or more marks already exist for this exam type' })

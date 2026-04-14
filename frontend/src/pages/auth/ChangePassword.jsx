@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '../../components/Alert'
+import FormInput from '../../components/common/FormInput'
 import { useAuth } from '../../context/AuthContext'
 import useForm from '../../hooks/useForm'
 import api from '../../utils/api'
@@ -57,42 +58,33 @@ const ChangePassword = () => {
         <p className="text-sm text-[--color-text-muted] dark:text-slate-400 mb-6">You must change your default password before continuing.</p>
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="ui-form-label">Current Password</label>
-            <input
-              name="currentPassword"
-              type="password"
-              value={values.currentPassword}
-              onChange={handleChange}
-              placeholder="Enter current password"
-              className={`ui-form-input ${errors.currentPassword ? 'ui-form-input-error' : ''}`}
-            />
-            {errors.currentPassword ? <p className="ui-form-helper-error">{errors.currentPassword}</p> : null}
-          </div>
-          <div>
-            <label className="ui-form-label">New Password</label>
-            <input
-              name="newPassword"
-              type="password"
-              value={values.newPassword}
-              onChange={handleChange}
-              placeholder="Enter new password"
-              className={`ui-form-input ${errors.newPassword ? 'ui-form-input-error' : ''}`}
-            />
-            {errors.newPassword ? <p className="ui-form-helper-error">{errors.newPassword}</p> : null}
-          </div>
-          <div>
-            <label className="ui-form-label">Confirm Password</label>
-            <input
-              name="confirmPassword"
-              type="password"
-              value={values.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm new password"
-              className={`ui-form-input ${errors.confirmPassword ? 'ui-form-input-error' : ''}`}
-            />
-            {errors.confirmPassword ? <p className="ui-form-helper-error">{errors.confirmPassword}</p> : null}
-          </div>
+          <FormInput
+            label="Current Password"
+            name="currentPassword"
+            type="password"
+            value={values.currentPassword}
+            onChange={handleChange}
+            placeholder="Enter current password"
+            error={errors.currentPassword}
+          />
+          <FormInput
+            label="New Password"
+            name="newPassword"
+            type="password"
+            value={values.newPassword}
+            onChange={handleChange}
+            placeholder="Enter new password"
+            error={errors.newPassword}
+          />
+          <FormInput
+            label="Confirm Password"
+            name="confirmPassword"
+            type="password"
+            value={values.confirmPassword}
+            onChange={handleChange}
+            placeholder="Confirm new password"
+            error={errors.confirmPassword}
+          />
           <button
             type="submit"
             disabled={loading}

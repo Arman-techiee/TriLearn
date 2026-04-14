@@ -497,7 +497,7 @@ test('register blocks self-registration even when OPEN_REGISTRATION is enabled',
 
     assert.equal(res.statusCode, 403)
     assert.deepEqual(res.body, {
-      message: 'Self-registration has been deprecated. Please apply through the student intake form.'
+      message: 'Self-registration is disabled. Please apply through the student intake form.'
     })
   } finally {
     if (previousOpenRegistration === undefined) {
@@ -3585,7 +3585,10 @@ test('submitStudentIntake sanitizes profile fields before persisting the applica
 
   assert.equal(res.statusCode, 200)
   assert.equal(upsertCalls.length, 1)
-  assert.deepEqual(upsertCalls[0].create, {
+  const { dateOfBirth, ...createPayload } = upsertCalls[0].create
+  assert.ok(dateOfBirth instanceof Date)
+  assert.equal(dateOfBirth.toISOString(), '2005-01-01T00:00:00.000Z')
+  assert.deepEqual(createPayload, {
     fullName: 'Arman Dev',
     phone: '9800000000',
     fatherName: 'Father Name',
@@ -3599,7 +3602,6 @@ test('submitStudentIntake sanitizes profile fields before persisting the applica
     permanentAddress: 'Bhaktapur',
     temporaryAddress: 'Lalitpur',
     email: 'arman@example.com',
-    dateOfBirth: '2005-01-01',
     preferredDepartment: 'BCA',
     preferredSemester: 1,
     preferredSection: null

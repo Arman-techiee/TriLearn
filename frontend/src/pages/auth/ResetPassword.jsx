@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Alert from '../../components/Alert'
+import FormInput from '../../components/common/FormInput'
 import useForm from '../../hooks/useForm'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -52,30 +53,24 @@ const ResetPassword = () => {
         <Alert type="success" message={success} />
         <Alert type="error" message={error} />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="ui-form-label">New Password</label>
-            <input
-              name="password"
-              type="password"
-              value={values.password}
-              onChange={handleChange}
-              placeholder="Create a new password"
-              className={`ui-form-input ${errors.password ? 'ui-form-input-error' : ''}`}
-            />
-            {errors.password ? <p className="ui-form-helper-error">{errors.password}</p> : null}
-          </div>
-          <div>
-            <label className="ui-form-label">Confirm Password</label>
-            <input
-              name="confirmPassword"
-              type="password"
-              value={values.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm new password"
-              className={`ui-form-input ${errors.confirmPassword ? 'ui-form-input-error' : ''}`}
-            />
-            {errors.confirmPassword ? <p className="ui-form-helper-error">{errors.confirmPassword}</p> : null}
-          </div>
+          <FormInput
+            label="New Password"
+            name="password"
+            type="password"
+            value={values.password}
+            onChange={handleChange}
+            placeholder="Create a new password"
+            error={errors.password}
+          />
+          <FormInput
+            label="Confirm Password"
+            name="confirmPassword"
+            type="password"
+            value={values.confirmPassword}
+            onChange={handleChange}
+            placeholder="Confirm new password"
+            error={errors.confirmPassword}
+          />
           <button
             type="submit"
             disabled={loading}

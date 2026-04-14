@@ -3,6 +3,7 @@ import { ArrowRight, KeyRound, MailCheck, ShieldEllipsis } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '../../components/Alert'
 import AuthSplitLayout from '../../components/AuthSplitLayout'
+import FormInput from '../../components/common/FormInput'
 import useForm from '../../hooks/useForm'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -70,18 +71,15 @@ const ForgotPassword = () => {
       <Alert type="error" message={error} />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div>
-          <label className="ui-form-label">Email Address</label>
-          <input
-            name="email"
-            type="email"
-            value={values.email}
-            onChange={handleChange}
-            placeholder="Enter your email"
-            className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
-          />
-          {errors.email ? <p className="ui-form-helper-error">{errors.email}</p> : null}
-        </div>
+        <FormInput
+          label="Email Address"
+          name="email"
+          type="email"
+          value={values.email}
+          onChange={handleChange}
+          placeholder="Enter your email"
+          error={errors.email}
+        />
         <button
           type="submit"
           disabled={loading}
