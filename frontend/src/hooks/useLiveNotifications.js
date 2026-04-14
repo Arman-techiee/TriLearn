@@ -33,14 +33,11 @@ const useLiveNotifications = ({
     const socket = io(API_ORIGIN, {
       auth: { token },
       withCredentials: true,
-      autoConnect: false,
+      autoConnect: true,
       reconnectionAttempts: 3,
       timeout: 5000,
       transports: ['websocket', 'polling']
     })
-    const connectTimer = window.setTimeout(() => {
-      socket.connect()
-    }, 0)
 
     socket.on('notification:new', (payload) => {
       notificationHandlerRef.current?.(payload)
@@ -55,11 +52,12 @@ const useLiveNotifications = ({
     })
 
     return () => {
-      window.clearTimeout(connectTimer)
       socket.off('notification:new')
       socket.off('notification:read')
       socket.off('notification:read-all')
-      socket.disconnect()
+      if (socket.connected || socket.active) {
+        socket.disconnect()
+      }
     }
   }, [enabled, token])
 }
