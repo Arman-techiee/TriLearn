@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma')
+const { createNotifications } = require('../utils/notifications')
 const ensureCoordinatorDepartmentScope = async (req, res, departmentValue, message = 'You can only manage routines in your own department') => {
   if (req.user.role !== 'COORDINATOR') {
     return null
@@ -99,6 +100,116 @@ const getRoutineInclude = () => ({
     }
   }
 })
+
+const getRoutineNotificationRecipients = async ({ department, semester, section, instructorId }) => {
+  const [students, instructor, coordinators] = await Promise.all([
+    prisma.student.findMany({
+      where: {
+        semester,
+        ...(department ? { department } : {}),
+        ...(section ? { section } : {}),
+        user: {
+          isActive: true
+        }
+      },
+      select: {
+        userId: true
+      }
+    }),
+    prisma.instructor.findUnique({
+      where: { id: instructorId },
+      select: { userId: true }
+    }),
+    department
+      ? prisma.coordinator.findMany({
+          where: {
+            department,
+            user: {
+              isActive: true
+            }
+          },
+          select: { userId: true }
+        })
+      : Promise.resolve([])
+  ])
+
+  return [...new Set([
+    ...students.map((student) => student.userId),
+    ...coordinators.map((coordinator) => coordinator.userId),
+    instructor?.userId
+  ].filter(Boolean))]
+}
+
+const getRoutineAudienceLabel = ({ department, semester, section }) => {
+  const scope = section ? `Section ${section}` : 'All Sections'
+  return `${department || 'General'} • Semester ${semester} • ${scope}`
+}
+
+const notifyRoutineCreated = async (routine) => {
+  const recipients = await getRoutineNotificationRecipients({
+    department: routine.department,
+    semester: routine.semester,
+    section: routine.section,
+    instructorId: routine.instructorId
+  })
+
+  if (!recipients.length) {
+    return
+  }
+
+  await createNotifications({
+    userIds: recipients,
+    type: 'ROUTINE_UPDATED',
+    title: 'Subject added to routine',
+    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) was added on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
+    link: '/routine',
+    metadata: {
+      event: 'ROUTINE_CREATED',
+      routineId: routine.id,
+      subjectId: routine.subjectId,
+      department: routine.department || null,
+      semester: routine.semester,
+      section: routine.section || null,
+      dayOfWeek: routine.dayOfWeek,
+      startTime: routine.startTime,
+      endTime: routine.endTime
+    },
+    dedupeKeyFactory: (userId) => `routine-created:${routine.combinedGroupId || routine.id}:${userId}`
+  })
+}
+
+const notifyRoutineDeleted = async (routine) => {
+  const recipients = await getRoutineNotificationRecipients({
+    department: routine.department,
+    semester: routine.semester,
+    section: routine.section,
+    instructorId: routine.instructorId
+  })
+
+  if (!recipients.length) {
+    return
+  }
+
+  await createNotifications({
+    userIds: recipients,
+    type: 'ROUTINE_UPDATED',
+    title: 'Subject removed from routine',
+    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) was removed from ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
+    link: '/routine',
+    metadata: {
+      event: 'ROUTINE_DELETED',
+      routineId: routine.id,
+      subjectId: routine.subjectId,
+      department: routine.department || null,
+      semester: routine.semester,
+      section: routine.section || null,
+      dayOfWeek: routine.dayOfWeek,
+      startTime: routine.startTime,
+      endTime: routine.endTime
+    },
+    dedupeKeyFactory: (userId) => `routine-deleted:${routine.id}:${userId}`
+  })
+}
 
 const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester, req }) => {
   const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
@@ -222,6 +333,8 @@ const createRoutine = async (req, res) => {
     })
 
     res.status(201).json({ message: 'Routine created successfully!', routine })
+
+    void notifyRoutineCreated(routine).catch(() => null)
   } catch (error) {
     if (error?.code === 'P2002') {
       return res.status(400).json({ message: 'This instructor already has a class at this time.' })
@@ -275,7 +388,10 @@ const updateRoutine = async (req, res) => {
     const { id } = req.params
     const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId } = req.body
 
-    const routine = await prisma.routine.findUnique({ where: { id } })
+    const routine = await prisma.routine.findUnique({
+      where: { id },
+      include: getRoutineInclude()
+    })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
 
     const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, routine.department)
@@ -314,6 +430,13 @@ const updateRoutine = async (req, res) => {
     })
 
     res.json({ message: 'Routine updated successfully!', routine: updated })
+
+    if (routine.subjectId !== updated.subjectId) {
+      void Promise.allSettled([
+        notifyRoutineDeleted(routine),
+        notifyRoutineCreated(updated)
+      ])
+    }
   } catch (error) {
     if (error?.code === 'P2002') {
       return res.status(400).json({ message: 'This instructor already has a class at this time.' })
@@ -326,7 +449,10 @@ const updateRoutine = async (req, res) => {
 const deleteRoutine = async (req, res) => {
   try {
     const { id } = req.params
-    const routine = await prisma.routine.findUnique({ where: { id } })
+    const routine = await prisma.routine.findUnique({
+      where: { id },
+      include: getRoutineInclude()
+    })
     if (!routine) return res.status(404).json({ message: 'Routine not found' })
 
     const departmentAllowed = await ensureCoordinatorDepartmentScope(req, res, routine.department)
@@ -336,6 +462,8 @@ const deleteRoutine = async (req, res) => {
 
     await prisma.routine.delete({ where: { id } })
     res.json({ message: 'Routine deleted successfully!' })
+
+    void notifyRoutineDeleted(routine).catch(() => null)
   } catch (error) {
     res.internalError(error)
   }

@@ -416,6 +416,7 @@ enum NotificationType {
   ASSIGNMENT_DUE
   ABSENCE_TICKET_REVIEWED
   MARKS_PUBLISHED
+  ROUTINE_UPDATED
 }
 // ================================
 // CLASS ROUTINE
