@@ -275,7 +275,7 @@ const isUtf8TextBuffer = (buffer) => {
   try {
     csvUtf8Decoder.decode(buffer)
     return true
-  } catch (_error) {
+  } catch {
     return false
   }
 }
