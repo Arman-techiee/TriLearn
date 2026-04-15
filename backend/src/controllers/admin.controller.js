@@ -32,10 +32,6 @@ let statsCache = null
 let statsCacheExpiresAt = 0
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase()
 
-const getRedisStatsClient = async () => {
-  return getReadyRedisClient({ context: 'admin stats cache' })
-}
-
 const normalizeCachedAdminStats = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null
@@ -55,7 +51,7 @@ const normalizeCachedAdminStats = (value) => {
 
 const readSharedStatsCache = async () => {
   try {
-    const client = await getRedisStatsClient()
+    const client = await getReadyRedisClient({ context: 'admin stats cache' })
     if (!client) {
       return null
     }
@@ -81,7 +77,7 @@ const readSharedStatsCache = async () => {
 
 const writeSharedStatsCache = async (stats) => {
   try {
-    const client = await getRedisStatsClient()
+    const client = await getReadyRedisClient({ context: 'admin stats cache' })
     if (!client) {
       return
     }
@@ -94,7 +90,7 @@ const writeSharedStatsCache = async (stats) => {
 
 const clearSharedStatsCache = async () => {
   try {
-    const client = await getRedisStatsClient()
+    const client = await getReadyRedisClient({ context: 'admin stats cache' })
     if (!client) {
       return
     }
@@ -1674,38 +1670,7 @@ const importStudents = async (req, res) => {
       })
     })
 
-    const [existingUsers, existingStudents] = await Promise.all([
-      prisma.user.findMany({
-        where: {
-          email: { in: normalizedRows.map((row) => row.email) }
-        },
-        select: { email: true }
-      }),
-      prisma.student.findMany({
-        where: {
-          rollNumber: { in: normalizedRows.map((row) => row.studentId) }
-        },
-        select: { rollNumber: true }
-      })
-    ])
-
-    const existingEmails = new Set(existingUsers.map((user) => user.email.toLowerCase()))
-    const existingStudentIds = new Set(existingStudents.map((student) => student.rollNumber.toUpperCase()))
-    const rowsToCreate = []
-
-    normalizedRows.forEach((row) => {
-      if (existingEmails.has(row.email)) {
-        failures.push(buildStudentImportError(row.rowNumber, 'An account already exists with this email address', row))
-        return
-      }
-
-      if (existingStudentIds.has(row.studentId)) {
-        failures.push(buildStudentImportError(row.rowNumber, 'Student ID already exists', row))
-        return
-      }
-
-      rowsToCreate.push(row)
-    })
+    const rowsToCreate = [...normalizedRows]
 
     let created = []
 
@@ -1724,9 +1689,47 @@ const importStudents = async (req, res) => {
           }
         }))
 
-        const createdRows = await prisma.$transaction(async (tx) => {
+        const { createdRows, conflictFailures } = await prisma.$transaction(async (tx) => {
+          const [existingUsers, existingStudents] = await Promise.all([
+            tx.user.findMany({
+              where: {
+                email: { in: preparedRows.map((row) => row.email) }
+              },
+              select: { email: true }
+            }),
+            tx.student.findMany({
+              where: {
+                rollNumber: { in: preparedRows.map((row) => row.studentId) }
+              },
+              select: { rollNumber: true }
+            })
+          ])
+
+          const existingEmails = new Set(existingUsers.map((user) => user.email.toLowerCase()))
+          const existingStudentIds = new Set(existingStudents.map((student) => student.rollNumber.toUpperCase()))
+          const conflictFailures = []
+          const insertableRows = []
+
+          preparedRows.forEach((row) => {
+            if (existingEmails.has(row.email)) {
+              conflictFailures.push(buildStudentImportError(row.rowNumber, 'An account already exists with this email address', row))
+              return
+            }
+
+            if (existingStudentIds.has(row.studentId)) {
+              conflictFailures.push(buildStudentImportError(row.rowNumber, 'Student ID already exists', row))
+              return
+            }
+
+            insertableRows.push(row)
+          })
+
+          if (insertableRows.length === 0) {
+            return { createdRows: [], conflictFailures }
+          }
+
           const uniqueSemesterDepartments = Array.from(new Map(
-            preparedRows.map((row) => [
+            insertableRows.map((row) => [
               `${row.semester}::${row.department || ''}`,
               { semester: row.semester, department: row.department || null }
             ])
@@ -1744,7 +1747,7 @@ const importStudents = async (req, res) => {
           const subjectMap = new Map(subjectGroups)
 
           await tx.user.createMany({
-            data: preparedRows.map((row) => ({
+            data: insertableRows.map((row) => ({
               id: row.userId,
               name: row.name,
               email: row.email,
@@ -1758,7 +1761,7 @@ const importStudents = async (req, res) => {
           })
 
           await tx.student.createMany({
-            data: preparedRows.map((row) => ({
+            data: insertableRows.map((row) => ({
               id: row.studentProfileId,
               userId: row.userId,
               rollNumber: row.studentId,
@@ -1768,7 +1771,7 @@ const importStudents = async (req, res) => {
             }))
           })
 
-          const enrollmentRows = preparedRows.flatMap((row) => (
+          const enrollmentRows = insertableRows.flatMap((row) => (
             (subjectMap.get(`${row.semester}::${row.department || ''}`) || []).map((subject) => ({
               subjectId: subject.id,
               studentId: row.studentProfileId
@@ -1782,22 +1785,26 @@ const importStudents = async (req, res) => {
             })
           }
 
-          return preparedRows.map((row) => ({
-            rowNumber: row.rowNumber,
-            status: 'created',
-            id: row.userId,
-            name: row.name,
-            email: row.email,
-            studentId: row.studentId,
-            department: row.department,
-            semester: row.semester,
-            section: row.section,
-            temporaryPassword: row.temporaryPassword,
-            welcomeEmailSent: false
-          }))
+          return {
+            createdRows: insertableRows.map((row) => ({
+              rowNumber: row.rowNumber,
+              status: 'created',
+              id: row.userId,
+              name: row.name,
+              email: row.email,
+              studentId: row.studentId,
+              department: row.department,
+              semester: row.semester,
+              section: row.section,
+              temporaryPassword: row.temporaryPassword,
+              welcomeEmailSent: false
+            })),
+            conflictFailures
+          }
         })
 
         created = createdRows
+        failures.push(...conflictFailures)
 
         await Promise.allSettled(created.map(async (row) => {
           const { subject, html, text } = welcomeTemplate({

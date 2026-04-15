@@ -106,21 +106,42 @@ const refreshUserSelect = {
   }
 }
 
+let loginCaptchaSecretWarningShown = false
 const getLoginCaptchaSecret = () => {
-  if (process.env.LOGIN_CAPTCHA_SECRET) {
-    return process.env.LOGIN_CAPTCHA_SECRET
+  const captchaSecret = String(process.env.LOGIN_CAPTCHA_SECRET || '').trim()
+  if (captchaSecret) {
+    return captchaSecret
   }
 
-  throw new Error('LOGIN_CAPTCHA_SECRET must be configured')
+  const jwtSecret = String(process.env.JWT_SECRET || '').trim()
+  if (jwtSecret) {
+    if (!loginCaptchaSecretWarningShown) {
+      loginCaptchaSecretWarningShown = true
+      logger.warn('LOGIN_CAPTCHA_SECRET is not set; falling back to JWT_SECRET for login captcha signing')
+    }
+    return jwtSecret
+  }
+
+  if (!loginCaptchaSecretWarningShown) {
+    loginCaptchaSecretWarningShown = true
+    logger.error('Unable to initialize login captcha signing secret because both LOGIN_CAPTCHA_SECRET and JWT_SECRET are missing')
+  }
+
+  return null
 }
 
 const signLoginCaptchaPayload = (payload) => {
+  const captchaSecret = getLoginCaptchaSecret()
+  if (!captchaSecret) {
+    return null
+  }
+
   const encodedPayload = Buffer
     .from(JSON.stringify(payload), 'utf8')
     .toString('base64url')
 
   const signature = crypto
-    .createHmac('sha256', getLoginCaptchaSecret())
+    .createHmac('sha256', captchaSecret)
     .update(encodedPayload)
     .digest('base64url')
 
@@ -138,14 +159,23 @@ const createLoginCaptchaChallenge = (email) => {
     answerHash: hashToken(`${nonce}:${answer}`),
     exp: Date.now() + LOGIN_CAPTCHA_TTL_MS
   }
+  const token = signLoginCaptchaPayload(payload)
+  if (!token) {
+    return null
+  }
 
   return {
     prompt: `What is ${left} + ${right}?`,
-    token: signLoginCaptchaPayload(payload)
+    token
   }
 }
 
 const validateLoginCaptcha = ({ email, captchaToken, captchaAnswer }) => {
+  const captchaSecret = getLoginCaptchaSecret()
+  if (!captchaSecret) {
+    return false
+  }
+
   if (!captchaToken || !captchaAnswer) {
     return false
   }
@@ -156,7 +186,7 @@ const validateLoginCaptcha = ({ email, captchaToken, captchaAnswer }) => {
   }
 
   const expectedSignature = crypto
-    .createHmac('sha256', getLoginCaptchaSecret())
+    .createHmac('sha256', captchaSecret)
     .update(encodedPayload)
     .digest('base64url')
 
@@ -185,11 +215,21 @@ const validateLoginCaptcha = ({ email, captchaToken, captchaAnswer }) => {
 
 const shouldRequireLoginCaptcha = (user) => (user?.failedLoginAttempts || 0) >= LOGIN_CAPTCHA_THRESHOLD
 
-const buildLoginCaptchaResponse = (email) => ({
-  message: 'Please complete the security check to continue.',
-  requiresCaptcha: true,
-  captchaChallenge: createLoginCaptchaChallenge(email)
-})
+const buildLoginCaptchaResponse = (email) => {
+  const captchaChallenge = createLoginCaptchaChallenge(email)
+  if (!captchaChallenge) {
+    return {
+      message: 'Please complete the security check to continue.',
+      requiresCaptcha: false
+    }
+  }
+
+  return {
+    message: 'Please complete the security check to continue.',
+    requiresCaptcha: true,
+    captchaChallenge
+  }
+}
 
 const issueAuthSession = async (user, res, req, previousRefreshToken) => {
   const accessToken = signAccessToken(user)
@@ -599,8 +639,6 @@ const updateProfile = async (req, res) => {
       permanentAddress: sanitizeOptionalPlainText(permanentAddress),
       temporaryAddress: sanitizeOptionalPlainText(temporaryAddress)
     }
-    const sanitizedSection = isStudentRole ? sanitizeOptionalPlainText(section) : undefined
-
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
@@ -625,7 +663,6 @@ const updateProfile = async (req, res) => {
           localGuardianPhone: sanitizedProfile.localGuardianPhone ?? undefined,
           permanentAddress: sanitizedProfile.permanentAddress ?? undefined,
           temporaryAddress: sanitizedProfile.temporaryAddress ?? sanitizedProfile.address ?? undefined,
-          section: sanitizedSection ?? undefined,
           dateOfBirth: dateOfBirth ?? undefined
         }
       })
@@ -1011,15 +1048,36 @@ const logout = async (req, res) => {
 
   try {
     const refreshToken = req.cookies?.refreshToken
-    if (refreshToken) {
-      await prisma.refreshToken.updateMany({
-        where: {
-          tokenHash: hashToken(refreshToken),
-          revokedAt: null
-        },
-        data: { revokedAt: new Date() }
+    if (!refreshToken) {
+      res.clearCookie('refreshToken', {
+        ...getRefreshCookieOptions(req),
+        expires: new Date(0)
       })
+
+      if (req.user?.id) {
+        await recordAuditLog({
+          actorId: req.user.id,
+          actorRole: req.user.role,
+          action: 'AUTH_LOGOUT',
+          entityType: 'AuthSession',
+          metadata: {
+            ipAddress: getRequestIpAddress(req),
+            userAgent: getRequestUserAgent(req)
+          }
+        })
+      }
+
+      await waitForMinimumDuration(startedAt, LOGOUT_MIN_RESPONSE_MS)
+      return res.json({ message: 'Logged out successfully' })
     }
+
+    await prisma.refreshToken.updateMany({
+      where: {
+        tokenHash: hashToken(refreshToken),
+        revokedAt: null
+      },
+      data: { revokedAt: new Date() }
+    })
 
     res.clearCookie('refreshToken', {
       ...getRefreshCookieOptions(req),
