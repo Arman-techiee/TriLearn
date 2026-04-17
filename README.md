@@ -393,8 +393,8 @@ I am a solo full-stack developer who is building TriLearn entirely independently
 My focus is on building practical software that solves real problems in Nepal's education and technology sectors.
 
 - Portfolio — [armankhan.com.np](https://www.armankhan.com.np)
-- LinkedIn — [linkedin.com/in/arman-techiee](https://www.linkedin.com/in/arman-khan-943b29400)
-- GitHub — [github.com/Arman-techiee](https://github.com/Arman-techiee)
+- LinkedIn — [linkedin.com/in/arman-techiee](https://www.linkedin.com/in/techiee-arman)
+- GitHub — [github.com/armancore](https://github.com/armancore)
 
 ---
 
