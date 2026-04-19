@@ -99,7 +99,7 @@ const InstructorRequests = () => {
 
   return (
     <Layout>
-      <div className="p-4 md:p-8">
+      <div className={isCoordinator ? 'coordinator-page p-4 md:p-8' : 'p-4 md:p-8'}>
         <PageHeader
           title="Requests"
           subtitle={`Review absence requests for your ${roleLabel} and reply to students from one place.`}

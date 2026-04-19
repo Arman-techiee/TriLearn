@@ -334,7 +334,7 @@ const Assignments = () => {
 
   return (
     <Layout>
-      <div className="p-4 md:p-8">
+      <div className={isCoordinator ? 'coordinator-page p-4 md:p-8' : 'p-4 md:p-8'}>
         <PageHeader
           title={isCoordinator ? 'Department Assignments' : 'Module Assignments'}
           subtitle={isCoordinator ? 'Create assignments, review submissions, export marks, and send feedback across your department modules.' : 'Upload assignments for a module, review submissions, export marks, and send student feedback.'}

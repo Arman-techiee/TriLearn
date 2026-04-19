@@ -60,6 +60,7 @@ const Departments = () => {
   const [deletingSectionId, setDeletingSectionId] = useState('')
   const [sectionForm, setSectionForm] = useState(emptySectionForm)
   const { showToast } = useToast()
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
 
   const selectedDepartmentInstructors = useMemo(() => (
     departmentInstructors.filter((staff) => getInstructorDepartments(staff.instructor).includes(selectedDepartment?.name))
@@ -434,10 +435,10 @@ const Departments = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-4 md:p-8">
+      <div className={pageClassName}>
         <PageHeader
           title="Departments"
-          subtitle="Create and manage the departments used across users and subjects."
+          subtitle={isCoordinator ? 'Shape department structure, staffing, and semester sections with operational clarity.' : 'Create and manage the departments used across users and subjects.'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Departments']}
           actions={[{ label: 'Add Department', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
         />

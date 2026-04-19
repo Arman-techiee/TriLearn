@@ -84,6 +84,7 @@ const AdminRoutine = () => {
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
 
   const fetchRoutines = async (signal) => {
     try {
@@ -440,11 +441,11 @@ const AdminRoutine = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-4 md:p-8">
+      <div className={pageClassName}>
 
         <PageHeader
           title="Class Routine"
-          subtitle="Manage weekly timetable"
+          subtitle={isCoordinator ? 'Coordinate weekly department timetable by semester, section, instructor, and room.' : 'Manage weekly timetable'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Routine']}
           actions={[{
             label: 'Add Class',

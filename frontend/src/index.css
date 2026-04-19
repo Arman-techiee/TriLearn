@@ -112,6 +112,38 @@
     background: color-mix(in srgb, var(--color-role-accent) 8%, var(--color-card-surface));
   }
 
+  .coordinator-page {
+    @apply relative space-y-6 md:space-y-7;
+  }
+
+  .coordinator-page .ui-card {
+    border-color: color-mix(in srgb, var(--color-card-border) 72%, white);
+    background:
+      linear-gradient(140deg, color-mix(in srgb, var(--color-card-surface) 95%, white), color-mix(in srgb, var(--color-surface-muted) 88%, white));
+    box-shadow: 0 24px 44px -30px rgba(8, 64, 54, 0.28), 0 10px 22px -18px rgba(8, 64, 54, 0.14);
+  }
+
+  .dark .coordinator-page .ui-card,
+  html[data-theme="dark"] .coordinator-page .ui-card {
+    border-color: color-mix(in srgb, var(--color-card-border) 85%, black);
+    background:
+      linear-gradient(145deg, color-mix(in srgb, var(--color-card-surface) 92%, black), color-mix(in srgb, var(--color-surface-muted) 80%, black));
+    box-shadow: 0 24px 52px -30px rgba(1, 12, 16, 0.92), 0 10px 22px -14px rgba(1, 12, 16, 0.66);
+  }
+
+  .coordinator-page table thead {
+    background: color-mix(in srgb, var(--color-surface-muted) 92%, white);
+  }
+
+  .dark .coordinator-page table thead,
+  html[data-theme="dark"] .coordinator-page table thead {
+    background: color-mix(in srgb, var(--color-surface-muted) 84%, black);
+  }
+
+  .coordinator-page table tbody tr:hover {
+    background: color-mix(in srgb, var(--color-role-accent) 8%, var(--color-card-surface));
+  }
+
   .btn-primary {
     @apply bg-primary text-white px-4 py-2 rounded-lg font-medium
            hover:bg-primary-500 active:bg-primary-700

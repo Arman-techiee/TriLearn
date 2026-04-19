@@ -20,6 +20,7 @@ const initialsFromName = (name = '') =>
 
 const roleThemeClasses = {
   admin: 'ui-role-accent-admin',
+  coordinator: 'ui-role-accent-coordinator',
   instructor: 'ui-role-accent-instructor',
   student: 'ui-role-accent-student',
   gate: 'ui-role-accent-gate'
@@ -27,6 +28,7 @@ const roleThemeClasses = {
 
 const roleDescriptions = {
   admin: 'Institution controls',
+  coordinator: 'Department operations',
   instructor: 'Teaching workspace',
   student: 'Learning workspace',
   gate: 'Campus access desk'
@@ -228,6 +230,10 @@ const AppShell = ({
           ? resolvedTheme === 'dark'
             ? 'ui-admin-atmosphere-dark'
             : 'ui-admin-atmosphere'
+          : roleTheme === 'coordinator'
+            ? resolvedTheme === 'dark'
+              ? 'ui-coordinator-atmosphere-dark'
+              : 'ui-coordinator-atmosphere'
           : roleTheme === 'student'
             ? resolvedTheme === 'dark'
               ? 'ui-student-atmosphere-dark'

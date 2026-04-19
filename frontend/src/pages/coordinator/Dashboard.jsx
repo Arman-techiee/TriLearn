@@ -337,7 +337,7 @@ const CoordinatorDashboard = () => {
   if (loading) {
     return (
       <CoordinatorLayout>
-        <div className="p-4 md:p-8">
+        <div className="coordinator-page p-4 md:p-8">
           <LoadingSkeleton rows={6} itemClassName="h-32" />
         </div>
       </CoordinatorLayout>
@@ -346,10 +346,10 @@ const CoordinatorDashboard = () => {
 
   return (
     <CoordinatorLayout>
-      <div className="p-4 md:p-8">
+      <div className="coordinator-page p-4 md:p-8">
         <PageHeader
-          title="Coordinator Dashboard"
-          subtitle="Run the department like an academic command center, with routine, attendance, people, and publishing in one place."
+          title="Department Command Center"
+          subtitle="Coordinate people, routine, attendance, publishing, and student delivery with one focused department workspace."
           breadcrumbs={['Coordinator', 'Dashboard']}
         />
 
@@ -382,24 +382,24 @@ const CoordinatorDashboard = () => {
               </div>
             </div>
 
-            <div className="rounded-[1.75rem] border border-[var(--color-card-border)] bg-slate-950 p-5 text-white shadow-[0_24px_60px_-30px_rgba(15,23,42,0.65)] md:p-6">
+            <div className="rounded-[1.75rem] border border-[var(--color-card-border)] bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-role-accent)_18%,var(--color-card-surface))_0%,color-mix(in_srgb,var(--color-surface-muted)_88%,var(--color-card-surface))_100%)] p-5 text-[var(--color-page-text)] shadow-[0_24px_60px_-30px_rgba(15,23,42,0.35)] md:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Current month pulse</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-soft)]">Current month pulse</p>
                   <p className="mt-2 text-2xl font-black">{currentMonth()}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Semester</label>
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Semester</label>
                   <select
                     value={selectedSemester}
                     onChange={(event) => setSelectedSemester(event.target.value)}
-                    className="bg-transparent text-sm font-medium text-white outline-none"
+                    className="bg-transparent text-sm font-medium text-[var(--color-page-text)] outline-none"
                   >
                     {availableSemesters.length === 0 ? (
                       <option value="">No semesters</option>
                     ) : (
                       availableSemesters.map((semester) => (
-                        <option key={semester} value={semester} className="text-[var(--color-text)]">
+                        <option key={semester} value={semester} className="text-[var(--color-page-text)]">
                           Semester {semester}
                         </option>
                       ))
@@ -410,10 +410,10 @@ const CoordinatorDashboard = () => {
               <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
                 <div className="flex items-end justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-white">Attendance health</p>
+                    <p className="text-sm font-semibold text-[var(--color-heading)]">Attendance health</p>
                     <p className="mt-2 text-4xl font-black">{attendanceLoading ? '--' : `${monthlyAverage}%`}</p>
                   </div>
-                  <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-400">
+                  <div className="text-right text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">
                     <p>{selectedAttendanceReport?.totalStudents || 0} students</p>
                     <p className="mt-1">{selectedSemester ? `Sem ${selectedSemester}` : 'No selection'}</p>
                   </div>
@@ -426,16 +426,16 @@ const CoordinatorDashboard = () => {
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div className="rounded-2xl bg-white/[0.04] px-3 py-3">
-                    <p className="text-slate-400">Present</p>
-                    <p className="mt-1 text-lg font-bold text-white">{attendanceSummary.present}</p>
+                    <p className="text-[var(--color-text-soft)]">Present</p>
+                    <p className="mt-1 text-lg font-bold text-[var(--color-heading)]">{attendanceSummary.present}</p>
                   </div>
                   <div className="rounded-2xl bg-white/[0.04] px-3 py-3">
-                    <p className="text-slate-400">Absent</p>
-                    <p className="mt-1 text-lg font-bold text-white">{attendanceSummary.absent}</p>
+                    <p className="text-[var(--color-text-soft)]">Absent</p>
+                    <p className="mt-1 text-lg font-bold text-[var(--color-heading)]">{attendanceSummary.absent}</p>
                   </div>
                   <div className="rounded-2xl bg-white/[0.04] px-3 py-3">
-                    <p className="text-slate-400">Late</p>
-                    <p className="mt-1 text-lg font-bold text-white">{attendanceSummary.late}</p>
+                    <p className="text-[var(--color-text-soft)]">Late</p>
+                    <p className="mt-1 text-lg font-bold text-[var(--color-heading)]">{attendanceSummary.late}</p>
                   </div>
                 </div>
                 <Link to="/coordinator/attendance" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-sky-300 hover:text-sky-200">
@@ -488,7 +488,7 @@ const CoordinatorDashboard = () => {
                 <LoadingSkeleton rows={1} itemClassName="h-36" />
               ) : !semesterSnapshot ? (
                 <EmptyState
-                  icon="🧭"
+                  icon={Sparkles}
                   title="No semester activity yet"
                   description="Once the department has subjects configured, this semester snapshot will become more useful."
                 />
@@ -553,7 +553,7 @@ const CoordinatorDashboard = () => {
                     </Link>
                   </div>
                   {pendingTickets.length === 0 ? (
-                    <EmptyState icon="📬" title="Queue clear" description="No absence requests are waiting for review." />
+                    <EmptyState icon={ClipboardList} title="Queue clear" description="No absence requests are waiting for review." />
                   ) : (
                     <div className="space-y-3">
                       {pendingTickets.slice(0, 4).map((ticket) => (
@@ -583,7 +583,7 @@ const CoordinatorDashboard = () => {
                     </Link>
                   </div>
                   {unpublishedMarks.length === 0 ? (
-                    <EmptyState icon="📝" title="All clear" description="No unpublished marks are waiting right now." />
+                    <EmptyState icon={FileText} title="All clear" description="No unpublished marks are waiting right now." />
                   ) : (
                     <div className="space-y-3">
                       {unpublishedMarks.slice(0, 4).map((mark) => (
@@ -613,7 +613,7 @@ const CoordinatorDashboard = () => {
                     </Link>
                   </div>
                   {recentAssignments.length === 0 ? (
-                    <EmptyState icon="🗂️" title="No assignments yet" description="Assignment deadlines will appear here once coursework is posted." />
+                    <EmptyState icon={TimerReset} title="No assignments yet" description="Assignment deadlines will appear here once coursework is posted." />
                   ) : (
                     <div className="space-y-3">
                       {recentAssignments.slice(0, 4).map((assignment) => {
@@ -708,7 +708,7 @@ const CoordinatorDashboard = () => {
 
               {recentNotices.length === 0 ? (
                 <EmptyState
-                  icon="📣"
+                  icon={BellRing}
                   title="No notices yet"
                   description="Create a department notice to keep instructors and students aligned."
                 />

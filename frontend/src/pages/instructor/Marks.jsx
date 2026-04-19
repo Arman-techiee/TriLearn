@@ -224,7 +224,7 @@ const Marks = () => {
 
   return (
     <Layout>
-      <div className="p-4 md:p-8">
+      <div className={isCoordinator ? 'coordinator-page p-4 md:p-8' : 'p-4 md:p-8'}>
         <PageHeader
           title={isCoordinator ? 'Exam Result Publishing' : 'Exam Marks'}
           subtitle={isCoordinator

@@ -53,6 +53,7 @@ const StudentQrSettings = () => {
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deletingItem, setDeletingItem] = useState(false)
   const { showToast } = useToast()
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
 
   const groupedWindows = useMemo(() => (
     DAYS.map((day) => ({
@@ -230,11 +231,11 @@ const StudentQrSettings = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-4 md:p-8">
+      <div className={pageClassName}>
         <PageHeader
           title="Student QR Settings"
-          subtitle="Set which semesters may scan the gate Student QR at each time slot, and define holidays that skip attendance deduction."
-          breadcrumbs={['Admin', 'Student QR']}
+          subtitle={isCoordinator ? 'Control Student QR scan windows and attendance-safe holiday rules for your department.' : 'Set which semesters may scan the gate Student QR at each time slot, and define holidays that skip attendance deduction.'}
+          breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Student QR']}
           actions={[
             { label: 'Add Window', icon: Plus, variant: 'primary', onClick: openCreateWindow },
             { label: 'Add Holiday', icon: CalendarDays, variant: 'secondary', onClick: openCreateHoliday }
@@ -253,8 +254,8 @@ const StudentQrSettings = () => {
             <section className="ui-card rounded-3xl p-6">
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Semester Windows</h2>
-                  <p className="mt-1 text-sm text-slate-500">Each window controls which semesters may scan the Student QR during that time range.</p>
+                  <h2 className="text-lg font-semibold text-[var(--color-heading)]">Semester Windows</h2>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">Each window controls which semesters may scan the Student QR during that time range.</p>
                 </div>
                 <span className="ui-status-badge ui-status-neutral">{windows.length} windows</span>
               </div>
@@ -263,21 +264,21 @@ const StudentQrSettings = () => {
                 {groupedWindows.map(({ day, items }) => (
                   <div key={day}>
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">{formatDay(day)}</h3>
-                      <span className="text-xs text-slate-400">{items.length} slot{items.length === 1 ? '' : 's'}</span>
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">{formatDay(day)}</h3>
+                      <span className="text-xs text-[var(--color-text-soft)]">{items.length} slot{items.length === 1 ? '' : 's'}</span>
                     </div>
                     {items.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-400">
+                      <div className="rounded-2xl border border-dashed border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4 text-sm text-[var(--color-text-soft)]">
                         No Student QR window for this day.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {items.map((windowItem) => (
-                          <div key={windowItem.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4">
+                          <div key={windowItem.id} className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4">
                             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                               <div>
-                                <p className="font-semibold text-slate-900">{windowItem.title || `${windowItem.startTime} - ${windowItem.endTime}`}</p>
-                                <p className="mt-1 text-sm text-slate-500">
+                                <p className="font-semibold text-[var(--color-heading)]">{windowItem.title || `${windowItem.startTime} - ${windowItem.endTime}`}</p>
+                                <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                                   {windowItem.startTime} to {windowItem.endTime}
                                 </p>
                                 <div className="mt-3 flex flex-wrap gap-2">
@@ -288,7 +289,7 @@ const StudentQrSettings = () => {
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => openEditWindow(windowItem)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                                <button type="button" onClick={() => openEditWindow(windowItem)} className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-3 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
                                   <Pencil className="h-4 w-4" />
                                   <span>Edit</span>
                                 </button>
@@ -310,9 +311,9 @@ const StudentQrSettings = () => {
             <section className="space-y-6">
               <div className="ui-card rounded-3xl p-6">
                 <div className="mb-6 flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Holidays</h2>
-                    <p className="mt-1 text-sm text-slate-500">Students are never marked absent on these dates.</p>
+                <div>
+                    <h2 className="text-lg font-semibold text-[var(--color-heading)]">Holidays</h2>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">Students are never marked absent on these dates.</p>
                   </div>
                   <span className="ui-status-badge ui-status-success">{holidays.length} holidays</span>
                 </div>
@@ -326,12 +327,12 @@ const StudentQrSettings = () => {
                 ) : (
                   <div className="space-y-3">
                     {holidays.map((holiday) => (
-                      <div key={holiday.id} className="rounded-2xl border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 p-4">
+                      <div key={holiday.id} className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="font-semibold text-slate-900">{holiday.title}</p>
-                            <p className="mt-1 text-sm text-slate-500">{new Date(holiday.date).toLocaleDateString()}</p>
-                            {holiday.description ? <p className="mt-3 text-sm text-slate-600">{holiday.description}</p> : null}
+                            <p className="font-semibold text-[var(--color-heading)]">{holiday.title}</p>
+                            <p className="mt-1 text-sm text-[var(--color-text-muted)]">{new Date(holiday.date).toLocaleDateString()}</p>
+                            {holiday.description ? <p className="mt-3 text-sm text-[var(--color-text-muted)]">{holiday.description}</p> : null}
                           </div>
                           <button type="button" onClick={() => confirmDeleteHoliday(holiday)} className="inline-flex items-center gap-2 rounded-lg border border-accent-100 bg-accent-50 px-3 py-2 text-sm text-accent-600 hover:bg-accent-100">
                             <Trash2 className="h-4 w-4" />
@@ -350,8 +351,8 @@ const StudentQrSettings = () => {
                     <QrCode className="h-6 w-6" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Logic Summary</h2>
-                    <p className="mt-2 text-sm text-slate-500">
+                    <h2 className="text-lg font-semibold text-[var(--color-heading)]">Logic Summary</h2>
+                    <p className="mt-2 text-sm text-[var(--color-text-muted)]">
                       Students can scan only during an active window that includes their semester. If the day is not a holiday and they never scan before their semester&apos;s last window ends, the system marks them absent for that day&apos;s scheduled subjects unless an instructor records attendance manually.
                     </p>
                   </div>
@@ -404,7 +405,7 @@ const StudentQrSettings = () => {
                       key={semester}
                       type="button"
                       onClick={() => toggleSemester(semester)}
-                      className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${selected ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white' : 'border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 text-slate-600 hover:bg-slate-50'}`}
+                      className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${selected ? 'border-[var(--color-role-accent)] bg-[var(--color-role-accent)] text-white' : 'border-[var(--color-card-border)] bg-[var(--color-card-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'}`}
                     >
                       Semester {semester}
                     </button>
@@ -413,7 +414,7 @@ const StudentQrSettings = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <label className="flex items-center gap-3 rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
               <input
                 type="checkbox"
                 checked={windowForm.isActive}
@@ -423,7 +424,7 @@ const StudentQrSettings = () => {
             </label>
 
             <div className="ui-modal-footer">
-              <button type="button" onClick={() => setWindowModalOpen(false)} className="rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              <button type="button" onClick={() => setWindowModalOpen(false)} className="rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
                 Cancel
               </button>
               <button type="submit" disabled={savingWindow} className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
@@ -450,7 +451,7 @@ const StudentQrSettings = () => {
               <textarea rows={3} value={holidayForm.description} onChange={(event) => setHolidayForm((current) => ({ ...current, description: event.target.value }))} className="ui-form-input" placeholder="Optional note for this holiday" />
             </div>
             <div className="ui-modal-footer">
-              <button type="button" onClick={() => setHolidayModalOpen(false)} className="rounded-lg border border-slate-200 bg-[--color-bg-card] dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              <button type="button" onClick={() => setHolidayModalOpen(false)} className="rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">
                 Cancel
               </button>
               <button type="submit" disabled={savingHoliday} className="rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">

@@ -83,6 +83,7 @@ const Notices = () => {
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
   const refreshControllerRef = useRef(null)
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
 
   const validateNotice = (values) => {
     const validationErrors = {}
@@ -229,11 +230,11 @@ const Notices = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-4 md:p-8">
+      <div className={pageClassName}>
 
         <PageHeader
           title="Notices"
-          subtitle={isCoordinator ? 'Post and manage targeted notices across departments and semesters' : 'Post and manage targeted notices across departments and semesters'}
+          subtitle={isCoordinator ? 'Deliver clear department communication with targeted notices for students and instructors.' : 'Post and manage targeted notices across departments and semesters'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Notices']}
           actions={[{ label: 'Post Notice', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
         />

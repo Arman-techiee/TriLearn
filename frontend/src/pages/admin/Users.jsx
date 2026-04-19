@@ -92,6 +92,7 @@ const Users = () => {
   const [semesterFilter, setSemesterFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
   const visibleRoles = isCoordinator ? coordinatorVisibleRoles : allVisibleRoles
   const departmentSectionMap = useMemo(() => (
     departments.reduce((acc, department) => {
@@ -607,11 +608,11 @@ const Users = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-4 md:p-8">
+      <div className={pageClassName}>
 
         <PageHeader
           title="Users"
-          subtitle={isCoordinator ? 'Manage users across the campus with admin-style access.' : 'Manage all users in TriLearn'}
+          subtitle={isCoordinator ? 'Manage instructors, gate staff, and students in your department with clean operational controls.' : 'Manage all users in TriLearn'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Users']}
           actions={[
             ...(isCoordinator

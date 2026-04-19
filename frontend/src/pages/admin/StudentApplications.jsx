@@ -37,6 +37,7 @@ const StudentApplications = () => {
     semester: '1',
     section: ''
   })
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
 
   useEffect(() => {
     void loadDepartments().catch((requestError) => {
@@ -149,11 +150,11 @@ const StudentApplications = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-8">
+      <div className={pageClassName}>
         <PageHeader
           title="Student Intake Forms"
-          subtitle="Review student-submitted admission details and create portal accounts from approved forms."
-          breadcrumbs={['Admin', 'Admissions']}
+          subtitle={isCoordinator ? 'Review department-bound intake forms and convert approved candidates into student accounts.' : 'Review student-submitted admission details and create portal accounts from approved forms.'}
+          breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Admissions']}
           actions={[{ label: 'Open Public Form', icon: ExternalLink, variant: 'primary', href: '/student-intake', target: '_blank', rel: 'noreferrer' }]}
         />
 

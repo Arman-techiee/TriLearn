@@ -42,6 +42,7 @@ const Subjects = () => {
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
   const debouncedEnrollmentSearch = useDebouncedValue(enrollmentSearch, 250)
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
 
@@ -227,11 +228,11 @@ const Subjects = () => {
 
   return (
     <Layout>
-      <div className="admin-page p-8">
+      <div className={pageClassName}>
 
         <PageHeader
           title="Subjects"
-          subtitle={isCoordinator ? 'Manage department subjects, instructor assignments, and student enrollments.' : 'Manage all subjects in TriLearn'}
+          subtitle={isCoordinator ? 'Design and maintain department subjects, instructor ownership, and student enrollment precision.' : 'Manage all subjects in TriLearn'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Subjects']}
           actions={[{ label: 'Add Subject', icon: Plus, variant: 'primary', onClick: openCreateModal }]}
         />

@@ -51,6 +51,7 @@
   --color-badge-neutral-dot: #94a3b8;
 
   --color-role-admin: #0F5C89;
+  --color-role-coordinator: #0E6B5D;
   --color-role-instructor: #2A5298;
   --color-role-student: #5483C3;
   --color-role-gate: #F4A623;
@@ -130,6 +131,32 @@ html[data-theme="dark"] [data-role-theme="admin"] {
   --color-text-soft: #9CB4CA;
 }
 
+[data-role-theme="coordinator"] {
+  --color-role-accent: var(--color-role-coordinator);
+  --color-page-bg: #edf7f5;
+  --color-surface-muted: #dff0ec;
+  --color-surface-subtle: #d2e8e2;
+  --color-card-surface: rgba(255, 255, 255, 0.9);
+  --color-card-border: rgba(150, 201, 189, 0.56);
+  --color-heading: #0a2d28;
+  --color-page-text: #133d37;
+  --color-text-muted: #446861;
+  --color-text-soft: #658780;
+}
+
+.dark [data-role-theme="coordinator"],
+html[data-theme="dark"] [data-role-theme="coordinator"] {
+  --color-page-bg: #061f24;
+  --color-surface-muted: #0d2f35;
+  --color-surface-subtle: #123840;
+  --color-card-surface: rgba(13, 45, 52, 0.84);
+  --color-card-border: rgba(75, 145, 154, 0.35);
+  --color-heading: #effffd;
+  --color-page-text: #dcf6f1;
+  --color-text-muted: #aedbd3;
+  --color-text-soft: #84b8af;
+}
+
 [data-role-theme="instructor"] {
   --color-role-accent: var(--color-role-instructor);
 }
@@ -173,6 +200,7 @@ html[data-theme="dark"] [data-role-theme="student"] {
   --color-nav-active-strong: var(--color-nav-active-strong);
   --color-role-accent: var(--color-role-accent);
   --color-role-admin: var(--color-role-admin);
+  --color-role-coordinator: var(--color-role-coordinator);
   --color-role-instructor: var(--color-role-instructor);
   --color-role-student: var(--color-role-student);
   --color-role-gate: var(--color-role-gate);
@@ -211,6 +239,20 @@ html[data-theme="dark"] [data-role-theme="student"] {
     radial-gradient(1200px 520px at 12% -18%, rgba(49, 152, 214, 0.18), transparent 58%),
     radial-gradient(980px 420px at 86% -16%, rgba(229, 145, 58, 0.14), transparent 64%),
     linear-gradient(180deg, color-mix(in srgb, var(--color-page-bg) 92%, black 8%) 0%, var(--color-page-bg) 100%);
+}
+
+@utility ui-coordinator-atmosphere {
+  background-image:
+    radial-gradient(1100px 470px at 10% -14%, rgba(56, 189, 168, 0.2), transparent 58%),
+    radial-gradient(920px 390px at 90% -18%, rgba(22, 163, 74, 0.14), transparent 62%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-page-bg) 95%, white 5%) 0%, var(--color-page-bg) 100%);
+}
+
+@utility ui-coordinator-atmosphere-dark {
+  background-image:
+    radial-gradient(1120px 500px at 11% -16%, rgba(45, 212, 191, 0.15), transparent 62%),
+    radial-gradient(900px 370px at 88% -20%, rgba(74, 222, 128, 0.12), transparent 66%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-page-bg) 93%, black 7%) 0%, var(--color-page-bg) 100%);
 }
 
 @utility ui-student-atmosphere {
@@ -421,6 +463,10 @@ html[data-theme="dark"] [data-role-theme="student"] {
 
 @utility ui-role-accent-admin {
   --color-role-accent: var(--color-role-admin);
+}
+
+@utility ui-role-accent-coordinator {
+  --color-role-accent: var(--color-role-coordinator);
 }
 
 @utility ui-role-accent-instructor {

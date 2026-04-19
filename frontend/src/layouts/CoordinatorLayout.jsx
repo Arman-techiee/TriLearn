@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
+  BookMarked,
   Bell,
   BookOpenText,
   CalendarDays,
@@ -32,17 +33,16 @@ const CoordinatorLayout = ({ children }) => {
     { path: `${basePath}/attendance`, label: 'Attendance', icon: Percent, meta: 'Campus attendance view' },
     { path: `${basePath}/assignments`, label: 'Assignments', icon: ClipboardList, meta: 'Task tracking' },
     { path: `${basePath}/marks`, label: 'Results', icon: FileText, meta: 'Assessment data' },
+    { path: `${basePath}/materials`, label: 'Materials', icon: BookMarked, meta: 'Learning resources' },
     { path: `${basePath}/profile`, label: 'Profile', icon: UserCircle2, meta: 'My account' }
   ]), [])
 
   const topItems = [
     { path: `${basePath}/routine`, label: 'Routine', icon: CalendarDays },
     { path: `${basePath}/notices`, label: 'Notices', icon: Bell },
-    { label: 'Events', icon: CalendarDays },
     { path: `${basePath}/requests`, label: 'Requests', icon: ClipboardList },
-    { label: 'Key Dates', icon: CalendarDays },
-    { label: 'Survey', icon: FileText },
-    { label: 'Weekly', icon: Bell }
+    { path: `${basePath}/applications`, label: 'Admissions', icon: FileText },
+    { path: `${basePath}/materials`, label: 'Materials', icon: BookMarked }
   ]
 
   const handleLogout = () => {
@@ -53,7 +53,7 @@ const CoordinatorLayout = ({ children }) => {
   return (
     <AppShell
       roleLabel="Coordinator Panel"
-      roleTheme="admin"
+      roleTheme="coordinator"
       user={user}
       sidebarItems={sidebarItems}
       topItems={topItems}
