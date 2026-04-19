@@ -227,4 +227,46 @@ describe('api auth persistence', () => {
     await expect(interceptorReject(unauthorizedError)).rejects.toBe(unauthorizedError)
     expect(errorSpy).not.toHaveBeenCalled()
   })
+
+  it('does not send protected requests without a token when session refresh fails', async () => {
+    const apiClient = createAxiosClient()
+    const refreshClient = createAxiosClient()
+    const refreshError = {
+      response: {
+        status: 401,
+        data: { message: 'Refresh token is invalid or expired' }
+      }
+    }
+
+    refreshClient.post.mockRejectedValue(refreshError)
+
+    vi.doMock('axios', () => ({
+      default: {
+        create: vi.fn()
+          .mockReturnValueOnce(apiClient)
+          .mockReturnValueOnce(refreshClient)
+      }
+    }))
+
+    const { setAuthState } = await import('../src/utils/api')
+    setAuthState({
+      token: null,
+      user: {
+        name: 'Jordan',
+        role: 'STUDENT',
+        mustChangePassword: false,
+        profileCompleted: true
+      }
+    })
+
+    const interceptorResolve = apiClient.interceptors.request.use.mock.calls[0][0]
+    const requestConfig = {
+      url: '/subjects',
+      method: 'get',
+      headers: {}
+    }
+
+    await expect(interceptorResolve(requestConfig)).rejects.toBe(refreshError)
+    expect(requestConfig.headers.Authorization).toBeUndefined()
+  })
 })

@@ -76,6 +76,22 @@ test('getRefreshCookieOptions keeps localhost development cookies non-secure', (
   assert.equal(cookieOptions.sameSite, 'lax')
 })
 
+test('getRefreshCookieOptions keeps private network development cookies non-secure', () => {
+  const { getRefreshCookieOptions } = loadTokenUtils()
+
+  const cookieOptions = getRefreshCookieOptions({
+    secure: false,
+    hostname: '192.168.1.22',
+    headers: {
+      host: '192.168.1.22:5000',
+      'x-forwarded-proto': 'http'
+    }
+  })
+
+  assert.equal(cookieOptions.secure, false)
+  assert.equal(cookieOptions.sameSite, 'lax')
+})
+
 test('getRefreshCookieOptions forces secure cookies for non-local hosts even outside production', () => {
   const { getRefreshCookieOptions } = loadTokenUtils()
 

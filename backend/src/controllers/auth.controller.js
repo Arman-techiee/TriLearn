@@ -138,6 +138,18 @@ const getUserSelect = ({ includeProfileDetails = false } = {}) => ({
 })
 
 const refreshUserSelect = getUserSelect()
+const loginUserSelect = {
+  id: true,
+  email: true,
+  password: true,
+  role: true,
+  isActive: true,
+  mustChangePassword: true,
+  profileCompleted: true,
+  failedLoginAttempts: true,
+  lockedUntil: true,
+  deletedAt: true
+}
 
 let loginCaptchaSecretWarningShown = false
 const getLoginCaptchaSecret = () => {
@@ -427,7 +439,8 @@ const login = async (req, res) => {
     const email = normalizeEmail(rawEmail)
 
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      select: loginUserSelect
     })
 
     const passwordHash = user?.password || DUMMY_PASSWORD_HASH
@@ -892,7 +905,12 @@ const forgotPassword = async (req, res) => {
     const email = normalizeEmail(req.body?.email)
 
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
     })
 
     if (user) {
@@ -955,6 +973,9 @@ const resetPassword = async (req, res) => {
         passwordResetExpiresAt: {
           gt: new Date()
         }
+      },
+      select: {
+        id: true
       }
     })
 

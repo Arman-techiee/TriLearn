@@ -402,8 +402,8 @@ api.interceptors.request.use(async (config) => {
   if (!authState.token && authState.user && !isAuthRouteRequest(config)) {
     try {
       await refreshSession()
-    } catch {
-      return config
+    } catch (refreshError) {
+      return Promise.reject(refreshError)
     }
   }
 
