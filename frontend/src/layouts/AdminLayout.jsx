@@ -12,6 +12,7 @@ import {
   Users
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { ROLES } from '../constants/roles'
 import AppShell from '../components/AppShell'
 import CoordinatorLayout from './CoordinatorLayout'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -32,7 +33,7 @@ const AdminLayout = ({ children }) => {
     { path: `${basePath}/profile`, label: 'Profile', icon: UserCircle2, meta: 'My account' }
   ]), [])
 
-  if (user?.role === 'COORDINATOR') {
+  if (user?.role === ROLES.COORDINATOR) {
     return <CoordinatorLayout>{children}</CoordinatorLayout>
   }
 

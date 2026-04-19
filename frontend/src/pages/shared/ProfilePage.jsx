@@ -15,6 +15,7 @@ import useUnsavedChangesGuard from '../../hooks/useUnsavedChangesGuard'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
 import { isRequestCanceled } from '../../utils/http'
+import { ROLES } from '../../constants/roles'
 
 const formatActivityLabel = (action) => ({
   AUTH_LOGIN: 'Signed in',
@@ -54,10 +55,10 @@ const formatDateTime = (value) => {
 }
 
 const getRoleLabel = (role) => ({
-  STUDENT: 'Student',
-  INSTRUCTOR: 'Instructor',
-  COORDINATOR: 'Coordinator',
-  ADMIN: 'Admin'
+  [ROLES.STUDENT]: 'Student',
+  [ROLES.INSTRUCTOR]: 'Instructor',
+  [ROLES.COORDINATOR]: 'Coordinator',
+  [ROLES.ADMIN]: 'Admin'
 }[role] || 'Account')
 
 const buildFormState = (currentUser) => ({
@@ -158,7 +159,7 @@ const ProfilePage = () => {
     try {
       setSaving(true)
       setError('')
-      const endpoint = profile?.role === 'STUDENT' && !profile?.profileCompleted ? '/auth/complete-profile' : '/auth/profile'
+      const endpoint = profile?.role === ROLES.STUDENT && !profile?.profileCompleted ? '/auth/complete-profile' : '/auth/profile'
       const res = await api.patch(endpoint, form)
       const nextUser = res.data.user
       const nextForm = buildFormState(nextUser)
@@ -166,7 +167,7 @@ const ProfilePage = () => {
       setForm(nextForm)
       setInitialForm(nextForm)
       updateUser(nextUser)
-      setSuccess(profile?.role === 'STUDENT' && !profile?.profileCompleted ? 'Profile completed successfully!' : 'Profile updated successfully!')
+      setSuccess(profile?.role === ROLES.STUDENT && !profile?.profileCompleted ? 'Profile completed successfully!' : 'Profile updated successfully!')
     } catch (requestError) {
       setError(getFriendlyErrorMessage(requestError, 'Unable to save your profile right now.'))
     } finally {
@@ -235,9 +236,9 @@ const ProfilePage = () => {
   }
 
   const renderLayout = (content) => {
-    if (user?.role === 'STUDENT') return <StudentLayout>{content}</StudentLayout>
-    if (user?.role === 'COORDINATOR') return <CoordinatorLayout>{content}</CoordinatorLayout>
-    if (user?.role === 'INSTRUCTOR') return <InstructorLayout>{content}</InstructorLayout>
+    if (user?.role === ROLES.STUDENT) return <StudentLayout>{content}</StudentLayout>
+    if (user?.role === ROLES.COORDINATOR) return <CoordinatorLayout>{content}</CoordinatorLayout>
+    if (user?.role === ROLES.INSTRUCTOR) return <InstructorLayout>{content}</InstructorLayout>
     return <AdminLayout>{content}</AdminLayout>
   }
 
@@ -302,13 +303,13 @@ const ProfilePage = () => {
             <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Email Address</label>
             <input value={profile?.email || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
           </div>
-          {profile?.role === 'STUDENT' ? (
+          {profile?.role === ROLES.STUDENT ? (
             <div>
               <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Student ID</label>
               <input value={profile.student?.rollNumber || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
             </div>
           ) : null}
-          {(profile?.role === 'INSTRUCTOR' || profile?.role === 'COORDINATOR') ? (
+          {(profile?.role === ROLES.INSTRUCTOR || profile?.role === ROLES.COORDINATOR) ? (
             <div>
               <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Department</label>
               <input value={profile?.instructor?.department || profile?.coordinator?.department || ''} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
@@ -318,13 +319,13 @@ const ProfilePage = () => {
             <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Phone Number</label>
             <input value={form.phone} onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
           </div>
-          {profile?.role === 'STUDENT' ? (
+          {profile?.role === ROLES.STUDENT ? (
             <div>
               <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Section</label>
               <input value={form.section} onChange={(e) => setForm((current) => ({ ...current, section: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
             </div>
           ) : null}
-          {profile?.role === 'STUDENT' ? (
+          {profile?.role === ROLES.STUDENT ? (
             <>
               <div>
                 <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Father Name</label>
@@ -361,10 +362,10 @@ const ProfilePage = () => {
             </>
           ) : null}
           <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">{profile?.role === 'STUDENT' ? 'Temporary Address' : 'Address'}</label>
-            <textarea rows={4} value={profile?.role === 'STUDENT' ? form.temporaryAddress : form.address} onChange={(e) => setForm((current) => ({ ...current, [profile?.role === 'STUDENT' ? 'temporaryAddress' : 'address']: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
+            <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">{profile?.role === ROLES.STUDENT ? 'Temporary Address' : 'Address'}</label>
+            <textarea rows={4} value={profile?.role === ROLES.STUDENT ? form.temporaryAddress : form.address} onChange={(e) => setForm((current) => ({ ...current, [profile?.role === ROLES.STUDENT ? 'temporaryAddress' : 'address']: e.target.value }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
           </div>
-          {profile?.role === 'STUDENT' ? (
+          {profile?.role === ROLES.STUDENT ? (
             <>
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Permanent Address</label>
@@ -380,7 +381,7 @@ const ProfilePage = () => {
 
         <div className="mt-6">
           <button type="submit" disabled={saving} className="rounded-lg bg-primary px-5 py-2 font-medium text-white hover:bg-primary disabled:opacity-50">
-            {saving ? 'Saving...' : profile?.role === 'STUDENT' && !profile?.profileCompleted ? 'Complete Profile' : 'Save Profile'}
+            {saving ? 'Saving...' : profile?.role === ROLES.STUDENT && !profile?.profileCompleted ? 'Complete Profile' : 'Save Profile'}
           </button>
         </div>
       </form>

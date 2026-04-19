@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -30,7 +31,7 @@ const getInstructorDepartments = (instructor) => (
 const Departments = () => {
   const { user } = useAuth()
   const { loadDepartments } = useReferenceData()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const [showModal, setShowModal] = useState(false)
   const [editingDepartment, setEditingDepartment] = useState(null)
@@ -129,7 +130,7 @@ const Departments = () => {
       setInstructorError('')
       const response = await api.get('/admin/users', {
         params: {
-          role: 'INSTRUCTOR',
+          role: ROLES.INSTRUCTOR,
           limit: 100,
           search: department.name
         },
@@ -175,7 +176,7 @@ const Departments = () => {
       setInstructorError('')
       const response = await api.get('/admin/users', {
         params: {
-          role: 'INSTRUCTOR',
+          role: ROLES.INSTRUCTOR,
           limit: 100,
           includeAssignable: true,
           ...(search.trim() ? { search: search.trim() } : {})

@@ -646,6 +646,7 @@ const updateProfile = async (req, res) => {
       await prisma.student.update({
         where: { userId: req.user.id },
         data: {
+          // Legacy model compatibility: guardian* is intentionally mirrored from father*.
           guardianName: sanitizedProfile.fatherName ?? undefined,
           guardianPhone: sanitizedProfile.fatherPhone ?? undefined,
           fatherName: sanitizedProfile.fatherName ?? undefined,
@@ -838,6 +839,7 @@ const completeProfile = async (req, res) => {
       await tx.student.update({
         where: { userId: req.user.id },
         data: {
+          // Legacy model compatibility: guardian* is intentionally mirrored from father*.
           guardianName: sanitizedProfile.fatherName,
           guardianPhone: sanitizedProfile.fatherPhone,
           fatherName: sanitizedProfile.fatherName,

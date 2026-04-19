@@ -47,6 +47,7 @@ import StudentLearnings from './pages/Learnings'
 import ProfilePage from './pages/shared/ProfilePage'
 import NotFound from './pages/shared/NotFound'
 import { getHomeRouteForUser } from './utils/auth'
+import { ROLES } from './constants/roles'
 import LoadingSkeleton from './components/LoadingSkeleton'
 import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -78,63 +79,63 @@ const AppRoutes = () => {
       <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
       {/* Admin Routes */}
-      <Route path="/admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><Users /></ProtectedRoute>} />
-      <Route path="/admin/applications" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><StudentApplications /></ProtectedRoute>} />
-      <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><Departments /></ProtectedRoute>} />
-      <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><Subjects /></ProtectedRoute>} />
-      <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><Notices /></ProtectedRoute>} />
-      <Route path="/admin/routine" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><AdminRoutine /></ProtectedRoute>} />
-      <Route path="/admin/student-qr" element={<ProtectedRoute allowedRoles={['ADMIN', 'COORDINATOR']}><StudentQrSettings /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Users /></ProtectedRoute>} />
+      <Route path="/admin/applications" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><StudentApplications /></ProtectedRoute>} />
+      <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Departments /></ProtectedRoute>} />
+      <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Subjects /></ProtectedRoute>} />
+      <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Notices /></ProtectedRoute>} />
+      <Route path="/admin/routine" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><AdminRoutine /></ProtectedRoute>} />
+      <Route path="/admin/student-qr" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><StudentQrSettings /></ProtectedRoute>} />
 
       {/* Coordinator Routes */}
-      <Route path="/coordinator" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><CoordinatorDashboard /></ProtectedRoute>} />
-      <Route path="/coordinator/users" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Users /></ProtectedRoute>} />
-      <Route path="/coordinator/applications" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><StudentApplications /></ProtectedRoute>} />
-      <Route path="/coordinator/departments" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Departments /></ProtectedRoute>} />
-      <Route path="/coordinator/subjects" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Subjects /></ProtectedRoute>} />
-      <Route path="/coordinator/notices" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Notices /></ProtectedRoute>} />
-      <Route path="/coordinator/routine" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><AdminRoutine /></ProtectedRoute>} />
-      <Route path="/coordinator/student-qr" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><StudentQrSettings /></ProtectedRoute>} />
-      <Route path="/coordinator/attendance" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Attendance /></ProtectedRoute>} />
-      <Route path="/coordinator/assignments" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Assignments /></ProtectedRoute>} />
-      <Route path="/coordinator/marks" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><Marks /></ProtectedRoute>} />
-      <Route path="/coordinator/materials" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><InstructorMaterials /></ProtectedRoute>} />
-      <Route path="/coordinator/requests" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><InstructorRequests /></ProtectedRoute>} />
-      <Route path="/coordinator/profile" element={<ProtectedRoute allowedRoles={['COORDINATOR']}><ProfilePage /></ProtectedRoute>} />
+      <Route path="/coordinator" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><CoordinatorDashboard /></ProtectedRoute>} />
+      <Route path="/coordinator/users" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Users /></ProtectedRoute>} />
+      <Route path="/coordinator/applications" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><StudentApplications /></ProtectedRoute>} />
+      <Route path="/coordinator/departments" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Departments /></ProtectedRoute>} />
+      <Route path="/coordinator/subjects" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Subjects /></ProtectedRoute>} />
+      <Route path="/coordinator/notices" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Notices /></ProtectedRoute>} />
+      <Route path="/coordinator/routine" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><AdminRoutine /></ProtectedRoute>} />
+      <Route path="/coordinator/student-qr" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><StudentQrSettings /></ProtectedRoute>} />
+      <Route path="/coordinator/attendance" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Attendance /></ProtectedRoute>} />
+      <Route path="/coordinator/assignments" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Assignments /></ProtectedRoute>} />
+      <Route path="/coordinator/marks" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Marks /></ProtectedRoute>} />
+      <Route path="/coordinator/materials" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><InstructorMaterials /></ProtectedRoute>} />
+      <Route path="/coordinator/requests" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><InstructorRequests /></ProtectedRoute>} />
+      <Route path="/coordinator/profile" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><ProfilePage /></ProtectedRoute>} />
 
       {/* Gatekeeper Routes */}
-      <Route path="/gatekeeper" element={<ProtectedRoute allowedRoles={['GATEKEEPER']}><GateDashboard /></ProtectedRoute>} />
-      <Route path="/gate" element={<ProtectedRoute allowedRoles={['GATEKEEPER']}><GateDashboard /></ProtectedRoute>} />
+      <Route path="/gatekeeper" element={<ProtectedRoute allowedRoles={[ROLES.GATEKEEPER]}><GateDashboard /></ProtectedRoute>} />
+      <Route path="/gate" element={<ProtectedRoute allowedRoles={[ROLES.GATEKEEPER]}><GateDashboard /></ProtectedRoute>} />
 
       {/* Instructor Routes */}
-      <Route path="/instructor" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorDashboard /></ProtectedRoute>} />
-      <Route path="/instructor/subjects" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorSubjects /></ProtectedRoute>} />
-      <Route path="/instructor/attendance" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><Attendance /></ProtectedRoute>} />
-      <Route path="/instructor/assignments" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><Assignments /></ProtectedRoute>} />
-      <Route path="/instructor/marks" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><Marks /></ProtectedRoute>} />
-      <Route path="/instructor/notices" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorNotices /></ProtectedRoute>} />
-      <Route path="/instructor/materials" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorMaterials /></ProtectedRoute>} />
-      <Route path="/instructor/routine" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorRoutine /></ProtectedRoute>} />
-      <Route path="/instructor/requests" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><InstructorRequests /></ProtectedRoute>} />
-      <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={['INSTRUCTOR']}><ProfilePage /></ProtectedRoute>} />
+      <Route path="/instructor" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><InstructorDashboard /></ProtectedRoute>} />
+      <Route path="/instructor/subjects" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><InstructorSubjects /></ProtectedRoute>} />
+      <Route path="/instructor/attendance" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><Attendance /></ProtectedRoute>} />
+      <Route path="/instructor/assignments" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><Assignments /></ProtectedRoute>} />
+      <Route path="/instructor/marks" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><Marks /></ProtectedRoute>} />
+      <Route path="/instructor/notices" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><InstructorNotices /></ProtectedRoute>} />
+      <Route path="/instructor/materials" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><InstructorMaterials /></ProtectedRoute>} />
+      <Route path="/instructor/routine" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><InstructorRoutine /></ProtectedRoute>} />
+      <Route path="/instructor/requests" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><InstructorRequests /></ProtectedRoute>} />
+      <Route path="/instructor/profile" element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR]}><ProfilePage /></ProtectedRoute>} />
 
       {/* Student Routes */}
-      <Route path="/student" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentDashboard /></ProtectedRoute>} />
-      <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['STUDENT']}><ProfilePage /></ProtectedRoute>} />
-      <Route path="/student/id-card" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentIdCard /></ProtectedRoute>} />
-      <Route path="/student/scan" element={<ProtectedRoute allowedRoles={['STUDENT']}><Navigate to="/student/attendance?scan=1" replace /></ProtectedRoute>} />
-      <Route path="/student/subjects" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentSubjects /></ProtectedRoute>} />
-      <Route path="/student/attendance" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentAttendance /></ProtectedRoute>} />
-      <Route path="/student/requests" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentTickets /></ProtectedRoute>} />
-      <Route path="/student/tickets" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentTickets /></ProtectedRoute>} />
-      <Route path="/student/assignments" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentAssignments /></ProtectedRoute>} />
-      <Route path="/student/marks" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentMarks /></ProtectedRoute>} />
-      <Route path="/student/notices" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentNotices /></ProtectedRoute>} />
-      <Route path="/student/materials" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentMaterials /></ProtectedRoute>} />
-      <Route path="/student/routine" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentRoutine /></ProtectedRoute>} />
-      <Route path="/student/subjects/:subjectId/learnings" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentLearnings /></ProtectedRoute>} />
-      <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={['ADMIN']}><ProfilePage /></ProtectedRoute>} />
+      <Route path="/student" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/student/profile" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><ProfilePage /></ProtectedRoute>} />
+      <Route path="/student/id-card" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentIdCard /></ProtectedRoute>} />
+      <Route path="/student/scan" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><Navigate to="/student/attendance?scan=1" replace /></ProtectedRoute>} />
+      <Route path="/student/subjects" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentSubjects /></ProtectedRoute>} />
+      <Route path="/student/attendance" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentAttendance /></ProtectedRoute>} />
+      <Route path="/student/requests" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentTickets /></ProtectedRoute>} />
+      <Route path="/student/tickets" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentTickets /></ProtectedRoute>} />
+      <Route path="/student/assignments" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentAssignments /></ProtectedRoute>} />
+      <Route path="/student/marks" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentMarks /></ProtectedRoute>} />
+      <Route path="/student/notices" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentNotices /></ProtectedRoute>} />
+      <Route path="/student/materials" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentMaterials /></ProtectedRoute>} />
+      <Route path="/student/routine" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentRoutine /></ProtectedRoute>} />
+      <Route path="/student/subjects/:subjectId/learnings" element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]}><StudentLearnings /></ProtectedRoute>} />
+      <Route path="/admin/profile" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]}><ProfilePage /></ProtectedRoute>} />
       
       <Route path="*" element={withRouteBoundary(<NotFound />)} />
     </Routes>

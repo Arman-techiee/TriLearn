@@ -13,6 +13,7 @@ import Pagination from '../../components/Pagination'
 import { useToast } from '../../components/Toast'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import logger from '../../utils/logger'
 import { isRequestCanceled } from '../../utils/http'
 
@@ -29,7 +30,7 @@ const examTypeLabels = {
 const Marks = () => {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : InstructorLayout
   const { subjects, loadSubjects } = useReferenceData()
   const [marks, setMarks] = useState([])

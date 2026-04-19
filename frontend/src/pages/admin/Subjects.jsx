@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -17,7 +18,7 @@ import { isRequestCanceled } from '../../utils/http'
 import logger from '../../utils/logger'
 const Subjects = () => {
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const { departments, loadDepartments } = useReferenceData()
   const [subjects, setSubjects] = useState([])
@@ -80,7 +81,7 @@ const Subjects = () => {
       const res = await api.get('/admin/users', {
         signal,
         params: {
-          role: 'INSTRUCTOR',
+          role: ROLES.INSTRUCTOR,
           limit: 100,
           ...(isCoordinator ? { includeAssignable: true } : {})
         }

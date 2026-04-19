@@ -9,6 +9,7 @@ import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import Pagination from '../../components/Pagination'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -16,7 +17,7 @@ import { isRequestCanceled } from '../../utils/http'
 
 const StudentApplications = () => {
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)

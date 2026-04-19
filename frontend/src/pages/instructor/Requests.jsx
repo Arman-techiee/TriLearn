@@ -8,6 +8,7 @@ import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Alert from '../../components/Alert'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
 import { isRequestCanceled } from '../../utils/http'
@@ -22,7 +23,7 @@ const statusOptions = ['PENDING', 'APPROVED', 'REJECTED']
 
 const InstructorRequests = () => {
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : InstructorLayout
   const { showToast } = useToast()
   const [tickets, setTickets] = useState([])
@@ -32,7 +33,7 @@ const InstructorRequests = () => {
   const [statusFilter, setStatusFilter] = useState('PENDING')
   const [drafts, setDrafts] = useState({})
 
-  const roleLabel = user?.role === 'COORDINATOR' ? 'department' : 'class'
+  const roleLabel = user?.role === ROLES.COORDINATOR ? 'department' : 'class'
 
   const loadTickets = async (signal) => {
     try {
@@ -103,7 +104,7 @@ const InstructorRequests = () => {
         <PageHeader
           title="Requests"
           subtitle={`Review absence requests for your ${roleLabel} and reply to students from one place.`}
-          breadcrumbs={[user?.role === 'COORDINATOR' ? 'Coordinator' : 'Instructor', 'Requests']}
+          breadcrumbs={[user?.role === ROLES.COORDINATOR ? 'Coordinator' : 'Instructor', 'Requests']}
         />
 
         <Alert type="error" message={error} />

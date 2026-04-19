@@ -13,6 +13,7 @@ import StatusBadge from '../../components/StatusBadge'
 import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import useForm from '../../hooks/useForm'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
@@ -78,8 +79,8 @@ const Notices = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState('')
   const { showToast } = useToast()
-  const isCoordinator = user?.role === 'COORDINATOR'
-  const canPostInstructorOnly = user?.role === 'ADMIN' || user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
+  const canPostInstructorOnly = user?.role === ROLES.ADMIN || user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
   const refreshControllerRef = useRef(null)

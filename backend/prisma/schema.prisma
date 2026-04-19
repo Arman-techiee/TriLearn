@@ -47,6 +47,7 @@ model User {
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
+  @@index([passwordResetTokenHash])
 }
 
 enum Role {

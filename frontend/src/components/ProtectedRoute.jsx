@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import ErrorBoundary from './ErrorBoundary'
 import LoadingSkeleton from './LoadingSkeleton'
+import { ROLES } from '../constants/roles'
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth()
@@ -22,7 +23,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/change-password" />
   }
   if (
-    user.role === 'STUDENT' &&
+    user.role === ROLES.STUDENT &&
     !user.profileCompleted &&
     location.pathname !== '/student/profile' &&
     location.pathname !== '/change-password'

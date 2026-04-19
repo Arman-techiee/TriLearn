@@ -9,6 +9,7 @@ import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import logger from '../../utils/logger'
 import { isRequestCanceled } from '../../utils/http'
@@ -64,7 +65,7 @@ const defaultForm = {
 const AdminRoutine = () => {
   const { user } = useAuth()
   const { departments, loadDepartments } = useReferenceData()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const [routines, setRoutines] = useState([])
   const [subjects, setSubjects] = useState([])
@@ -120,7 +121,7 @@ const AdminRoutine = () => {
       const res = await api.get('/admin/users', {
         signal,
         params: {
-          role: 'INSTRUCTOR',
+          role: ROLES.INSTRUCTOR,
           limit: 100,
           ...(isCoordinator ? { includeAssignable: true } : {})
         }

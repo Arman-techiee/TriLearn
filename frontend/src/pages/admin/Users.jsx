@@ -19,6 +19,7 @@ import useForm from '../../hooks/useForm'
 import { getFriendlyErrorMessage } from '../../utils/errors'
 import { isRequestCanceled } from '../../utils/http'
 import logger from '../../utils/logger'
+import { ROLES } from '../../constants/roles'
 const initialUserValues = {
   name: '',
   email: '',
@@ -31,8 +32,8 @@ const initialUserValues = {
   section: ''
 }
 
-const allVisibleRoles = ['', 'ADMIN', 'COORDINATOR', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT']
-const coordinatorVisibleRoles = ['', 'GATEKEEPER', 'INSTRUCTOR', 'STUDENT']
+const allVisibleRoles = ['', ROLES.ADMIN, ROLES.COORDINATOR, ROLES.GATEKEEPER, ROLES.INSTRUCTOR, ROLES.STUDENT]
+const coordinatorVisibleRoles = ['', ROLES.GATEKEEPER, ROLES.INSTRUCTOR, ROLES.STUDENT]
 const semesterFilterOptions = [
   { value: '', label: 'All semesters' },
   ...Array.from({ length: 8 }, (_, index) => ({
@@ -62,7 +63,7 @@ const getStudentDetails = (student) => {
 const Users = () => {
   const { user: currentUser } = useAuth()
   const { departments, loadDepartments } = useReferenceData()
-  const isCoordinator = currentUser?.role === 'COORDINATOR'
+  const isCoordinator = currentUser?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const [users, setUsers] = useState([])
   const [page, setPage] = useState(1)
@@ -179,7 +180,7 @@ const Users = () => {
   }, [filterRole, semesterFilter, debouncedSearchTerm])
 
   useEffect(() => {
-    if (filterRole && filterRole !== 'STUDENT' && semesterFilter) {
+    if (filterRole && filterRole !== ROLES.STUDENT && semesterFilter) {
       setSemesterFilter('')
     }
   }, [filterRole, semesterFilter])
@@ -319,7 +320,7 @@ const Users = () => {
       } else {
         showToast({ title: `${modalType} created successfully.` })
       }
-      setFilterRole(modalType === 'student' ? 'STUDENT' : modalType === 'instructor' ? 'INSTRUCTOR' : modalType === 'gatekeeper' ? 'GATEKEEPER' : '')
+      setFilterRole(modalType === 'student' ? ROLES.STUDENT : modalType === 'instructor' ? ROLES.INSTRUCTOR : modalType === 'gatekeeper' ? ROLES.GATEKEEPER : '')
       setSearchTerm('')
       setPage(1)
       setShowModal(false)
@@ -664,7 +665,7 @@ const Users = () => {
               className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-          {(filterRole === '' || filterRole === 'STUDENT') && (
+          {(filterRole === '' || filterRole === ROLES.STUDENT) && (
             <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
               <label className="mb-2 block text-sm font-medium text-[var(--color-page-text)]">Filter students by semester</label>
               <select
@@ -672,8 +673,8 @@ const Users = () => {
                 onChange={(event) => {
                   const nextValue = event.target.value
                   setSemesterFilter(nextValue)
-                  if (nextValue && filterRole !== 'STUDENT') {
-                    setFilterRole('STUDENT')
+                  if (nextValue && filterRole !== ROLES.STUDENT) {
+                    setFilterRole(ROLES.STUDENT)
                   }
                 }}
                 className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
@@ -691,7 +692,7 @@ const Users = () => {
                 type="button"
                 onClick={() => {
                   setFilterRole(role)
-                  if (role && role !== 'STUDENT') {
+                  if (role && role !== ROLES.STUDENT) {
                     setSemesterFilter('')
                   }
                 }}
@@ -808,21 +809,21 @@ const Users = () => {
                   <EmptyState
                     icon={UserPlus}
                     title="No users found"
-                    description={filterRole === 'INSTRUCTOR'
+                    description={filterRole === ROLES.INSTRUCTOR
                       ? 'No instructors matched this filter yet. Create one to get started.'
-                      : filterRole === 'COORDINATOR'
+                      : filterRole === ROLES.COORDINATOR
                         ? 'No coordinators matched this filter yet.'
-                      : filterRole === 'STUDENT'
+                      : filterRole === ROLES.STUDENT
                         ? 'No students matched this filter yet. Add a student or change the filter.'
                         : 'Try a different role filter or create a new account for your campus.'}
                     action={(
                       <button
                         type="button"
-                        onClick={() => openModal(filterRole === 'INSTRUCTOR' ? 'instructor' : 'student')}
+                        onClick={() => openModal(filterRole === ROLES.INSTRUCTOR ? 'instructor' : 'student')}
                         className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
                       >
                         <UserPlus className="h-4 w-4" />
-                        <span>{filterRole === 'INSTRUCTOR' ? 'Add Instructor' : 'Add Student'}</span>
+                        <span>{filterRole === ROLES.INSTRUCTOR ? 'Add Instructor' : 'Add Student'}</span>
                       </button>
                     )}
                   />
@@ -883,7 +884,7 @@ const Users = () => {
                         {user.student && getStudentDetails(user.student)}
                         {user.instructor && `${getInstructorDepartments(user.instructor).join(', ') || 'No dept'}`}
                         {user.coordinator && `${user.coordinator.department || 'No dept'} coordinator`}
-                        {user.role === 'GATEKEEPER' && 'Gate QR operator'}
+                        {user.role === ROLES.GATEKEEPER && 'Gate QR operator'}
                         {user.admin && 'Administrator'}
                         {user.mustChangePassword && ' · Password reset pending'}
                       </td>
@@ -928,7 +929,7 @@ const Users = () => {
                               <Power className="h-4 w-4" />
                             </button>
                           ) : null}
-                          {(currentUser?.role === 'ADMIN' || currentUser?.role === 'COORDINATOR') && (
+                          {(currentUser?.role === ROLES.ADMIN || currentUser?.role === ROLES.COORDINATOR) && (
                             <button
                               type="button"
                               onClick={() => setUserToDelete(user)}

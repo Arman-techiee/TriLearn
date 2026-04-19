@@ -9,6 +9,7 @@ import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import api from '../../utils/api'
 import logger from '../../utils/logger'
 import { isRequestCanceled } from '../../utils/http'
@@ -38,7 +39,7 @@ const formatDay = (value) => value.charAt(0) + value.slice(1).toLowerCase()
 
 const StudentQrSettings = () => {
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : AdminLayout
   const [windows, setWindows] = useState([])
   const [holidays, setHolidays] = useState([])

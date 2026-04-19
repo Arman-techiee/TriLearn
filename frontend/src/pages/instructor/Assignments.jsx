@@ -10,6 +10,7 @@ import Modal from '../../components/Modal'
 import EmptyState from '../../components/EmptyState'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import api, { fetchFileBlob } from '../../utils/api'
 import { isRequestCanceled } from '../../utils/http'
@@ -17,7 +18,7 @@ import logger from '../../utils/logger'
 
 const Assignments = () => {
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : InstructorLayout
   const [searchParams, setSearchParams] = useSearchParams()
   const initialSubjectRef = useRef(searchParams.get('subject') || '')

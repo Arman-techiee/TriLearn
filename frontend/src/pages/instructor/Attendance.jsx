@@ -8,6 +8,7 @@ import StatusBadge from '../../components/StatusBadge'
 import PageHeader from '../../components/PageHeader'
 import QrScanPanel from '../../components/QrScanPanel'
 import { useAuth } from '../../context/AuthContext'
+import { ROLES } from '../../constants/roles'
 import api from '../../utils/api'
 import EmptyState from '../../components/EmptyState'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
@@ -36,7 +37,7 @@ const getOptionalSignal = (value) => (
 const Attendance = () => {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
-  const isCoordinator = user?.role === 'COORDINATOR'
+  const isCoordinator = user?.role === ROLES.COORDINATOR
   const Layout = isCoordinator ? CoordinatorLayout : InstructorLayout
   const [subjects, setSubjects] = useState([])
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '')
