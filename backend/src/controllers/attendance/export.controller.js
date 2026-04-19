@@ -5,6 +5,7 @@ const {
   getCoordinatorDepartmentReportPayload,
   formatDisplayDate
 } = require('./shared')
+const { sanitizeXlsxCell } = require('../../utils/sanitize')
 
 const sanitizeFilenamePart = (value) => String(value || 'report')
   .replace(/[^a-z0-9-_]+/gi, '-')
@@ -60,8 +61,8 @@ const exportAttendanceWorkbook = async ({ res, attendance, summary, subject, dat
     { header: 'Value', key: 'value', width: 32 }
   ]
   summarySheet.addRows([
-    { metric: 'Subject', value: `${subject.name} (${subject.code})` },
-    { metric: 'Date', value: dateLabel },
+    { metric: sanitizeXlsxCell('Subject'), value: sanitizeXlsxCell(`${subject.name} (${subject.code})`) },
+    { metric: sanitizeXlsxCell('Date'), value: sanitizeXlsxCell(dateLabel) },
     { metric: 'Total Records', value: summary.total },
     { metric: 'Present', value: summary.present },
     { metric: 'Absent', value: summary.absent },
@@ -79,11 +80,11 @@ const exportAttendanceWorkbook = async ({ res, attendance, summary, subject, dat
   attendance.forEach((record, index) => {
     recordsSheet.addRow({
       sn: index + 1,
-      name: record.student?.user?.name || 'Unknown Student',
-      rollNumber: record.student?.rollNumber || '-',
-      email: record.student?.user?.email || '-',
-      date: formatDisplayDate(record.date),
-      status: record.status
+      name: sanitizeXlsxCell(record.student?.user?.name || 'Unknown Student'),
+      rollNumber: sanitizeXlsxCell(record.student?.rollNumber || '-'),
+      email: sanitizeXlsxCell(record.student?.user?.email || '-'),
+      date: sanitizeXlsxCell(formatDisplayDate(record.date)),
+      status: sanitizeXlsxCell(record.status)
     })
   })
 
@@ -157,10 +158,10 @@ const exportCoordinatorDepartmentReportWorkbook = async ({ res, report }) => {
     { header: 'Value', key: 'value', width: 32 }
   ]
   summarySheet.addRows([
-    { metric: 'Department', value: report.department },
+    { metric: sanitizeXlsxCell('Department'), value: sanitizeXlsxCell(report.department) },
     { metric: 'Semester', value: report.semester },
-    { metric: 'Section', value: report.section || 'All sections' },
-    { metric: 'Month', value: report.monthLabel },
+    { metric: sanitizeXlsxCell('Section'), value: sanitizeXlsxCell(report.section || 'All sections') },
+    { metric: sanitizeXlsxCell('Month'), value: sanitizeXlsxCell(report.monthLabel) },
     { metric: 'Total Students', value: report.totalStudents },
     { metric: 'Present Entries', value: report.summary.present },
     { metric: 'Absent Entries', value: report.summary.absent },
@@ -180,9 +181,9 @@ const exportCoordinatorDepartmentReportWorkbook = async ({ res, report }) => {
   report.students.forEach((student, index) => {
     studentsSheet.addRow({
       sn: index + 1,
-      name: student.name,
-      rollNumber: student.rollNumber,
-      section: student.section || '-',
+      name: sanitizeXlsxCell(student.name),
+      rollNumber: sanitizeXlsxCell(student.rollNumber),
+      section: sanitizeXlsxCell(student.section || '-'),
       present: student.present,
       absent: student.absent,
       late: student.late,
@@ -202,12 +203,12 @@ const exportCoordinatorDepartmentReportWorkbook = async ({ res, report }) => {
   report.records.forEach((record, index) => {
     recordsSheet.addRow({
       sn: index + 1,
-      studentName: record.student.name,
-      rollNumber: record.student.rollNumber,
-      subjectName: record.subject.name,
-      subjectCode: record.subject.code,
-      date: formatDisplayDate(record.date),
-      status: record.status
+      studentName: sanitizeXlsxCell(record.student.name),
+      rollNumber: sanitizeXlsxCell(record.student.rollNumber),
+      subjectName: sanitizeXlsxCell(record.subject.name),
+      subjectCode: sanitizeXlsxCell(record.subject.code),
+      date: sanitizeXlsxCell(formatDisplayDate(record.date)),
+      status: sanitizeXlsxCell(record.status)
     })
   })
 

@@ -190,7 +190,7 @@ test('login applies a minimum response duration for invalid credentials', async 
   }
 })
 
-test('login locks the account after repeated failed password attempts', async () => {
+test('login enforces captcha before evaluating password after repeated failed attempts', async () => {
   process.env.QR_SIGNING_SECRET = 'test-qr-secret'
   process.env.JWT_SECRET = 'test-jwt-secret'
   process.env.LOGIN_CAPTCHA_SECRET = 'test-login-captcha-secret'
@@ -227,9 +227,9 @@ test('login locks the account after repeated failed password attempts', async ()
   await login(req, res)
 
   assert.equal(res.statusCode, 401)
-  assert.equal(updates.length, 1)
-  assert.equal(updates[0].data.failedLoginAttempts, 5)
-  assert.ok(updates[0].data.lockedUntil instanceof Date)
+  assert.equal(res.body.requiresCaptcha, true)
+  assert.equal(res.body.message, 'Please complete the security check to continue.')
+  assert.equal(updates.length, 0)
 })
 
 test('login returns a captcha challenge after repeated failed attempts below lockout', async () => {
@@ -351,6 +351,52 @@ test('login requires a captcha challenge once the failure threshold is reached',
   assert.deepEqual(res.body.message, 'Please complete the security check to continue.')
   assert.equal(res.body.requiresCaptcha, true)
   assert.equal(studentUpdates.length, 0)
+})
+
+test('login returns captcha challenge at threshold even when password is incorrect', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+  process.env.JWT_SECRET = 'test-jwt-secret'
+  process.env.LOGIN_CAPTCHA_SECRET = 'test-login-captcha-secret'
+  const updates = []
+
+  const { login } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          email: 'student@example.com',
+          password: 'hashed-password',
+          role: 'STUDENT',
+          isActive: true,
+          failedLoginAttempts: 3,
+          lockedUntil: null
+        }),
+        update: async (payload) => {
+          updates.push(payload)
+          return payload
+        }
+      }
+    },
+    'bcryptjs': {
+      compare: async () => false,
+      hash: async () => 'hashed'
+    }
+  }))
+
+  const req = {
+    body: {
+      email: 'student@example.com',
+      password: 'wrong-password'
+    }
+  }
+  const res = createResponse()
+
+  await login(req, res)
+
+  assert.equal(res.statusCode, 401)
+  assert.equal(res.body.requiresCaptcha, true)
+  assert.equal(res.body.message, 'Please complete the security check to continue.')
+  assert.equal(updates.length, 0)
 })
 
 test('login blocks requests while the account is locked', async () => {
@@ -2445,6 +2491,84 @@ test('exportAssignmentGrades neutralizes formula-like cell values in XLSX output
   assert.equal(addedRows[0].obtainedMarks, 95)
 })
 
+test('exportAttendanceBySubject neutralizes formula-like values in XLSX output', async () => {
+  const addedRows = []
+  let writeCalled = false
+
+  const { exportAttendanceBySubject } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'export.controller.js'), {
+    './shared': {
+      getAttendanceExportPayload: async () => ({
+        attendance: [
+          {
+            student: {
+              rollNumber: '=ROLL-01',
+              user: {
+                name: '=HYPERLINK("http://evil","click")',
+                email: '+attacker@example.com'
+              }
+            },
+            date: new Date('2026-04-14T09:00:00.000Z'),
+            status: '@PRESENT'
+          }
+        ],
+        summary: {
+          total: 1,
+          present: 1,
+          absent: 0,
+          late: 0
+        },
+        subject: {
+          name: '-Database Systems',
+          code: 'DBS101'
+        },
+        dateLabel: '=2026-04-14'
+      }),
+      getCoordinatorDepartmentReportPayload: async () => ({ error: { status: 500, message: 'unused' } }),
+      formatDisplayDate: () => '-04/14/2026'
+    },
+    exceljs: {
+      Workbook: class MockWorkbook {
+        addWorksheet() {
+          return {
+            columns: [],
+            addRows: (rows) => {
+              rows.forEach((row) => addedRows.push(row))
+            },
+            addRow: (row) => {
+              addedRows.push(row)
+            }
+          }
+        }
+
+        xlsx = {
+          write: async () => {
+            writeCalled = true
+          }
+        }
+      }
+    }
+  })
+
+  const req = {
+    params: { subjectId: 'subject-1' },
+    query: { format: 'xlsx' },
+    user: { role: 'COORDINATOR' }
+  }
+  const res = createResponse()
+  res.end = () => {}
+
+  await exportAttendanceBySubject(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(writeCalled, true)
+  assert.equal(addedRows.some((row) => row.value === '\'-Database Systems (DBS101)'), true)
+  assert.equal(addedRows.some((row) => row.value === '\'=2026-04-14'), true)
+  assert.equal(addedRows.some((row) => row.name?.startsWith('\'')), true)
+  assert.equal(addedRows.some((row) => row.rollNumber?.startsWith('\'')), true)
+  assert.equal(addedRows.some((row) => row.email?.startsWith('\'')), true)
+  assert.equal(addedRows.some((row) => row.status?.startsWith('\'')), true)
+})
+
 test('getAllMaterials returns paginated metadata', async () => {
   const findManyCalls = []
   const { getAllMaterials } = loadWithMocks(resolveFromTest('src', 'controllers', 'studyMaterial.controller.js'), {
@@ -3625,6 +3749,57 @@ test('getMarksBySubject blocks coordinators from subjects outside their departme
   assert.equal(res.statusCode, 403)
   assert.deepEqual(res.body, {
     message: 'You can only manage marks for subjects in your department'
+  })
+  assert.equal(findManyCalls.length, 0)
+})
+
+test('getMarksBySubject blocks instructors from subjects assigned to a different instructor', async () => {
+  const findManyCalls = []
+  const { getMarksBySubject } = loadWithMocks(resolveFromTest('src', 'controllers', 'marks.controller.js'), {
+    '../utils/prisma': {
+      subject: {
+        findUnique: async () => ({
+          id: 'subject-1',
+          name: 'Accounting',
+          code: 'ACC101',
+          department: 'BCA',
+          instructorId: 'instructor-2',
+          instructor: null
+        })
+      },
+      mark: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        },
+        count: async () => 0
+      }
+    },
+    '../utils/pagination': {
+      getPagination: () => ({ page: 1, limit: 20, skip: 0 })
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/notifications': {
+      createNotifications: async () => {}
+    },
+    pdfkit: class MockPdfDocument {}
+  })
+
+  const req = {
+    params: { subjectId: 'subject-1' },
+    query: {},
+    user: { id: 'instructor-user-1', role: 'INSTRUCTOR' },
+    instructor: { id: 'instructor-1' }
+  }
+  const res = createResponse()
+
+  await getMarksBySubject(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'You can only manage marks for your assigned subjects'
   })
   assert.equal(findManyCalls.length, 0)
 })

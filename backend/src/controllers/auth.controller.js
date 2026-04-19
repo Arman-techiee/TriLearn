@@ -455,7 +455,8 @@ const login = async (req, res) => {
     const requiresLoginCaptcha = shouldRequireLoginCaptcha(user)
     const hasValidLoginCaptcha = !requiresLoginCaptcha || validateLoginCaptcha({ email, captchaToken, captchaAnswer })
 
-    if (requiresLoginCaptcha && !hasValidLoginCaptcha && isPasswordValid) {
+    // Always enforce captcha once threshold is reached to avoid password-oracle responses.
+    if (requiresLoginCaptcha && !hasValidLoginCaptcha) {
       await waitForMinimumDuration(startedAt, LOGIN_MIN_RESPONSE_MS)
       return res.status(401).json(buildLoginCaptchaResponse(email))
     }
@@ -628,7 +629,10 @@ const updateProfile = async (req, res) => {
       permanentAddress: sanitizeOptionalPlainText(permanentAddress),
       temporaryAddress: sanitizeOptionalPlainText(temporaryAddress)
     }
-    const canonicalAddress = sanitizedProfile.temporaryAddress ?? sanitizedProfile.address
+    // For students we prefer their current location as canonical user.address.
+    const canonicalAddress = isStudentRole
+      ? (sanitizedProfile.temporaryAddress ?? sanitizedProfile.address)
+      : (sanitizedProfile.address ?? sanitizedProfile.temporaryAddress)
 
     await prisma.user.update({
       where: { id: req.user.id },
@@ -821,35 +825,38 @@ const completeProfile = async (req, res) => {
       return res.status(404).json({ message: 'Student profile not found' })
     }
 
-    const [updatedUser] = await prisma.$transaction([
-        prisma.user.update({
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const userRecord = await tx.user.update({
           where: { id: req.user.id },
           data: {
             phone,
             address: sanitizedProfile.temporaryAddress,
             profileCompleted: true
           }
-        }),
-        prisma.student.update({
-          where: { userId: req.user.id },
-          data: {
-            guardianName: sanitizedProfile.fatherName,
-            guardianPhone: sanitizedProfile.fatherPhone,
-            fatherName: sanitizedProfile.fatherName,
-            motherName: sanitizedProfile.motherName,
-            fatherPhone: sanitizedProfile.fatherPhone,
-            motherPhone: sanitizedProfile.motherPhone,
-            bloodGroup: sanitizedProfile.bloodGroup,
-            localGuardianName: sanitizedProfile.localGuardianName,
-            localGuardianAddress: sanitizedProfile.localGuardianAddress,
-            localGuardianPhone: sanitizedProfile.localGuardianPhone,
-            permanentAddress: sanitizedProfile.permanentAddress,
-            temporaryAddress: sanitizedProfile.temporaryAddress,
-            section: sanitizedProfile.section,
-            dateOfBirth
-          }
       })
-    ])
+
+      await tx.student.update({
+        where: { userId: req.user.id },
+        data: {
+          guardianName: sanitizedProfile.fatherName,
+          guardianPhone: sanitizedProfile.fatherPhone,
+          fatherName: sanitizedProfile.fatherName,
+          motherName: sanitizedProfile.motherName,
+          fatherPhone: sanitizedProfile.fatherPhone,
+          motherPhone: sanitizedProfile.motherPhone,
+          bloodGroup: sanitizedProfile.bloodGroup,
+          localGuardianName: sanitizedProfile.localGuardianName,
+          localGuardianAddress: sanitizedProfile.localGuardianAddress,
+          localGuardianPhone: sanitizedProfile.localGuardianPhone,
+          permanentAddress: sanitizedProfile.permanentAddress,
+          temporaryAddress: sanitizedProfile.temporaryAddress,
+          section: sanitizedProfile.section,
+          dateOfBirth
+        }
+      })
+
+      return userRecord
+    })
 
     res.json({
       message: 'Profile submitted successfully!',

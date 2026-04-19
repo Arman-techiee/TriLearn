@@ -663,6 +663,79 @@ test('GET /api/v1/admin/stats denies instructors through the real admin route', 
   assert.equal(statsCalled, false)
 })
 
+test('POST /api/v1/admin/users/coordinator denies coordinators through the real admin route', async () => {
+  let createCoordinatorCalled = false
+
+  const adminRoutes = loadWithMocks(resolveFromTest('src', 'routes', 'admin.routes.js'), {
+    '../controllers/admin.controller': {
+      getAdminStats: async (_req, res) => res.json({ stats: {} }),
+      getAllUsers: async (_req, res) => res.json({ users: [] }),
+      getUserById: async (_req, res) => res.json({ user: null }),
+      getStudentApplications: async (_req, res) => res.json({ applications: [] }),
+      updateStudentApplicationStatus: async (_req, res) => res.json({}),
+      createStudentFromApplication: async (_req, res) => res.json({}),
+      deleteStudentApplication: async (_req, res) => res.json({}),
+      createCoordinator: async (_req, res) => {
+        createCoordinatorCalled = true
+        res.json({})
+      },
+      createGatekeeper: async (_req, res) => res.json({}),
+      createInstructor: async (_req, res) => res.json({}),
+      createStudent: async (_req, res) => res.json({}),
+      importStudents: async (_req, res) => res.json({}),
+      updateUser: async (_req, res) => res.json({}),
+      bulkAssignStudentSection: async (_req, res) => res.json({}),
+      promoteStudentSemester: async (_req, res) => res.json({}),
+      toggleUserStatus: async (_req, res) => res.json({}),
+      deleteUser: async (_req, res) => res.json({})
+    },
+    '../middleware/auth.middleware': {
+      protect: (req, _res, next) => {
+        req.user = { id: 'coordinator-user-1', role: 'COORDINATOR' }
+        next()
+      },
+      allowRoles: (...roles) => (req, res, next) => (
+        roles.includes(req.user.role)
+          ? next()
+          : res.status(403).json({ message: `Access denied. Only ${roles.join(', ')} can do this.` })
+      )
+    },
+    '../middleware/profile.middleware': {
+      attachActorProfiles: (_req, _res, next) => next()
+    },
+    '../middleware/validate.middleware': {
+      validate: () => (_req, _res, next) => next()
+    },
+    '../middleware/rateLimit.middleware': {
+      staffUploadLimiter: (_req, _res, next) => next()
+    },
+    '../middleware/upload.middleware': {
+      uploadSpreadsheet: {
+        single: () => (_req, _res, next) => next()
+      },
+      validateUploadedSpreadsheet: (_req, _res, next) => next()
+    }
+  })
+
+  const testApp = express()
+  testApp.use(express.json())
+  testApp.use('/api/v1/admin', adminRoutes)
+
+  const response = await request(testApp)
+    .post('/api/v1/admin/users/coordinator')
+    .send({
+      name: 'New Coordinator',
+      email: 'new-coordinator@example.com',
+      password: 'Password123A'
+    })
+
+  assert.equal(response.status, 403)
+  assert.equal(createCoordinatorCalled, false)
+  assert.deepEqual(response.body, {
+    message: 'Access denied. Only ADMIN can do this.'
+  })
+})
+
 test('GET /api/v1/marks/my returns student marks through the real route', async () => {
   let marksCalled = false
 

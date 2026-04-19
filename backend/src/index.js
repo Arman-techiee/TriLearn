@@ -12,6 +12,7 @@ const { requestId } = require('./middleware/requestId.middleware')
 const { uploadPublicPaths } = require('./utils/fileStorage')
 const { csrfProtection, getTrustedOrigins, isTrustedOrigin } = require('./middleware/csrf.middleware')
 const { serveUploadedFile } = require('./controllers/upload.controller')
+const { normalizeIpAddress, isPrivateIpv4, isPrivateIpv6 } = require('./utils/network')
 const prisma = require('./utils/prisma')
 const { scheduleMaintenance } = require('./utils/maintenance')
 const { initRealtime, closeRealtime } = require('./utils/realtime')
@@ -38,29 +39,9 @@ const getErrorMessage = (error, fallbackMessage = 'Something went wrong') => {
   return shouldExposeInternalErrors() ? (errorMessage || fallbackMessage) : fallbackMessage
 }
 
-const normalizeIpAddress = (value) => String(value || '').trim().toLowerCase().replace(/^::ffff:/, '')
-const isPrivateIpv4 = (value) => {
-  const match = /^(\d{1,3})(?:\.(\d{1,3})){3}$/.exec(value)
-  if (!match) {
-    return false
-  }
-
-  const octets = value.split('.').map((segment) => Number.parseInt(segment, 10))
-  if (octets.some((segment) => segment < 0 || segment > 255)) {
-    return false
-  }
-
-  const [first, second] = octets
-  return first === 10 ||
-    first === 127 ||
-    first === 169 && second === 254 ||
-    first === 172 && second >= 16 && second <= 31 ||
-    first === 192 && second === 168
-}
-
 const isInternalRequest = (req) => {
   const normalizedIp = normalizeIpAddress(req.ip || req.socket?.remoteAddress || '')
-  return normalizedIp === '::1' || normalizedIp === '::' || normalizedIp === 'localhost' || isPrivateIpv4(normalizedIp)
+  return normalizedIp === 'localhost' || isPrivateIpv4(normalizedIp) || isPrivateIpv6(normalizedIp)
 }
 
 const requireInternalHealthcheck = (req, res, next) => {

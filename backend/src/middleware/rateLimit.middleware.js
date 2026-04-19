@@ -19,7 +19,7 @@ const getRedisStore = () => {
   if (!isRedisConfigured()) {
     if (!memoryStoreWarningShown) {
       memoryStoreWarningShown = true
-      console.warn('Warning: REDIS_URL not set - rate limiting is using the in-memory store and is not shared across instances')
+      console.warn('Warning: REDIS_URL not set - rate limiting uses per-process in-memory counters that are not shared across cluster workers or instances')
     }
 
     return undefined
