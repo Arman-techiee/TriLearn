@@ -540,6 +540,7 @@ test('resetPassword revokes existing refresh tokens inside the password reset tr
     assert.equal(transactionCalls[1].type, 'refreshToken.updateMany')
     assert.equal(transactionCalls[1].payload.where.userId, 'user-1')
     assert.ok(transactionCalls[1].payload.data.revokedAt instanceof Date)
+    assert.ok(transactionCalls[0].payload.data.passwordChangedAt instanceof Date)
   } finally {
     if (previousFlag === undefined) {
       delete process.env.ENABLE_PASSWORD_RESET
@@ -547,6 +548,109 @@ test('resetPassword revokes existing refresh tokens inside the password reset tr
       process.env.ENABLE_PASSWORD_RESET = previousFlag
     }
   }
+})
+
+test('changePassword rejects using the same current password', async () => {
+  const userUpdates = []
+
+  const { changePassword } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          password: 'hashed-password',
+          role: 'STUDENT',
+          email: 'student@example.com',
+          name: 'Student User',
+          mustChangePassword: true
+        }),
+        update: async (payload) => {
+          userUpdates.push(payload)
+          return payload
+        }
+      }
+    },
+    'bcryptjs': {
+      compare: async (submittedValue) => submittedValue === 'Password123',
+      hash: async () => 'hashed'
+    }
+  }))
+
+  const req = {
+    user: {
+      id: 'user-1',
+      role: 'STUDENT'
+    },
+    body: {
+      currentPassword: 'Password123',
+      newPassword: 'Password123'
+    }
+  }
+  const res = createResponse()
+
+  await changePassword(req, res)
+
+  assert.equal(res.statusCode, 400)
+  assert.deepEqual(res.body, {
+    message: 'New password must be different from your current password'
+  })
+  assert.equal(userUpdates.length, 0)
+})
+
+test('changePassword updates passwordChangedAt when password is changed', async () => {
+  const userUpdates = []
+
+  const { changePassword } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/security': {
+      hashPassword: async () => 'hashed-new-password',
+      getRequiredSecret: () => 'test-secret'
+    },
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          password: 'hashed-password',
+          role: 'STUDENT',
+          email: 'student@example.com',
+          name: 'Student User',
+          mustChangePassword: true
+        }),
+        update: async (payload) => {
+          userUpdates.push(payload)
+          return {
+            id: 'user-1',
+            role: 'STUDENT',
+            email: 'student@example.com',
+            name: 'Student User',
+            mustChangePassword: false
+          }
+        }
+      }
+    },
+    'bcryptjs': {
+      compare: async (submittedValue) => submittedValue === 'CurrentPass123',
+      hash: async () => 'hashed'
+    }
+  }))
+
+  const req = {
+    user: {
+      id: 'user-1',
+      role: 'STUDENT'
+    },
+    body: {
+      currentPassword: 'CurrentPass123',
+      newPassword: 'NewPass123'
+    }
+  }
+  const res = createResponse()
+
+  await changePassword(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(userUpdates.length, 1)
+  assert.equal(userUpdates[0].data.password, 'hashed-new-password')
+  assert.ok(userUpdates[0].data.passwordChangedAt instanceof Date)
 })
 
 test('register blocks self-registration when OPEN_REGISTRATION is disabled', async () => {
@@ -1037,6 +1141,67 @@ test('updateProfile ignores section updates for non-student roles', async () => 
   assert.deepEqual(res.body.message, 'Profile updated successfully!')
   assert.equal(userUpdates.length, 1)
   assert.equal(studentUpdates.length, 0)
+})
+
+test('updateProfile maps temporaryAddress as canonical address when both address and temporaryAddress are provided', async () => {
+  const userUpdates = []
+  const studentUpdates = []
+
+  const { updateProfile } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      user: {
+        update: async (payload) => {
+          userUpdates.push(payload)
+          return { id: 'user-1' }
+        },
+        findUnique: async () => ({
+          id: 'user-1',
+          name: 'Student User',
+          email: 'student@example.com',
+          role: 'STUDENT',
+          phone: '9800000000',
+          address: 'Old Address',
+          avatar: null,
+          createdAt: new Date('2026-04-14T00:00:00.000Z'),
+          mustChangePassword: false,
+          profileCompleted: true,
+          student: {
+            id: 'student-1',
+            rollNumber: '23-001',
+            semester: 3,
+            section: 'A',
+            department: 'BCA'
+          },
+          instructor: null,
+          coordinator: null
+        })
+      },
+      student: {
+        update: async (payload) => {
+          studentUpdates.push(payload)
+          return { id: 'student-1' }
+        }
+      }
+    }
+  }))
+
+  const req = {
+    user: { id: 'user-1', role: 'STUDENT' },
+    body: {
+      phone: '9800000000',
+      address: 'Permanent Address',
+      temporaryAddress: 'Temporary Address'
+    }
+  }
+  const res = createResponse()
+
+  await updateProfile(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(userUpdates.length, 1)
+  assert.equal(studentUpdates.length, 1)
+  assert.equal(userUpdates[0].data.address, 'Temporary Address')
+  assert.equal(studentUpdates[0].data.temporaryAddress, 'Temporary Address')
 })
 
 test('refresh revokes all active sessions when a rotated refresh token is replayed', async () => {

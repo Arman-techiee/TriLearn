@@ -26,6 +26,7 @@ model User {
   profileCompleted Boolean @default(false)
   passwordResetTokenHash String?
   passwordResetExpiresAt DateTime?
+  passwordChangedAt DateTime?
   suspensionReason String?
   suspendedAt DateTime?
   deletedAt DateTime?

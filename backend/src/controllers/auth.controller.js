@@ -74,15 +74,8 @@ const respondGenericEligibility = async (res, startedAt) => {
 
 const sanitizeOptionalPlainText = (value) => (value == null ? value : sanitizePlainText(value))
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase()
-const refreshUserSelect = {
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-  avatar: true,
-  isActive: true,
-  mustChangePassword: true,
-  profileCompleted: true,
+
+const userRoleSelect = {
   student: {
     select: {
       id: true,
@@ -105,6 +98,46 @@ const refreshUserSelect = {
     }
   }
 }
+
+const getUserSelect = ({ includeProfileDetails = false } = {}) => ({
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  avatar: true,
+  isActive: true,
+  mustChangePassword: true,
+  profileCompleted: true,
+  ...(includeProfileDetails
+    ? {
+      phone: true,
+      address: true,
+      createdAt: true,
+      student: {
+        select: {
+          ...userRoleSelect.student.select,
+          guardianName: true,
+          guardianPhone: true,
+          fatherName: true,
+          motherName: true,
+          fatherPhone: true,
+          motherPhone: true,
+          bloodGroup: true,
+          localGuardianName: true,
+          localGuardianAddress: true,
+          localGuardianPhone: true,
+          permanentAddress: true,
+          temporaryAddress: true,
+          dateOfBirth: true
+        }
+      }
+    }
+    : userRoleSelect),
+  instructor: userRoleSelect.instructor,
+  coordinator: userRoleSelect.coordinator
+})
+
+const refreshUserSelect = getUserSelect()
 
 let loginCaptchaSecretWarningShown = false
 const getLoginCaptchaSecret = () => {
@@ -286,52 +319,7 @@ const getLoginLockoutExpiry = () => {
   return expiresAt
 }
 
-const getProfileSelect = () => ({
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-  phone: true,
-  address: true,
-  avatar: true,
-  createdAt: true,
-  mustChangePassword: true,
-  profileCompleted: true,
-  student: {
-    select: {
-      id: true,
-      rollNumber: true,
-      semester: true,
-      section: true,
-      department: true,
-      guardianName: true,
-      guardianPhone: true,
-      fatherName: true,
-      motherName: true,
-      fatherPhone: true,
-      motherPhone: true,
-      bloodGroup: true,
-      localGuardianName: true,
-      localGuardianAddress: true,
-      localGuardianPhone: true,
-      permanentAddress: true,
-      temporaryAddress: true,
-      dateOfBirth: true
-    }
-  },
-  instructor: {
-    select: {
-      id: true,
-      department: true
-    }
-  },
-  coordinator: {
-    select: {
-      id: true,
-      department: true
-    }
-  }
-})
+const getProfileSelect = () => getUserSelect({ includeProfileDetails: true })
 
 // ================================
 // REGISTER
@@ -602,6 +590,7 @@ const getStudentIdQr = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
+    const parsedBody = schemas.auth.updateProfile.body.parse(req.body)
     const {
       phone,
       address,
@@ -617,7 +606,7 @@ const updateProfile = async (req, res) => {
       temporaryAddress,
       dateOfBirth,
       section
-    } = req.body
+    } = parsedBody
     const isStudentRole = req.user.role === 'STUDENT'
 
     if (isStudentRole && section !== undefined) {
@@ -639,11 +628,13 @@ const updateProfile = async (req, res) => {
       permanentAddress: sanitizeOptionalPlainText(permanentAddress),
       temporaryAddress: sanitizeOptionalPlainText(temporaryAddress)
     }
+    const canonicalAddress = sanitizedProfile.temporaryAddress ?? sanitizedProfile.address
+
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
         phone: phone ?? undefined,
-        address: sanitizedProfile.address ?? sanitizedProfile.temporaryAddress ?? undefined
+        address: canonicalAddress ?? undefined
       }
     })
 
@@ -662,7 +653,7 @@ const updateProfile = async (req, res) => {
           localGuardianAddress: sanitizedProfile.localGuardianAddress ?? undefined,
           localGuardianPhone: sanitizedProfile.localGuardianPhone ?? undefined,
           permanentAddress: sanitizedProfile.permanentAddress ?? undefined,
-          temporaryAddress: sanitizedProfile.temporaryAddress ?? sanitizedProfile.address ?? undefined,
+          temporaryAddress: canonicalAddress ?? undefined,
           dateOfBirth: dateOfBirth ?? undefined
         }
       })
@@ -678,6 +669,13 @@ const updateProfile = async (req, res) => {
       user
     })
   } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: error.flatten()
+      })
+    }
+
     res.internalError(error)
   }
 }
@@ -726,7 +724,8 @@ const uploadAvatar = async (req, res) => {
 // ================================
 const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body
+    const parsedBody = schemas.auth.changePassword.body.parse(req.body)
+    const { currentPassword, newPassword } = parsedBody
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id }
@@ -741,12 +740,20 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ message: 'Current password is incorrect' })
     }
 
+    const isSamePassword = await bcrypt.compare(newPassword, user.password)
+    if (isSamePassword) {
+      return res.status(400).json({
+        message: 'New password must be different from your current password'
+      })
+    }
+
     const hashedPassword = await hashPassword(newPassword)
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        mustChangePassword: false
+        mustChangePassword: false,
+        passwordChangedAt: new Date()
       }
     })
 
@@ -755,6 +762,13 @@ const changePassword = async (req, res) => {
       user: buildAuthUser(updatedUser)
     })
   } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: error.flatten()
+      })
+    }
+
     res.internalError(error)
   }
 }
@@ -947,6 +961,7 @@ const resetPassword = async (req, res) => {
         data: {
           password: hashedPassword,
           mustChangePassword: false,
+          passwordChangedAt: new Date(),
           passwordResetTokenHash: null,
           passwordResetExpiresAt: null,
           failedLoginAttempts: 0,
