@@ -96,7 +96,7 @@ test('validateEnv requires JWT_ACCESS_SECRET even when JWT_SECRET is set', async
   }
 })
 
-test('validateEnv rejects disabling rate limits in production', async () => {
+test('validateEnv rejects disabling rate limits in production', () => {
   const originalEnv = { ...process.env }
   Object.assign(process.env, baseEnv, {
     NODE_ENV: 'production',
@@ -110,13 +110,10 @@ test('validateEnv rejects disabling rate limits in production', async () => {
   })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
-      await withPatchedExit(async (exitCalls) => {
-        assert.throws(() => validateEnv(), /process\.exit:1/)
-        assert.deepEqual(exitCalls, [1])
-        assert.match(errorCalls[0], /DISABLE_RATE_LIMITS=true is not allowed in production/)
-      })
-    })
+    assert.throws(
+      () => validateEnv(),
+      /FATAL: DISABLE_RATE_LIMITS=true is not permitted in production\. Remove this variable or set it to false\./
+    )
   } finally {
     restoreEnv(originalEnv)
   }

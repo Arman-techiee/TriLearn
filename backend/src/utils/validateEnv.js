@@ -117,8 +117,7 @@ const validateEnv = () => {
   }
 
   if (process.env.NODE_ENV === 'production' && process.env.DISABLE_RATE_LIMITS === 'true') {
-    console.error('Invalid configuration: DISABLE_RATE_LIMITS=true is not allowed in production.')
-    process.exit(1)
+    throw new Error('FATAL: DISABLE_RATE_LIMITS=true is not permitted in production. Remove this variable or set it to false.')
   }
 
   if (process.env.NODE_ENV === 'production' && process.env.DEBUG_ERRORS === 'true') {

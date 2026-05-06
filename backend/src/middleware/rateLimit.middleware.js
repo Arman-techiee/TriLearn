@@ -14,7 +14,14 @@ const parsePositiveInteger = (value, fallback) => {
 const LOGIN_LIMIT_WINDOW_MS = parsePositiveInteger(process.env.LOGIN_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000)
 const LOGIN_LIMIT_MAX = parsePositiveInteger(process.env.LOGIN_RATE_LIMIT_MAX, 10)
 
-const areRateLimitsDisabled = () => process.env.DISABLE_RATE_LIMITS === 'true'
+const areRateLimitsDisabled = () => {
+  if (process.env.DISABLE_RATE_LIMITS !== 'true') return false
+  if (process.env.NODE_ENV === 'production') {
+    // Should have been caught by validateEnv, but fail-safe here too
+    throw new Error('Rate limits cannot be disabled in production')
+  }
+  return true
+}
 
 const getRedisStore = () => {
   if (!isRedisConfigured()) {
@@ -49,7 +56,7 @@ const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator }
   if (areRateLimitsDisabled()) {
     if (!rateLimitDisabledWarningShown) {
       rateLimitDisabledWarningShown = true
-      logger.warn('Warning: rate limiting is disabled because DISABLE_RATE_LIMITS=true')
+      logger.warn('Rate limiting is DISABLED (DISABLE_RATE_LIMITS=true). This must not be used in production.')
     }
 
     return (_req, _res, next) => next()
