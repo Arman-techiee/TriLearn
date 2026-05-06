@@ -225,6 +225,29 @@ test('validateEnv rejects ALLOW_SOCKET_NO_ORIGIN=true in production', async () =
   }
 })
 
+test('validateEnv rejects TRUST_PROXY=true in production', () => {
+  const originalEnv = { ...process.env }
+  Object.assign(process.env, baseEnv, {
+    NODE_ENV: 'production',
+    REDIS_URL: 'redis://localhost:6379',
+    MAIL_FROM: 'TriLearn <no-reply@example.com>',
+    RESEND_SMTP_HOST: 'smtp.resend.com',
+    RESEND_SMTP_PORT: '465',
+    RESEND_SMTP_USER: 'resend',
+    RESEND_SMTP_PASS: 'secret',
+    TRUST_PROXY: 'true'
+  })
+
+  try {
+    assert.throws(
+      () => validateEnv(),
+      /FATAL: TRUST_PROXY=true allows X-Forwarded-For spoofing/
+    )
+  } finally {
+    restoreEnv(originalEnv)
+  }
+})
+
 test('validateEnv rejects known secret placeholders in production by throwing', () => {
   const originalEnv = { ...process.env }
   Object.assign(process.env, baseEnv, {

@@ -50,7 +50,15 @@ const shouldExposeInternalErrors = () => String(process.env.DEBUG_ERRORS || '').
 const INTERNAL_HEALTHCHECK_HEADER = 'x-health-check-key'
 const getTrustProxySetting = () => {
   const configured = String(process.env.TRUST_PROXY || '').trim()
-  return configured || 'loopback'
+  if (!configured) {
+    return 'loopback'
+  }
+
+  if (/^\d+$/.test(configured)) {
+    return Number(configured)
+  }
+
+  return configured
 }
 
 const getErrorMessage = (error, fallbackMessage = 'Something went wrong') => {

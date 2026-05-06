@@ -1,3 +1,5 @@
+const logger = require('./logger')
+
 const required = [
   'DATABASE_URL',
   'JWT_ACCESS_SECRET',
@@ -92,6 +94,14 @@ const validateEnv = () => {
     const missingProductionWarnings = requiredProductionWarnings.filter((key) => !String(process.env[key] || '').trim())
     if (missingProductionWarnings.length > 0) {
       console.warn(`Warning: Missing production env vars: ${missingProductionWarnings.join(', ')}. Mobile client CSRF exemption will remain disabled.`)
+    }
+
+    const tp = String(process.env.TRUST_PROXY || '').trim()
+    if (!tp) {
+      logger.warn('TRUST_PROXY is not set. If running behind a cloud load balancer, req.ip will be the proxy IP, not the client IP, breaking rate limiting. Set TRUST_PROXY=1 for single-proxy deployments.')
+    }
+    if (tp.toLowerCase() === 'true') {
+      throw new Error('FATAL: TRUST_PROXY=true allows X-Forwarded-For spoofing. Use a numeric hop count (e.g. 1) or a specific IP/CIDR instead.')
     }
   }
 

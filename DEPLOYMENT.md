@@ -8,6 +8,7 @@
 - Run `npm run prisma:migrate:deploy` before starting the app
 - Expose `GET /health` for container and platform health checks, and set `HEALTHCHECK_KEY` for public load balancers
 - Configure `FRONTEND_URL` with the exact deployed frontend origin
+- Configure `TRUST_PROXY` for the deployment proxy chain
 - Set upload storage env vars explicitly if you keep local-disk uploads
 - Set `FORCE_HTTPS=true` after confirming the reverse proxy forwards HTTPS metadata
 
@@ -87,6 +88,39 @@ FORCE_HTTPS=true
 If `NODE_ENV=production` and `FORCE_HTTPS` is not set to `true`, the backend
 logs a startup warning so the deployment team explicitly acknowledges HTTPS and
 proxy forwarding have been configured.
+
+## Reverse proxy / trust proxy
+
+Express uses `trust proxy` to decide whether headers such as
+`X-Forwarded-For` and `X-Forwarded-Proto` should be used for `req.ip`,
+`req.ips`, and `req.secure`. This matters for HTTPS enforcement, private
+health-check detection, audit metadata, and rate limiting. If it is missing
+behind a cloud load balancer, the backend may see the proxy IP instead of the
+client IP, which can make rate limits apply to the wrong address.
+
+Set `TRUST_PROXY` to the smallest trust boundary that matches the deployment:
+
+```env
+# Railway, Render, Fly.io, Heroku:
+TRUST_PROXY=1
+
+# Self-hosted nginx/Caddy:
+TRUST_PROXY=your-proxy-server-ip-or-cidr
+```
+
+Recommended values:
+
+| Provider | `TRUST_PROXY` value |
+| --- | --- |
+| Railway | `1` |
+| Render | `1` |
+| Fly.io | `1` |
+| Heroku | `1` |
+| Self-hosted nginx/Caddy | The proxy server IP or CIDR |
+
+Never set `TRUST_PROXY=true`. That tells Express to trust every client-supplied
+`X-Forwarded-For` value, so a direct client can spoof its IP address and bypass
+IP-based rate limiting or pollute audit data.
 
 ## Frontend security headers
 
