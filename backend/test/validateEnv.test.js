@@ -36,10 +36,10 @@ const withPatchedConsoleError = async (fn) => {
 
 const baseEnv = {
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/trilearn',
-  JWT_ACCESS_SECRET: 'access-secret',
-  LOGIN_CAPTCHA_SECRET: 'captcha-secret',
-  JWT_REFRESH_SECRET: 'refresh-secret',
-  QR_SIGNING_SECRET: 'qr-secret',
+  JWT_ACCESS_SECRET: 'a'.repeat(32),
+  LOGIN_CAPTCHA_SECRET: 'c'.repeat(32),
+  JWT_REFRESH_SECRET: 'r'.repeat(32),
+  QR_SIGNING_SECRET: 'q'.repeat(32),
   FRONTEND_URL: 'http://localhost:5173',
   NODE_ENV: 'development'
 }
@@ -218,6 +218,48 @@ test('validateEnv rejects ALLOW_SOCKET_NO_ORIGIN=true in production', async () =
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
         assert.match(errorCalls[0], /ALLOW_SOCKET_NO_ORIGIN=true is not allowed in production/)
+      })
+    })
+  } finally {
+    restoreEnv(originalEnv)
+  }
+})
+
+test('validateEnv rejects known secret placeholders in production by throwing', () => {
+  const originalEnv = { ...process.env }
+  Object.assign(process.env, baseEnv, {
+    NODE_ENV: 'production',
+    REDIS_URL: 'redis://localhost:6379',
+    MAIL_FROM: 'TriLearn <no-reply@example.com>',
+    RESEND_SMTP_HOST: 'smtp.resend.com',
+    RESEND_SMTP_PORT: '465',
+    RESEND_SMTP_USER: 'resend',
+    RESEND_SMTP_PASS: 'secret',
+    JWT_ACCESS_SECRET: 'REPLACE_WITH_OUTPUT_OF__openssl_rand_hex_64'
+  })
+
+  try {
+    assert.throws(
+      () => validateEnv(),
+      /FATAL: JWT_ACCESS_SECRET contains a placeholder value\. Generate real secrets before deploying\./
+    )
+  } finally {
+    restoreEnv(originalEnv)
+  }
+})
+
+test('validateEnv rejects short secret values', async () => {
+  const originalEnv = { ...process.env }
+  Object.assign(process.env, baseEnv, {
+    QR_SIGNING_SECRET: 'short'
+  })
+
+  try {
+    await withPatchedConsoleError(async (errorCalls) => {
+      await withPatchedExit(async (exitCalls) => {
+        assert.throws(() => validateEnv(), /process\.exit:1/)
+        assert.deepEqual(exitCalls, [1])
+        assert.match(errorCalls[0], /QR_SIGNING_SECRET must be at least 32 characters long/)
       })
     })
   } finally {

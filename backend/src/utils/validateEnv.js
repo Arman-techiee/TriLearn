@@ -23,6 +23,30 @@ const s3EnvVars = [
 ]
 const validNodeEnvironments = new Set(['development', 'test', 'production'])
 const validBooleanFlagValues = new Set(['true', 'false'])
+const KNOWN_PLACEHOLDER_SUBSTRINGS = [
+  'change_this',
+  'CHANGE_ME',
+  'REPLACE_WITH',
+  'change_user',
+  'change_password',
+  'trilearn_password',
+  'trilearn_redis_password'
+]
+const secretMinimumLengths = {
+  JWT_ACCESS_SECRET: 32,
+  JWT_REFRESH_SECRET: 32,
+  QR_SIGNING_SECRET: 32,
+  LOGIN_CAPTCHA_SECRET: 32
+}
+const secretEnvVars = Object.keys(secretMinimumLengths)
+
+const containsKnownPlaceholder = (value) => {
+  const normalizedValue = String(value || '').toLowerCase()
+
+  return KNOWN_PLACEHOLDER_SUBSTRINGS.some((placeholder) => (
+    normalizedValue.includes(placeholder.toLowerCase())
+  ))
+}
 
 const validateEnv = () => {
   const missing = required.filter((key) => !process.env[key])
@@ -39,6 +63,19 @@ const validateEnv = () => {
   if (!validNodeEnvironments.has(process.env.NODE_ENV)) {
     console.error(`Invalid NODE_ENV value: ${process.env.NODE_ENV}. Expected one of: development, test, production`)
     process.exit(1)
+  }
+
+  for (const key of secretEnvVars) {
+    const value = String(process.env[key] || '')
+
+    if (process.env.NODE_ENV === 'production' && containsKnownPlaceholder(value)) {
+      throw new Error(`FATAL: ${key} contains a placeholder value. Generate real secrets before deploying.`)
+    }
+
+    if (value.length < secretMinimumLengths[key]) {
+      console.error(`Invalid configuration: ${key} must be at least ${secretMinimumLengths[key]} characters long.`)
+      process.exit(1)
+    }
   }
 
   if (process.env.NODE_ENV === 'production') {

@@ -4,6 +4,7 @@
 
 - Set `NODE_ENV=production`
 - Provide a production `DATABASE_URL`
+- Generate real backend secrets with [backend/scripts/gen-env.sh](backend/scripts/gen-env.sh), then replace any local connection strings with production values
 - Run `npm run prisma:migrate:deploy` before starting the app
 - Expose `GET /health` for container and platform health checks, and set `HEALTHCHECK_KEY` for public load balancers
 - Configure `FRONTEND_URL` with the exact deployed frontend origin
