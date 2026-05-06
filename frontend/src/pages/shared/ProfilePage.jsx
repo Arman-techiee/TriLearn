@@ -10,7 +10,7 @@ import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
-import useProtectedObjectUrl from '../../hooks/useProtectedObjectUrl'
+import useProtectedObjectUrl, { isSafeImageBlob } from '../../hooks/useProtectedObjectUrl'
 import useUnsavedChangesGuard from '../../hooks/useUnsavedChangesGuard'
 import api from '../../utils/api'
 import { getFriendlyErrorMessage } from '../../utils/errors'
@@ -98,7 +98,7 @@ const ProfilePage = () => {
 
   const protectedAvatarUrl = useProtectedObjectUrl(profile?.avatar || user?.avatar)
   const avatarPreviewUrl = useMemo(() => {
-    if (selectedAvatarFile) {
+    if (selectedAvatarFile && isSafeImageBlob(selectedAvatarFile)) {
       return URL.createObjectURL(selectedAvatarFile)
     }
 
@@ -182,7 +182,7 @@ const ProfilePage = () => {
       return
     }
 
-    if (!nextFile.type.startsWith('image/')) {
+    if (!isSafeImageBlob(nextFile)) {
       setError('Please choose a valid image file for your profile photo.')
       event.target.value = ''
       return

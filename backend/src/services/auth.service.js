@@ -76,16 +76,16 @@ const LOGIN_CAPTCHA_TTL_MS = 5 * 60 * 1000
 const GENERIC_ELIGIBILITY_MESSAGE = 'If this email is eligible, you will receive further instructions.'
 const GENERIC_DISABLED_ACCOUNT_MESSAGE = 'Your account has been disabled. Please contact the administration.'
 const GENERIC_FORGOT_PASSWORD_MESSAGE = 'If an account with that email exists, a reset link has been sent.'
-// Generated once at startup to keep the timing-safe dummy comparison working
-// without exposing a known hash in source control. hashSync is acceptable here
-// because this runs at module load, not during request handling.
+// Generated once at startup to keep the timing-safe dummy comparison working.
+// hashSync is acceptable here because this runs at module load, not during
+// request handling. The literal is only for test doubles that mock bcryptjs
+// without hashSync; it is still a cost-12 bcrypt hash.
+const DUMMY_PASSWORD_BCRYPT_ROUNDS = 12
 const DUMMY_PASSWORD_INPUT = crypto.randomBytes(32).toString('hex')
+const DUMMY_PASSWORD_TEST_DOUBLE_HASH = '$2b$12$EDWDkml0BGBHZEdSNK9vgOvUBfKrlwom1MuWP/Se30mxykJNmJ/sC'
 const DUMMY_PASSWORD_HASH = typeof bcrypt.hashSync === 'function'
-  ? bcrypt.hashSync(
-    DUMMY_PASSWORD_INPUT,
-    12 // fixed cost - do not use getBcryptSaltRounds() here to keep startup predictable
-  )
-  : crypto.createHash('sha256').update(DUMMY_PASSWORD_INPUT).digest('hex')
+  ? bcrypt.hashSync(DUMMY_PASSWORD_INPUT, DUMMY_PASSWORD_BCRYPT_ROUNDS)
+  : DUMMY_PASSWORD_TEST_DOUBLE_HASH
 
 const getRequestUserAgent = (context) => String(context.get('user-agent') || '').slice(0, 255) || null
 

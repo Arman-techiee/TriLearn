@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { fetchFileBlob, resolveFileUrl } from '../utils/api'
 
+const SAFE_IMAGE_BLOB_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif'
+])
+
+export const isSafeImageBlob = (blob) => SAFE_IMAGE_BLOB_TYPES.has(String(blob?.type || '').toLowerCase())
+
 const useProtectedObjectUrl = (fileUrl) => {
   const [objectUrl, setObjectUrl] = useState(null)
 
@@ -19,6 +28,11 @@ const useProtectedObjectUrl = (fileUrl) => {
       try {
         const { blob } = await fetchFileBlob(resolvedUrl, { signal: controller.signal })
         if (controller.signal.aborted) {
+          return
+        }
+
+        if (!isSafeImageBlob(blob)) {
+          setObjectUrl(null)
           return
         }
 

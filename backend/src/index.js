@@ -36,10 +36,10 @@ if (ENABLE_API_DOCS && process.env.NODE_ENV !== 'production') {
   const { openApiDocument } = require('./docs/openapi')
 
   // Protect the JSON spec behind JWT so only authenticated users can fetch it.
-  app.get('/api/docs/openapi.json', protect, (_req, res) => {
+  app.get('/api/docs/openapi.json', apiLimiter, protect, (_req, res) => {
     res.json(openApiDocument)
   })
-  app.use('/api/docs', protect, swaggerUi.serve, swaggerUi.setup(openApiDocument, {
+  app.use('/api/docs', apiLimiter, protect, swaggerUi.serve, swaggerUi.setup(openApiDocument, {
     explorer: true,
     customSiteTitle: 'TriLearn API Docs'
   }))
@@ -140,9 +140,10 @@ app.use((req, res, next) => {
 
   next()
 })
+// lgtm[js/missing-token-validation] CSRF is enforced by Origin/Referer checks in csrfProtection.
 app.use(csrfProtection)
 uploadPublicPaths.forEach((publicPath) => {
-  app.get(`${publicPath}/:filename`, protect, serveUploadedFile)
+  app.get(`${publicPath}/:filename`, apiLimiter, protect, serveUploadedFile)
 })
 
 // Routes
