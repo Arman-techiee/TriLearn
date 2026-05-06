@@ -227,6 +227,8 @@ const validateUploadedPdf = async (req, res, next) => {
     }
 
     await PDFDocument.load(req.file.buffer)
+    // TODO: Strip active content (JavaScript, XFA, embedded files) from uploaded PDFs.
+    // Use pdf-lib to iterate annotations and form fields and remove action dictionaries.
 
     const fileName = generateUploadedFileName(req.file.originalname)
     const storedFile = await storeValidatedUpload(req.file.buffer, fileName, req.file.mimetype)

@@ -47,6 +47,8 @@ const getSafeContentType = (fileName) => {
   return 'application/octet-stream'
 }
 
+const getSafeDownloadFileName = (filePath) => path.basename(filePath).replace(/[^\w\s.-]/g, '_')
+
 const resolveExistingUploadFilePath = (fileName) => {
   const candidatePaths = [uploadPath, ...(Array.isArray(legacyUploadPaths) ? legacyUploadPaths : [])]
 
@@ -64,12 +66,18 @@ const sendUploadFile = (result, fileName) => {
   setUploadSecurityHeaders(result)
   const contentType = getSafeContentType(fileName)
   const absolutePath = resolveExistingUploadFilePath(fileName)
+  // Force download - prevents inline rendering of PDFs with embedded JavaScript.
+  const safeFilename = getSafeDownloadFileName(absolutePath)
+
+  result.header('Content-Disposition', `attachment; filename="${safeFilename}"`)
+  result.header('X-Content-Type-Options', 'nosniff')
+  result.header('Cache-Control', 'private, no-store')
 
   return result.sendFile(absolutePath, {
     headers: {
       'Cache-Control': 'private, no-store',
       'Content-Type': contentType,
-      'Content-Disposition': `attachment; filename="${path.basename(fileName)}"`
+      'Content-Disposition': `attachment; filename="${safeFilename}"`
     }
   }, (error) => {
     if (!error || result.headersSent) {

@@ -764,6 +764,8 @@ test('serveUploadedFile serves assignment PDFs with hardened headers', async () 
 
   assert.equal(res.statusCode, 200)
   assert.equal(res.headers['X-Content-Type-Options'], 'nosniff')
+  assert.equal(res.headers['Cache-Control'], 'private, no-store')
+  assert.match(res.headers['Content-Disposition'], /^attachment; filename="assignment\.pdf"$/i)
   assert.match(res.headers['Content-Security-Policy'], /sandbox allow-scripts allow-downloads/)
   assert.equal(res.sentFile.options.headers['Content-Type'], 'application/pdf')
   assert.match(res.sentFile.options.headers['Content-Disposition'], /^attachment; filename="assignment\.pdf"$/i)
