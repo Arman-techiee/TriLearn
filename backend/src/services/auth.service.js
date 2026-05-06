@@ -76,7 +76,13 @@ const LOGIN_CAPTCHA_TTL_MS = 5 * 60 * 1000
 const GENERIC_ELIGIBILITY_MESSAGE = 'If this email is eligible, you will receive further instructions.'
 const GENERIC_DISABLED_ACCOUNT_MESSAGE = 'Your account has been disabled. Please contact the administration.'
 const GENERIC_FORGOT_PASSWORD_MESSAGE = 'If an account with that email exists, a reset link has been sent.'
-const DUMMY_PASSWORD_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
+// Generated once at startup to keep the timing-safe dummy comparison working
+// without exposing a known hash in source control. hashSync is acceptable here
+// because this runs at module load, not during request handling.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+  crypto.randomBytes(32).toString('hex'),
+  12 // fixed cost - do not use getBcryptSaltRounds() here to keep startup predictable
+)
 
 const getRequestUserAgent = (context) => String(context.get('user-agent') || '').slice(0, 255) || null
 
