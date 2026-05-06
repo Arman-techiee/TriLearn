@@ -30,17 +30,20 @@ let server = null
 let maintenance = null
 let isShuttingDown = false
 
-if (process.env.NODE_ENV !== 'production') {
+const ENABLE_API_DOCS = process.env.ENABLE_API_DOCS === 'true'
+if (ENABLE_API_DOCS && process.env.NODE_ENV !== 'production') {
   const swaggerUi = require('swagger-ui-express')
   const { openApiDocument } = require('./docs/openapi')
 
-  app.get('/api/docs/openapi.json', (_req, res) => {
+  // Protect the JSON spec behind JWT so only authenticated users can fetch it.
+  app.get('/api/docs/openapi.json', protect, (_req, res) => {
     res.json(openApiDocument)
   })
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, {
+  app.use('/api/docs', protect, swaggerUi.serve, swaggerUi.setup(openApiDocument, {
     explorer: true,
     customSiteTitle: 'TriLearn API Docs'
   }))
+  logger.info('API docs enabled at /api/docs (requires authentication)')
 }
 
 const shouldExposeInternalErrors = () => String(process.env.DEBUG_ERRORS || '').trim().toLowerCase() === 'true'

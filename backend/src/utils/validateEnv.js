@@ -117,6 +117,10 @@ const validateEnv = () => {
     process.exit(1)
   }
 
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_API_DOCS === 'true') {
+    console.warn('Warning: ENABLE_API_DOCS=true is ignored in production. API docs will not be mounted.')
+  }
+
   const enablePasswordResetFlag = process.env.ENABLE_PASSWORD_RESET
   if (
     enablePasswordResetFlag !== undefined &&
