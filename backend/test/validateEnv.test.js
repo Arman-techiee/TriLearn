@@ -133,13 +133,10 @@ test('validateEnv rejects enabling debug errors in production', async () => {
   })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
-      await withPatchedExit(async (exitCalls) => {
-        assert.throws(() => validateEnv(), /process\.exit:1/)
-        assert.deepEqual(exitCalls, [1])
-        assert.match(errorCalls[0], /DEBUG_ERRORS=true is not allowed in production/)
-      })
-    })
+    assert.throws(
+      () => validateEnv(),
+      /FATAL: DEBUG_ERRORS=true exposes internal error details to clients\. This must not be enabled in production\./
+    )
   } finally {
     restoreEnv(originalEnv)
   }

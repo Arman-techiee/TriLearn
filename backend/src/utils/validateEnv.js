@@ -120,9 +120,8 @@ const validateEnv = () => {
     throw new Error('FATAL: DISABLE_RATE_LIMITS=true is not permitted in production. Remove this variable or set it to false.')
   }
 
-  if (process.env.NODE_ENV === 'production' && process.env.DEBUG_ERRORS === 'true') {
-    console.error('Invalid configuration: DEBUG_ERRORS=true is not allowed in production.')
-    process.exit(1)
+  if (process.env.NODE_ENV === 'production' && String(process.env.DEBUG_ERRORS || '').trim().toLowerCase() === 'true') {
+    throw new Error('FATAL: DEBUG_ERRORS=true exposes internal error details to clients. This must not be enabled in production.')
   }
 
   if (process.env.NODE_ENV === 'production' && process.env.ENABLE_API_DOCS === 'true') {
