@@ -534,8 +534,8 @@ Use it when you want the core backend dependencies and API to start together on 
 | S3_ACCESS_KEY | Optional | Access key for S3-compatible upload storage. |
 | S3_SECRET_KEY | Optional | Secret key for S3-compatible upload storage. |
 | MAIL_FROM | Optional | Sender address for password reset and notification email. |
-| RESEND_SMTP_HOST | Optional | SMTP host for Resend or compatible SMTP delivery. |
-| RESEND_SMTP_PORT | Optional | SMTP port for Resend or compatible SMTP delivery. |
+| RESEND_SMTP_HOST | Optional | SMTP host for Resend or compatible SMTP delivery, normally smtp.resend.com. |
+| RESEND_SMTP_PORT | Optional | SMTP port for Resend or compatible SMTP delivery, normally 587. |
 | RESEND_SMTP_USER | Optional | SMTP user for Resend or compatible SMTP delivery. |
 | RESEND_SMTP_PASS | Optional | SMTP password for Resend or compatible SMTP delivery. |
 | BCRYPT_ROUNDS | Yes | Bcrypt cost factor for password hashing. |
@@ -545,6 +545,8 @@ Use it when you want the core backend dependencies and API to start together on 
 | FORCE_HTTPS | Production | Requires HTTPS-aware behavior when the API is deployed behind a reverse proxy. |
 | UPLOAD_DIR | Optional | Local upload directory used when S3 storage is not configured. |
 | FCM_SERVER_KEY | Optional | Firebase Cloud Messaging server key for mobile push notifications. |
+
+Use port 587 with STARTTLS (RESEND_SMTP_SECURE=false). Use port 465 only for legacy SSL.
 
 ### Frontend environment variables
 

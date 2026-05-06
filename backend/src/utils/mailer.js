@@ -3,8 +3,8 @@ const logger = require('./logger')
 
 const createTransport = () => nodemailer.createTransport({
   host: process.env.RESEND_SMTP_HOST,
-  port: Number(process.env.RESEND_SMTP_PORT) || 465,
-  secure: true,
+  port: Number(process.env.RESEND_SMTP_PORT) || 587,
+  secure: process.env.RESEND_SMTP_PORT === '465',
   auth: {
     user: process.env.RESEND_SMTP_USER,
     pass: process.env.RESEND_SMTP_PASS

@@ -69,6 +69,10 @@ const validateEnv = () => {
     console.warn('Warning: RESEND_SMTP_PASS not set - emails disabled')
   }
 
+  if (String(process.env.RESEND_SMTP_PORT || '').trim() === '465') {
+    console.warn('Warning: RESEND_SMTP_PORT=465 uses SSL instead of STARTTLS. Prefer port 587 with STARTTLS unless legacy SSL is required.')
+  }
+
   if (!validNodeEnvironments.has(process.env.NODE_ENV)) {
     console.error(`Invalid NODE_ENV value: ${process.env.NODE_ENV}. Expected one of: development, test, production`)
     process.exit(1)
