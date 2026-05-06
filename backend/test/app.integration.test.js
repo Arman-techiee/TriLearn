@@ -13,6 +13,7 @@ process.env.QR_SIGNING_SECRET = process.env.QR_SIGNING_SECRET || 'test-qr-secret
 process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 process.env.NODE_ENV = process.env.NODE_ENV || 'test'
 
+const trustedOrigin = process.env.FRONTEND_URL
 const { app } = require('../src/index')
 const { enforceHttps } = require('../src/middleware/enforceHttps.middleware')
 const { csrfProtection } = require('../src/middleware/csrf.middleware')
@@ -56,7 +57,9 @@ const loadWithMocks = (targetPath, mocks) => {
 }
 
 test('GET /ping returns an ok response', async () => {
-  const response = await request(app).get('/ping')
+  const response = await request(app)
+    .get('/ping')
+    .set('Origin', trustedOrigin)
 
   assert.equal(response.status, 200)
   assert.deepEqual(response.body, { status: 'ok' })
@@ -74,7 +77,9 @@ test('GET /ping returns an ok response', async () => {
 })
 
 test('GET /health returns only a minimal public status payload', async () => {
-  const response = await request(app).get('/health')
+  const response = await request(app)
+    .get('/health')
+    .set('Origin', trustedOrigin)
 
   assert.equal(response.status, 200)
   assert.deepEqual(response.body, { status: 'ok' })
@@ -83,6 +88,7 @@ test('GET /health returns only a minimal public status payload', async () => {
 test('GET /health returns 404 for external requests without a health check key', async () => {
   const response = await request(app)
     .get('/health')
+    .set('Origin', trustedOrigin)
     .set('X-Forwarded-For', '203.0.113.10')
 
   assert.equal(response.status, 404)
@@ -248,14 +254,18 @@ test('csrfProtection allows native mobile bearer requests without browser contex
 })
 
 test('GET / responds with the generic not found payload', async () => {
-  const response = await request(app).get('/')
+  const response = await request(app)
+    .get('/')
+    .set('Origin', trustedOrigin)
 
   assert.equal(response.status, 404)
   assert.deepEqual(response.body, { message: 'Route not found' })
 })
 
 test('unknown routes return a JSON 404 response', async () => {
-  const response = await request(app).get('/definitely-not-a-route')
+  const response = await request(app)
+    .get('/definitely-not-a-route')
+    .set('Origin', trustedOrigin)
 
   assert.equal(response.status, 404)
   assert.deepEqual(response.body, { message: 'Route not found' })
