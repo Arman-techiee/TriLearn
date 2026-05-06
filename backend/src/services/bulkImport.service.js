@@ -12,7 +12,7 @@ const {
   buildEmailVerificationUrl,
   createEmailVerificationToken
 } = require('../utils/emailVerification')
-const { hashPassword, getStudentTemporaryPassword } = require('../utils/security')
+const { hashPassword, generateTemporaryPassword } = require('../utils/security')
 const { sanitizePlainText, sanitizeXlsxCell } = require('../utils/sanitize')
 const { clearStatsCache } = require('../utils/statsCache')
 const {
@@ -314,7 +314,7 @@ const importStudents = async (context, result = createServiceResponder()) => {
     if (rowsToCreate.length > 0) {
       try {
         const preparedRows = await Promise.all(rowsToCreate.map(async (row) => {
-          const temporaryPassword = getStudentTemporaryPassword()
+          const temporaryPassword = generateTemporaryPassword()
           const hashedPassword = await hashPassword(temporaryPassword)
           const emailVerification = createEmailVerificationToken()
 

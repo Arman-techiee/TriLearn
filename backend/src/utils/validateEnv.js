@@ -159,10 +159,6 @@ const validateEnv = () => {
     console.warn('Warning: OPEN_REGISTRATION is deprecated and ignored. Use the student intake review flow instead.')
   }
 
-  const configuredStudentPassword = String(process.env.DEFAULT_STUDENT_PASSWORD || '').trim()
-  if (configuredStudentPassword && configuredStudentPassword.toLowerCase() === 'password') {
-    console.warn('Warning: DEFAULT_STUDENT_PASSWORD is set to an insecure placeholder and will be ignored in favor of generated temporary passwords')
-  }
 }
 
 module.exports = validateEnv

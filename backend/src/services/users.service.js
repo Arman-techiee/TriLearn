@@ -11,7 +11,7 @@ const {
   buildEmailVerificationUrl,
   createEmailVerificationToken
 } = require('../utils/emailVerification')
-const { hashPassword, getStudentTemporaryPassword } = require('../utils/security')
+const { hashPassword, generateTemporaryPassword } = require('../utils/security')
 const { sanitizePlainText } = require('../utils/sanitize')
 const { revokeAllAccessTokensForUser } = require('../utils/accessTokenRevocation')
 const { clearStatsCache } = require('../utils/statsCache')
@@ -44,7 +44,7 @@ const createStudentAccountRecord = async ({
   section,
   department
 }) => {
-  const temporaryPassword = getStudentTemporaryPassword()
+  const temporaryPassword = generateTemporaryPassword()
   const hashedPassword = await hashPassword(temporaryPassword)
   const sanitizedName = sanitizePlainText(name)
   const sanitizedPhone = sanitizeOptionalPlainText(phone)

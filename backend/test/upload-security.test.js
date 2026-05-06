@@ -818,7 +818,7 @@ test('createStudent does not return plaintext temporary passwords', async () => 
       welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
     },
     '../utils/security': {
-      getStudentTemporaryPassword: () => 'TempPass123!',
+      generateTemporaryPassword: () => 'TempPass123!',
       hashPassword: async () => 'hashed-temp-password'
     },
     '../utils/instructorDepartments': {
@@ -888,7 +888,7 @@ test('importStudents sanitizes spreadsheet row values before reporting validatio
       welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
     },
     '../utils/security': {
-      getStudentTemporaryPassword: () => 'TempPass123!',
+      generateTemporaryPassword: () => 'TempPass123!',
       hashPassword: async () => 'hashed-temp-password'
     },
     '../utils/instructorDepartments': {

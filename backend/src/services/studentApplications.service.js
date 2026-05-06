@@ -11,7 +11,7 @@ const {
   buildEmailVerificationUrl,
   createEmailVerificationToken
 } = require('../utils/emailVerification')
-const { hashPassword, getStudentTemporaryPassword } = require('../utils/security')
+const { hashPassword, generateTemporaryPassword } = require('../utils/security')
 const { sanitizePlainText } = require('../utils/sanitize')
 const {
   normalizeEmail,
@@ -278,7 +278,7 @@ const createStudentFromApplication = async (context, result = createServiceRespo
     return result.withStatus(400, { message: 'Please create this section under the selected department and semester first' })
   }
 
-  const temporaryPassword = getStudentTemporaryPassword()
+  const temporaryPassword = generateTemporaryPassword()
   const hashedPassword = await hashPassword(temporaryPassword)
   const emailVerification = createEmailVerificationToken()
 

@@ -89,7 +89,7 @@ S3_BUCKET=
 S3_REGION=
 S3_ACCESS_KEY=
 S3_SECRET_KEY=
-DEFAULT_STUDENT_PASSWORD=
+# DEFAULT_STUDENT_PASSWORD has been removed. A unique random password is generated for each new student account.
 EOF
 
 chmod 600 "$ENV_FILE"

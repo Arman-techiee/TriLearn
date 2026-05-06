@@ -44,24 +44,6 @@ const getRequiredSecret = (envKey) => {
 
 const generateTemporaryPassword = () => crypto.randomBytes(12).toString('base64url')
 
-const isStrongTemporaryPassword = (value) => {
-  const password = String(value || '').trim()
-  if (password.length < MINIMUM_STRONG_PASSWORD_LENGTH) {
-    return false
-  }
-
-  return !isKnownWeakPassword(password)
-}
-
-const getStudentTemporaryPassword = () => {
-  const configuredPassword = String(process.env.DEFAULT_STUDENT_PASSWORD || '').trim()
-  if (isStrongTemporaryPassword(configuredPassword)) {
-    return configuredPassword
-  }
-
-  return generateTemporaryPassword()
-}
-
 module.exports = {
   DEFAULT_BCRYPT_SALT_ROUNDS,
   MINIMUM_STRONG_PASSWORD_LENGTH,
@@ -69,7 +51,5 @@ module.exports = {
   hashPassword,
   getRequiredSecret,
   generateTemporaryPassword,
-  isKnownWeakPassword,
-  isStrongTemporaryPassword,
-  getStudentTemporaryPassword
+  isKnownWeakPassword
 }

@@ -100,6 +100,7 @@ That distinction keeps the student interface useful without turning it into an a
 TriLearn supports reviewed student intake instead of assuming every submitted record should immediately become an active account.
 Students can enter the intake flow individually, and staff can import larger groups when a semester or batch is being prepared.
 The approval step gives coordinators a place to verify identity, program, batch, semester, and section data before account activation.
+When a student account is created, TriLearn auto-generates a unique temporary password for that student and requires the password to be changed on first sign-in.
 
 Bulk import is designed for institutional onboarding work where the source data often comes from spreadsheets.
 The backend validates imported rows before they become durable records and keeps the enrollment process tied to the same role and audit controls as manual intake.
