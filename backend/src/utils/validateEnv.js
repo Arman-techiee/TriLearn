@@ -21,6 +21,9 @@ const s3EnvVars = [
   'S3_ACCESS_KEY',
   'S3_SECRET_KEY'
 ]
+const requiredProductionWarnings = [
+  'MOBILE_CLIENT_SHARED_SECRET'
+]
 const validNodeEnvironments = new Set(['development', 'test', 'production'])
 const validBooleanFlagValues = new Set(['true', 'false'])
 const KNOWN_PLACEHOLDER_SUBSTRINGS = [
@@ -84,6 +87,11 @@ const validateEnv = () => {
     if (missingProductionMail.length > 0) {
       console.error(`Missing required production mail env vars: ${missingProductionMail.join(', ')}`)
       process.exit(1)
+    }
+
+    const missingProductionWarnings = requiredProductionWarnings.filter((key) => !String(process.env[key] || '').trim())
+    if (missingProductionWarnings.length > 0) {
+      console.warn(`Warning: Missing production env vars: ${missingProductionWarnings.join(', ')}. Mobile client CSRF exemption will remain disabled.`)
     }
   }
 

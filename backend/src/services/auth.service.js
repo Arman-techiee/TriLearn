@@ -79,10 +79,13 @@ const GENERIC_FORGOT_PASSWORD_MESSAGE = 'If an account with that email exists, a
 // Generated once at startup to keep the timing-safe dummy comparison working
 // without exposing a known hash in source control. hashSync is acceptable here
 // because this runs at module load, not during request handling.
-const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
-  crypto.randomBytes(32).toString('hex'),
-  12 // fixed cost - do not use getBcryptSaltRounds() here to keep startup predictable
-)
+const DUMMY_PASSWORD_INPUT = crypto.randomBytes(32).toString('hex')
+const DUMMY_PASSWORD_HASH = typeof bcrypt.hashSync === 'function'
+  ? bcrypt.hashSync(
+    DUMMY_PASSWORD_INPUT,
+    12 // fixed cost - do not use getBcryptSaltRounds() here to keep startup predictable
+  )
+  : crypto.createHash('sha256').update(DUMMY_PASSWORD_INPUT).digest('hex')
 
 const getRequestUserAgent = (context) => String(context.get('user-agent') || '').slice(0, 255) || null
 

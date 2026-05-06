@@ -46,3 +46,26 @@ To reset local Docker data, stop the stack and remove volumes:
 ```bash
 docker-compose down -v
 ```
+
+## Mobile Client Authentication
+
+Native mobile requests that need the CSRF exemption must include a signed mobile client identity. Set `MOBILE_CLIENT_SHARED_SECRET` in `backend/.env` and compile the same value into the mobile app:
+
+```bash
+openssl rand -hex 32
+```
+
+For each request, send these headers:
+
+- `X-Client-Type: mobile`
+- `X-Client-Version: <app version>`
+- `X-App-Platform: <platform>`
+- `X-Client-Signature: <hex hmac>`
+
+The signature is:
+
+```text
+HMAC-SHA256(MOBILE_CLIENT_SHARED_SECRET, `${X-Client-Type}:${X-Client-Version}:${X-App-Platform}:${flooredTimestamp}`)
+```
+
+where `flooredTimestamp = Math.floor(Date.now() / 30000)`. The backend accepts the current 30-second window and the previous one for minor clock skew. If `MOBILE_CLIENT_SHARED_SECRET` is not configured, the mobile CSRF exemption is disabled.
