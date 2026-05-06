@@ -1,0 +1,46 @@
+# Security Policy
+
+## Supported Versions
+
+TriLearn currently receives security fixes on the `main` branch.
+
+| Version / Branch | Supported |
+| --- | --- |
+| `main` | Yes |
+| Older commits, forks, or archived branches | No |
+
+## Reporting a Vulnerability
+
+Please do not open a public GitHub issue for security vulnerabilities.
+
+Report security issues privately to the repository owner or maintainers. Include
+as much detail as you can safely share:
+
+- A clear description of the vulnerability
+- Steps to reproduce or proof-of-concept details
+- Affected area, such as backend, frontend, authentication, file uploads, CI, or deployment
+- Expected impact and any known prerequisites
+- Suggested remediation, if you have one
+
+Maintainers should acknowledge valid reports as soon as practical, investigate
+the issue, and prioritize fixes based on severity and exploitability.
+
+## Disclosure
+
+Please allow the maintainers time to investigate and release a fix before
+publicly disclosing details. If a report is accepted, the fix should be
+developed privately when possible and released with an appropriate security
+note. If a report is declined, maintainers should explain why it is not
+considered a vulnerability or why it is outside the supported scope.
+
+## Security Expectations
+
+TriLearn handles authentication, student records, attendance data, uploaded
+files, and academic workflows. Security-sensitive changes should preserve:
+
+- Authentication and authorization checks
+- CSRF and CORS protections
+- Rate limiting on public and authenticated routes
+- Secure password hashing and token handling
+- Upload validation and safe file serving
+- Secret scanning and dependency vulnerability checks in CI
