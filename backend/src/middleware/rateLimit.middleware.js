@@ -2,6 +2,7 @@ const { ipKeyGenerator, rateLimit } = require('express-rate-limit')
 const { RedisStore } = require('rate-limit-redis')
 const { hashToken, verifyRefreshToken } = require('../utils/token')
 const { isRedisConfigured, getRedisClient } = require('../utils/redis')
+const logger = require('../utils/logger')
 
 let redisStore
 let memoryStoreWarningShown = false
@@ -17,9 +18,13 @@ const areRateLimitsDisabled = () => process.env.DISABLE_RATE_LIMITS === 'true'
 
 const getRedisStore = () => {
   if (!isRedisConfigured()) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: REDIS_URL is required in production. Rate limiting and session scaling depend on Redis.')
+    }
+
     if (!memoryStoreWarningShown) {
       memoryStoreWarningShown = true
-      console.warn('Warning: REDIS_URL not set - rate limiting uses per-process in-memory counters that are not shared across cluster workers or instances')
+      logger.warn('Rate limiting is using in-memory store (not shared across workers). Configure REDIS_URL for production.')
     }
 
     return undefined
@@ -44,7 +49,7 @@ const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator }
   if (areRateLimitsDisabled()) {
     if (!rateLimitDisabledWarningShown) {
       rateLimitDisabledWarningShown = true
-      console.warn('Warning: rate limiting is disabled because DISABLE_RATE_LIMITS=true')
+      logger.warn('Warning: rate limiting is disabled because DISABLE_RATE_LIMITS=true')
     }
 
     return (_req, _res, next) => next()

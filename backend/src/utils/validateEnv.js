@@ -96,8 +96,7 @@ const validateEnv = () => {
   }
 
   if (process.env.NODE_ENV === 'production' && !process.env.REDIS_URL) {
-    console.error('Missing required env var: REDIS_URL. Production rate limiting must use Redis.')
-    process.exit(1)
+    throw new Error('FATAL: REDIS_URL is required in production. Rate limiting and session scaling depend on Redis.')
   }
 
   if (process.env.NODE_ENV === 'production') {
