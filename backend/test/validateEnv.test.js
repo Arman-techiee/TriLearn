@@ -96,6 +96,24 @@ test('validateEnv requires JWT_ACCESS_SECRET even when JWT_SECRET is set', async
   }
 })
 
+test('validateEnv requires LOGIN_CAPTCHA_SECRET', () => {
+  const originalEnv = { ...process.env }
+  const envWithoutCaptchaSecret = { ...baseEnv }
+  delete envWithoutCaptchaSecret.LOGIN_CAPTCHA_SECRET
+
+  Object.assign(process.env, envWithoutCaptchaSecret)
+  delete process.env.LOGIN_CAPTCHA_SECRET
+
+  try {
+    assert.throws(
+      () => validateEnv(),
+      /LOGIN_CAPTCHA_SECRET is required\. Generate with: openssl rand -hex 32/
+    )
+  } finally {
+    restoreEnv(originalEnv)
+  }
+})
+
 test('validateEnv rejects disabling rate limits in production', () => {
   const originalEnv = { ...process.env }
   Object.assign(process.env, baseEnv, {

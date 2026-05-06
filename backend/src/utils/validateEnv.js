@@ -54,6 +54,10 @@ const containsKnownPlaceholder = (value) => {
 }
 
 const validateEnv = () => {
+  if (!process.env.LOGIN_CAPTCHA_SECRET) {
+    throw new Error('LOGIN_CAPTCHA_SECRET is required. Generate with: openssl rand -hex 32')
+  }
+
   const missing = required.filter((key) => !process.env[key])
 
   if (missing.length > 0) {

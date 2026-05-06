@@ -368,6 +368,64 @@ test('login requires a captcha challenge once the failure threshold is reached',
   assert.equal(studentUpdates.length, 0)
 })
 
+test('login fails closed when captcha is required but signing secret is missing', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+  process.env.JWT_SECRET = 'test-jwt-secret'
+  const originalCaptchaSecret = process.env.LOGIN_CAPTCHA_SECRET
+  delete process.env.LOGIN_CAPTCHA_SECRET
+  const userUpdates = []
+
+  try {
+    const { login } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+      '../utils/prisma': {
+        user: {
+          findUnique: async () => ({
+            id: 'user-1',
+            email: 'student@example.com',
+            password: 'hashed-password',
+            role: 'STUDENT',
+            isActive: true,
+            failedLoginAttempts: 3,
+            lockedUntil: null,
+            mustChangePassword: false,
+            profileCompleted: true
+          }),
+          update: async (payload) => {
+            userUpdates.push(payload)
+            return payload
+          }
+        }
+      },
+      'bcryptjs': {
+        compare: async () => true,
+        hash: async () => 'hashed'
+      }
+    }))
+
+    const req = {
+      body: {
+        email: 'student@example.com',
+        password: 'Password123'
+      }
+    }
+    const res = createResponse()
+
+    await login(req, res)
+
+    assert.equal(res.statusCode, 503)
+    assert.deepEqual(res.body, {
+      message: 'Login temporarily unavailable. Please contact support.'
+    })
+    assert.equal(userUpdates.length, 0)
+  } finally {
+    if (originalCaptchaSecret === undefined) {
+      delete process.env.LOGIN_CAPTCHA_SECRET
+    } else {
+      process.env.LOGIN_CAPTCHA_SECRET = originalCaptchaSecret
+    }
+  }
+})
+
 test('login returns captcha challenge at threshold even when password is incorrect', async () => {
   process.env.QR_SIGNING_SECRET = 'test-qr-secret'
   process.env.JWT_SECRET = 'test-jwt-secret'

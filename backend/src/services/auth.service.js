@@ -289,18 +289,32 @@ const validateLoginCaptcha = ({ email, captchaToken, captchaAnswer }) => {
 const shouldRequireLoginCaptcha = (user) => (user?.failedLoginAttempts || 0) >= LOGIN_CAPTCHA_THRESHOLD
 
 const buildLoginCaptchaResponse = (email) => {
+  if (getLoginCaptchaSecret() === null) {
+    return {
+      statusCode: 503,
+      body: {
+        message: 'Login temporarily unavailable. Please contact support.'
+      }
+    }
+  }
+
   const captchaChallenge = createLoginCaptchaChallenge(email)
   if (!captchaChallenge) {
     return {
-      message: 'Please complete the security check to continue.',
-      requiresCaptcha: false
+      statusCode: 503,
+      body: {
+        message: 'Login temporarily unavailable. Please contact support.'
+      }
     }
   }
 
   return {
-    message: 'Please complete the security check to continue.',
-    requiresCaptcha: true,
-    captchaChallenge
+    statusCode: 401,
+    body: {
+      message: 'Please complete the security check to continue.',
+      requiresCaptcha: true,
+      captchaChallenge
+    }
   }
 }
 
@@ -514,12 +528,16 @@ const login = async (context, result = createServiceResponder()) => {
   }
 
   const requiresLoginCaptcha = shouldRequireLoginCaptcha(user)
-  const hasValidLoginCaptcha = !requiresLoginCaptcha || validateLoginCaptcha({ email, captchaToken, captchaAnswer })
+  const hasValidLoginCaptcha = !requiresLoginCaptcha || (
+    getLoginCaptchaSecret() !== null &&
+    validateLoginCaptcha({ email, captchaToken, captchaAnswer })
+  )
 
   // Always enforce captcha once threshold is reached to avoid password-oracle responses.
   if (requiresLoginCaptcha && !hasValidLoginCaptcha) {
     await waitForMinimumDuration(startedAt, LOGIN_MIN_RESPONSE_MS)
-    return result.withStatus(401, buildLoginCaptchaResponse(email))
+    const captchaResponse = buildLoginCaptchaResponse(email)
+    return result.withStatus(captchaResponse.statusCode, captchaResponse.body)
   }
 
   if (!isPasswordValid) {
@@ -537,7 +555,8 @@ const login = async (context, result = createServiceResponder()) => {
     await waitForMinimumDuration(startedAt, LOGIN_MIN_RESPONSE_MS)
 
     if (failedLoginAttempts >= LOGIN_CAPTCHA_THRESHOLD && !shouldLockAccount) {
-      return result.withStatus(401, buildLoginCaptchaResponse(email))
+      const captchaResponse = buildLoginCaptchaResponse(email)
+      return result.withStatus(captchaResponse.statusCode, captchaResponse.body)
     }
 
     return result.withStatus(401, { message: 'Invalid credentials' })
