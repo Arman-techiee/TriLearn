@@ -368,14 +368,19 @@ const removeUploadedFile = async (fileUrl) => {
   if (!fileUrl) return
 
   try {
-    if (typeof deleteFile === 'function') {
-      await deleteFile(fileUrl)
+    const fileName = path.basename(String(fileUrl))
+    if (!fileName) return
+
+    const resolvedPath = path.resolve(path.join(uploadPath, fileName))
+    const resolvedUploadDir = path.resolve(uploadPath)
+
+    // Prevent path traversal: ensure the resolved path is within the upload directory.
+    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep) && resolvedPath !== resolvedUploadDir) {
+      logger.error('removeUploadedFile: path traversal attempt blocked', { fileUrl, resolvedPath, resolvedUploadDir })
       return
     }
 
-    const fileName = path.basename(String(fileUrl))
-    if (!fileName) return
-    await fs.promises.unlink(path.join(uploadPath, fileName)).catch(() => {})
+    await fs.promises.unlink(resolvedPath).catch(() => {})
   } catch (error) {
     logger.error(error.message, { stack: error.stack })
   }

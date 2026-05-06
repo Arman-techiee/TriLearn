@@ -453,6 +453,43 @@ test('validateUploadedImage rejects invalid image content before any disk write'
   assert.equal(req.file.path, undefined)
 })
 
+test('removeUploadedFile resolves traversal-looking input inside uploadPath', async () => {
+  const unlinkCalls = []
+  const uploadDir = path.join('C:', 'uploads')
+  const { removeUploadedFile } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        unlink: async (filePath) => {
+          unlinkCalls.push(filePath)
+        }
+      }
+    },
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: uploadDir
+    }
+  })
+
+  await removeUploadedFile('../../../etc/passwd')
+
+  assert.equal(unlinkCalls.length, 1)
+  assert.equal(unlinkCalls[0], path.resolve(path.join(uploadDir, 'passwd')))
+  assert.equal(
+    unlinkCalls.every((filePath) => (
+      filePath.startsWith(path.resolve(uploadDir) + path.sep) ||
+      filePath === path.resolve(uploadDir)
+    )),
+    true
+  )
+})
+
 test('validateUploadedSpreadsheet writes a valid spreadsheet to disk only after byte-level validation', async () => {
   const writeCalls = []
   const { validateUploadedSpreadsheet } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
