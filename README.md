@@ -1,409 +1,624 @@
 # TriLearn
 
-TriLearn is a full-stack college management system designed for semester-based institutions. It centralises every academic operation — student intake, enrollment, attendance, marks, assignments, study materials, timetables, and real-time notifications — into a single platform, accessible to all five roles that run a college: administrators, coordinators, instructors, gatekeepers, and students.
-
-The name represents the three core pillars of any institution: **student**, **teacher**, and **institution** — all connected in one system.
-
----
+TriLearn — A self-hosted college management system for semester-based institutions.
 
 ## Overview
 
-| | |
-|--|--|
-| **Backend** | Node.js · Express 5 · PostgreSQL · Prisma ORM |
-| **Frontend** | React 19 · Vite · Tailwind CSS v4 |
-| **Real-time** | Socket.IO |
-| **Auth** | JWT access tokens + rotating refresh tokens |
-| **API endpoints** | 107 |
-| **Database models** | 23 |
-| **Migrations** | 32 |
-| **Test coverage** | 14 test files · 3,400+ lines |
+| Area | Details |
+| --- | --- |
+| Backend stack | Node.js, Express 5, PostgreSQL, Prisma ORM, Redis, BullMQ, Socket.IO |
+| Frontend stack | React 19, Vite, Tailwind CSS v4 |
+| Mobile stack | Expo SDK 55, React Native, Expo Router, NativeWind, Zustand, TanStack Query |
+| Auth | JWT access tokens, rotating refresh tokens, Redis JTI revocation |
+| API endpoints | 107 |
+| DB models | 23 |
+| Test lines | 9000+ |
 
----
+## What TriLearn does
 
-## What TriLearn replaces
+TriLearn manages the student lifecycle from first intake through semester enrollment and daily academic work.
+Students can apply or be imported in bulk, coordinators review the intake queue, approved students receive accounts, and the institution assigns them to batches, semesters, sections, subjects, and instructors.
+The system is built around semester-based operations rather than a generic contact database.
 
-Colleges typically manage academic operations through a combination of spreadsheets, paper records, and expensive third-party software that charges per-student licensing fees, stores institutional data on external servers, and offers little to no customisation for local academic structures.
+After enrollment, TriLearn handles the routine work of a college department: QR attendance for class sessions and gate entry, manual attendance corrections, absence tickets, marks entry, marks publishing, assignments, PDF submissions, study materials, class routine, and notices.
+Students and staff receive real-time notifications for events that need attention, including approvals, published marks, assigned work, notices, and attendance-related updates.
 
-TriLearn is a self-hostable alternative. The institution owns the server, owns the database, and controls every piece of student data. There are no recurring licensing fees, no vendor lock-in, and no dependency on external availability.
+TriLearn is self-hostable.
+The institution runs the application on its own infrastructure, owns the database and uploaded files, and does not depend on per-seat licensing fees.
+PostgreSQL stores institutional records, Redis supports short-lived coordination and revocation state, and uploads can be kept on local disk for a single server or moved to S3-compatible storage for production scaling.
 
----
+The system is intended for institutions that need role-based control without outsourcing core academic data to a hosted SaaS vendor.
+It gives staff a shared operational system for admission-related intake, teaching work, attendance records, and student-facing academic information.
+The web app is suitable for administrative and teaching workflows, while the mobile app covers student and scan-heavy usage where a phone is the natural device.
 
 ## Roles
 
-TriLearn has five distinct roles. Each role sees only what it needs and can act only within its scope.
+### Admin
 
-**Admin** — Full system access. Creates and manages departments, subjects, and all staff accounts. Has visibility across the entire institution.
+The admin role has institution-wide visibility and control.
+Admins manage users, roles, departments, batches, semesters, subjects, sections, academic configuration, notice audiences, audit records, and operational settings.
+They can review system-wide activity, correct administrative data, and oversee security-sensitive actions such as account lifecycle management and rate-limit policy behavior.
+Admins are also the role most likely to prepare a new academic cycle.
+That includes creating the structures that coordinators and instructors later use, checking that migrations and environment settings are correct, and reviewing audit activity when something unusual happens.
+The role is intentionally broad because it owns platform governance, not only classroom workflow.
+Admin access should be assigned sparingly.
+Most day-to-day academic work belongs to coordinators and instructors.
+Keeping admin access limited reduces the chance that ordinary academic operations accidentally become unrestricted system administration.
 
-**Coordinator** — Department-scoped management. Reviews and approves student intake applications, converts them to accounts, publishes exam results, and generates attendance and marks reports for their department.
+### Coordinator
 
-**Instructor** — Subject-level operations. Generates attendance QR codes, marks attendance manually, creates and grades assignments, enters exam marks, and uploads study materials for their assigned subjects.
+The coordinator role runs academic operations for assigned programs or departments.
+Coordinators review student intake, approve eligible students, manage enrollment details, assign instructors, publish marks, supervise attendance records, post scoped notices, and resolve academic workflow issues that span more than one class.
+They see the records needed to coordinate students, instructors, subjects, sections, and semester activity without receiving unrestricted platform administration access.
+Coordinators are the bridge between institutional setup and day-to-day teaching.
+They can clean up intake mistakes, make sure a student is placed in the right academic group, and decide when draft academic records are ready for student visibility.
+Their permissions are practical for department operations while still keeping infrastructure-level controls with admins.
+This role is also where many cross-class decisions become explicit.
+A coordinator can compare records across sections, check whether an instructor-facing update is ready, and make release decisions that should not be left to an individual student or gate workflow.
+That gives the institution a controlled review layer between raw classroom activity and official student-facing records.
 
-**Gatekeeper** — Entrance-level attendance. Generates daily gate QR codes and scans student ID cards at the college entrance to record arrival-based attendance.
+### Instructor
 
-**Student** — Personal academic view. Sees their own timetable, attendance record, marks, assignments, and notices. Submits assignments, raises absence requests, and downloads their marksheet.
+The instructor role focuses on teaching activity for assigned subjects and sections.
+Instructors can take QR or manual attendance, upload study materials, create assignments, review submissions, enter marks, request or prepare marks for publishing, and receive notifications tied to their classes.
+They see the students, attendance records, submissions, materials, and marks relevant to their own teaching workload.
+The instructor view is scoped around current teaching responsibility.
+An instructor should not need to search through unrelated programs to run a class, upload a file, or check who submitted work.
+That scope keeps common teaching workflows direct and keeps unrelated student records out of normal instructor access.
+Instructor permissions follow assignment rather than global role title alone.
+An instructor's access should be meaningful only where the institution has assigned teaching responsibility.
+This helps the same system support multiple departments, programs, or semesters without exposing every class to every instructor.
 
----
+### Gatekeeper
 
-## Features
+The gatekeeper role manages entry attendance at the institution gate.
+Gatekeepers scan signed student ID QR codes, record gate attendance, validate active student identity, and see only the operational information needed for entry checks.
+This keeps gate operations fast while limiting exposure to academic records that are not needed at the gate.
+Gatekeepers work with a narrow, high-frequency workflow.
+They need fast verification, clear scan outcomes, and enough context to identify whether a card belongs to an active student.
+They do not need marks, assignments, notices, or other academic data to do that job.
+The gatekeeper workflow is deliberately simple because delays at entry points affect many students at once.
+The scan result should answer whether the student credential is valid and whether the gate event can be recorded.
+Anything beyond that belongs in academic or administrative screens.
 
-### Student intake and onboarding
+### Student
 
-Prospective students submit an online intake form with personal, guardian, and academic details. No account is created at this stage. A coordinator reviews the application, sets the department and semester, and converts it to a live student account with a single action. The student receives a welcome email with a temporary password and is automatically enrolled in all matching subjects for their semester and department.
+The student role gives each approved learner access to their own academic record and active semester work.
+Students can view routine, notices, attendance, study materials, assignments, submissions, marks after publication, their digital ID card, and notifications.
+They can submit assignment PDFs, raise absence tickets where allowed, and use the mobile app for the workflows that benefit from phone access.
+Student access is personal rather than administrative.
+A student sees the record that affects their own enrollment, attendance, submissions, and academic results.
+The same account can move through semesters while preserving continuity in notifications, ID usage, and historical records.
+Students do not publish official academic data themselves.
+They interact with records that staff have created, approved, or released.
+That distinction keeps the student interface useful without turning it into an administrative console.
 
-For bulk onboarding, administrators can import hundreds of students at once from a CSV or XLSX spreadsheet. The system validates each row, reports any failures with row numbers, and sends welcome emails to all successfully created accounts.
+## Key features
 
-### Attendance
+### Student intake and bulk import
 
-Three mechanisms cover every attendance scenario a college encounters.
+TriLearn supports reviewed student intake instead of assuming every submitted record should immediately become an active account.
+Students can enter the intake flow individually, and staff can import larger groups when a semester or batch is being prepared.
+The approval step gives coordinators a place to verify identity, program, batch, semester, and section data before account activation.
 
-**Subject QR attendance** — The instructor generates a time-limited QR code for a specific class. Students open the scanner in the app and scan it to mark themselves present. Each QR is cryptographically signed with HMAC-SHA256 and expires after a configurable window. A used or expired code is rejected; the same code cannot mark a student present twice.
+Bulk import is designed for institutional onboarding work where the source data often comes from spreadsheets.
+The backend validates imported rows before they become durable records and keeps the enrollment process tied to the same role and audit controls as manual intake.
+This makes initial setup and new-semester onboarding faster without bypassing approval discipline.
 
-**Gate QR attendance** — The gatekeeper generates a daily rotating QR code at the college entrance. Students scan it on arrival. The system checks the student's semester against the configured time windows for that day and automatically marks them present across all scheduled classes falling within that window. Holiday dates are excluded from calculations.
+The intake workflow also creates a clean boundary between candidate data and active student records.
+That boundary is useful when an application is incomplete, a row in an import file is malformed, or a coordinator needs to reject or defer a student before account creation.
+TriLearn keeps those decisions visible instead of hiding them in a one-step import script.
+The same intake model supports gradual rollout.
+An institution can begin with one program or batch, validate the workflow, and then expand imports as data quality improves.
+Because approvals and account creation are separate, staff can correct source data before it becomes part of the active academic record.
 
-**Manual attendance** — Instructors enter attendance by hand against any date, for makeup classes, off-campus sessions, or corrections to existing records.
+### QR attendance for subject and gate
 
-Students see their per-subject attendance percentage in real time. When a student misses a class, they can submit an absence ticket with a written reason. The relevant instructor or coordinator reviews the ticket and approves or rejects it. The student receives an instant notification on the outcome.
+TriLearn has two QR attendance paths because classroom attendance and gate attendance answer different questions.
+Subject QR attendance records whether a student attended a specific academic session.
+Gate QR attendance records whether the student entered through an institutional checkpoint.
 
-### Marks and examinations
+Signed QR payloads prevent clients from fabricating attendance data by guessing identifiers.
+The server verifies the QR signature, checks the student context, applies timing and role rules, and writes attendance through controlled endpoints.
+The result is a faster attendance process that still leaves an auditable server-side record.
 
-Instructors enter marks per subject for five exam types: Internal, Midterm, Final, Pre-board, and Practical. Entered marks are not visible to students until a coordinator explicitly publishes them — preventing accidental early disclosure and allowing coordinators to review results before release.
+The subject and gate paths can evolve independently.
+A classroom scan can be tied to a subject, section, and session timing rule, while a gate scan can focus on identity and entry status.
+That separation avoids forcing one attendance model to carry two different institutional meanings.
+QR attendance still depends on server-side authority.
+The QR payload is only a signed input to the backend, not the attendance record itself.
+The accepted attendance record is created only after the backend verifies the signature, user context, and relevant timing or role conditions.
 
-Once published, students see a full subject-wise breakdown with obtained marks, total marks, percentage, letter grade, and grade point. Overall GPA is calculated across all subjects. Students can download a formatted marksheet PDF at any time. A cohort ranking shows each student's rank and percentile within their semester and department without exposing any other student's name or score.
+### Manual attendance
 
-### Assignments
+Manual attendance exists for cases where QR scanning is unavailable, a device fails, a class needs correction, or a coordinator approves a later update.
+Instructors and coordinators can record or adjust attendance through role-protected workflows instead of editing database rows directly.
 
-Instructors create assignments with a title, description, optional question PDF, due date, and total marks. Students submit their answer PDFs through the platform before the deadline. Instructors review each submission individually and record a marks and written feedback. Completed grade sheets export to XLSX.
+The manual path is intentionally separate from QR scanning.
+That separation lets the system apply different validation, audit, and rate-limit rules for human-entered corrections.
+It also helps reviewers distinguish normal scan-based attendance from later operational changes.
 
-### Study materials
+Manual attendance is not treated as a backdoor around QR rules.
+It exists because real classrooms have late arrivals, network outages, device issues, and approved corrections.
+The system records those changes through authenticated staff actions so later review can tell how the final attendance state was reached.
+This also helps when attendance data is used downstream.
+If a report, absence ticket, or student view reflects a manual correction, the institution can distinguish that correction from an original scan event.
+That context matters when resolving disputes.
 
-Instructors upload PDF study materials against their assigned subjects. Students can only see and download materials for subjects they are enrolled in. Access is enforced at the file-serving layer — a direct URL to an upload file returns a 403 unless the requester has a valid session and the correct enrollment record.
+### Absence tickets
 
-### Class routine
+Absence tickets give students and staff a structured way to handle disputed or explainable absences.
+A student can raise a ticket for an absence according to institutional rules, and the responsible academic staff can review it with the surrounding attendance context.
 
-A weekly timetable system with built-in conflict detection. Creating a routine entry that would double-book the same instructor or the same room in an overlapping time slot is rejected before it is saved. Combined groups allow a single timetable entry to appear across multiple sections, which is common for shared electives and language courses.
+This keeps attendance corrections out of informal messages.
+The ticket record captures who raised the issue, what attendance event it relates to, how it was resolved, and which role performed the review.
+Notifications keep the affected users informed as the ticket moves through the workflow.
 
-### Notice board
+The ticket workflow gives coordinators and instructors a better review surface than a scattered message thread.
+They can see the attendance date, student identity, stated reason, and decision state in one place.
+When a ticket changes state, the student does not need to poll a staff member for the outcome.
+Absence tickets are intentionally connected to attendance data rather than being free-form support requests.
+That keeps the review focused on the affected class or date.
+It also gives staff enough context to resolve the issue without manually reconstructing the attendance history.
 
-Staff post notices with a type (General, Exam, Holiday, Event, Urgent) and an audience scope (All, Students only, Instructors only). Notices can be narrowed further to a specific department and semester. Every posted notice triggers an instant in-app notification for all users it targets.
+### Marks and publish flow with marksheet PDF
 
-### Real-time notifications
+Marks entry and marks publication are separate operations.
+Instructors can enter marks for their assigned subjects, while coordinators or authorized staff control when marks become visible to students.
+This prevents draft marks from leaking into student views before academic review is complete.
 
-All significant events deliver instant notifications to the affected user via Socket.IO without requiring a page refresh — marks published, new assignment posted, absence ticket reviewed, notice published. The notification centre shows unread count and a full history. A device token model is already in the database for future FCM mobile push notifications.
+After publication, students can see their marks through the web or mobile interface.
+TriLearn can also generate marksheet PDFs so students and staff have a portable academic record for the published result.
+The PDF output is generated from server-side data rather than client screenshots, which keeps the marksheet tied to the authoritative record.
 
-### Departments
+The publish flow protects both students and instructors.
+Instructors can work on marks before they are final, and students only see results after the institution has decided they are ready.
+That distinction is important in colleges where marks may need verification, moderation, or coordinator approval before release.
+Generated marksheets should reflect only published data.
+That prevents a downloaded PDF from becoming a record of draft values.
+It also means a later audit can tie the document back to the release state of the marks workflow.
 
-A managed department registry used as a reference across students, instructors, subjects, coordinators, and routines. Departments enforce consistent filtering and scoping throughout the system — a coordinator with access to the BIT department cannot see or modify records belonging to BCA.
+### Assignments and PDF submissions
+
+Instructors can create assignments for the classes they teach, attach requirements, set expectations, and receive submissions from enrolled students.
+Students submit PDFs through the application, and the backend validates file type and size according to role-specific upload policy.
+
+PDF submissions are treated as controlled uploads rather than arbitrary static files.
+The server validates the content, stores it through the configured upload backend, and serves it only through authenticated routes where the requester is allowed to access that assignment.
+This keeps student work connected to enrollment and role checks.
+
+Assignment records keep submission status visible to both sides of the workflow.
+Students can confirm that a file has been submitted, and instructors can review submissions from the class context instead of handling files through email or chat.
+The server remains the source of truth for submission timing and file access.
+The upload model keeps file handling consistent with the rest of the system.
+Assignment submissions are not just files on disk.
+They are academic records with ownership, timing, access rules, and review state.
+
+### Study materials with enrollment-gated file serving
+
+Study materials are uploaded by authorized academic staff and served only to users who should be able to access them.
+The system checks enrollment, subject, section, and role context before returning protected files.
+
+This design matters because uploaded materials often contain course-specific documents that should not be public.
+TriLearn can store files locally for a single-server setup or in S3-compatible storage for production.
+In both cases, access decisions stay in the application layer instead of relying on public file URLs.
+
+Enrollment-gated serving also keeps old links from becoming uncontrolled distribution points.
+A user must still be authenticated and authorized when requesting the file.
+That means storage choice can change without changing the access model seen by students and instructors.
+This is especially useful when a course continues across multiple weeks.
+Students can return to the same material list from the web or mobile app, and the backend can keep enforcing the current enrollment state on every request.
+The file URL alone is not enough to bypass that check.
+
+### Class routine with conflict detection
+
+The routine module manages scheduled classes across semesters, sections, subjects, instructors, and rooms or time slots.
+When a routine entry is created or changed, TriLearn checks for conflicts that would make the schedule impossible to run.
+
+Conflict detection helps catch overlapping instructor assignments, section clashes, and timing mistakes before students and instructors see the schedule.
+The routine then becomes the shared source for daily class planning in the web and mobile interfaces.
+Notifications can alert affected users when schedule changes matter to them.
+
+Routine data is more than a timetable display.
+It is also context for attendance, instructor workload, and student expectations for a day.
+Detecting conflicts at write time reduces the number of corrections that have to be explained after students have already followed a wrong schedule.
+The routine also gives mobile users a predictable daily view.
+Students can check where they should be, and instructors can check what they are responsible for.
+When a coordinator changes the routine, the update can flow through the same notification system used by other academic events.
+
+### Notice board with audience scoping
+
+The notice board lets staff publish announcements to the right audience instead of broadcasting every message to everyone.
+Notices can be scoped by role, academic grouping, or institutional audience depending on the workflow.
+
+Audience scoping keeps the notice board useful as volume grows.
+Students see messages relevant to their academic context, instructors see operational updates tied to their work, and coordinators or admins can still publish broader institutional notices when needed.
+Real-time notification delivery helps new notices reach active users quickly.
+
+Scoped notices also reduce notification fatigue.
+An institution can send a notice to a batch, semester, role, or wider audience without making every user filter irrelevant announcements manually.
+The notice record remains available after the real-time notification has been delivered.
+This makes notices useful for both immediate and later reference.
+A user who was offline when the notice was created can still find it in the notice board.
+The socket event improves delivery speed but does not replace the durable notice record.
+
+### Real-time notifications via Socket.IO
+
+TriLearn uses Socket.IO for live notification delivery across web and mobile clients.
+When a meaningful academic or administrative event happens, the backend creates a notification and emits it to the users who should receive it.
+
+Redis is used as the Socket.IO adapter in production so multiple backend instances can share events.
+If Redis is not available in a local development setup, the server can fall back to in-memory behavior for a single process.
+BullMQ handles queued notification work with retry and backoff so transient delivery problems do not immediately drop work.
+
+The live channel is used for immediacy, not as the only durable record.
+Important notification events are stored or queued by the backend before being emitted.
+That lets a disconnected client recover by fetching notifications later instead of depending on a socket connection that may not have been open.
+The notification model supports multiple delivery surfaces.
+The same backend event can appear in the web app, mobile app, and push-related workflows when configured.
+That keeps notification rules centralized instead of duplicating them per client.
+
+### Digital student ID card with signed QR
+
+Each active student can use a digital ID card with a signed QR payload.
+The QR code is intended for controlled verification workflows such as gate attendance and identity checks.
+
+The signature prevents a client from creating a trusted ID payload by editing visible student data.
+The backend verifies the signature and the student state before accepting scans.
+This lets the ID card work as a practical mobile credential while keeping trust anchored on server-side signing secrets.
+
+Signed QR identity also makes the gate workflow simpler for staff.
+The scanner can send the payload to the backend and receive a clear accept or reject response.
+The gatekeeper does not need to interpret hidden fields or manually compare academic records during a busy entry period.
+Signing also allows key rotation when configured with active key identifiers.
+That gives deployments a path to replace QR signing material without redesigning the card flow.
+Old signatures can be phased out according to institutional policy.
 
 ### Audit log
 
-Every significant action is recorded to an append-only audit log: logins, user creation, marks changes, attendance records, file uploads, notice posts. The log stores actor ID, role, action type, target entity, and metadata. Users can review their own session history and active devices. Admins have full access to the log across all users.
+TriLearn records security-sensitive and operationally important actions in the audit log.
+The audit trail helps administrators understand who changed a record, which workflow produced an event, and when an important decision happened.
 
----
+Audit logging is especially important for attendance corrections, account lifecycle events, approval decisions, upload actions, and other records that affect students.
+Retention and cleanup settings keep the log bounded while preserving enough history for review.
 
-## Technical architecture
+The audit log is not meant to replace application data.
+It explains sensitive changes around that data.
+When a coordinator publishes marks, an admin changes a user role, or an attendance correction is made, the audit record gives the institution a way to reconstruct the decision path.
+Audit records are most useful when they are generated consistently by the application.
+Direct database edits bypass that context.
+Production operations should therefore favor application workflows and migrations over manual table changes.
+
+### Role-based rate limiting
+
+Rate limiting is applied with awareness of authentication and role context.
+Login, upload, QR, Socket.IO, and other sensitive routes can be limited differently based on the risk and expected usage pattern.
+
+Redis-backed rate limits are required for reliable production behavior across multiple backend instances.
+The local development configuration can be relaxed when needed, but production settings should keep abuse controls active.
+This protects expensive endpoints and security-sensitive flows without treating every user action as identical.
+
+Role-based limits also reflect normal usage differences.
+A gatekeeper scanning many students at entry time has a different pattern from a student logging in or uploading a PDF.
+TriLearn can protect the platform while still allowing legitimate high-volume operational flows.
+This matters during peak periods.
+Login attempts, gate scans, assignment uploads, and socket events may all spike at different times of day.
+Role-aware limits let the backend apply pressure where abuse is likely without blocking normal institutional traffic.
+
+## Architecture
 
 ### Request lifecycle
 
-Every API request passes through a consistent middleware chain before reaching a controller:
+Requests pass through a layered Express middleware chain before controller logic runs.
+The normal path is CORS, Helmet, rate limit, CSRF, protect, allowRoles, validate, and then the controller.
 
-```
-Request
-  → CORS validation
-  → Helmet security headers
-  → Rate limiter (Redis-backed)
-  → CSRF origin check
-  → protect()         — JWT verification + database user lookup
-  → allowRoles()      — role gate for the specific endpoint
-  → attachActorProfiles() — attaches req.student / req.instructor / req.coordinator
-  → validate()        — Zod schema validation of body and query
-  → Controller
-  → Prisma ORM
-  → PostgreSQL
-```
+CORS limits which browser origins can call the API.
+Helmet sets common HTTP security headers.
+Rate limiting slows abusive or accidental request bursts before they hit expensive handlers.
+CSRF protection applies where cookie-backed browser behavior needs additional protection.
 
-### File handling
+The protect middleware verifies authentication and attaches the current user context.
+allowRoles checks whether that authenticated user can perform the requested action.
+validate applies request schema checks before the controller performs the business operation.
+Controllers then work with already-authenticated, authorized, and validated input.
 
-Uploaded files go through a three-stage pipeline before being stored:
+The order matters because each step should reject bad requests as early as possible.
+Origin and header policy run before role-specific business logic.
+Rate limits run before expensive controller work.
+Validation runs before database writes.
 
-1. **MIME filter** — Multer rejects files that do not match the expected type at the field level
-2. **Magic-byte validation** — the first bytes of the saved file are read and compared against known file signatures, catching extension spoofing regardless of what the client declares
-3. **Image re-encoding** — Sharp re-processes every uploaded image through a clean encode, stripping all metadata and neutralising any embedded payload
+Controllers should not need to rediscover basic request safety.
+Their job is to execute the domain action with the user context and validated data they receive from the middleware chain.
+That keeps route behavior easier to test because authorization and validation are not scattered through unrelated controller branches.
 
-Files are served through an authenticated controller that performs a database lookup and a role-based access check before streaming any file. No upload directory is publicly accessible.
+### Auth flow
 
-### Authentication
+TriLearn uses short-lived JWT access tokens and rotating refresh tokens.
+The access token is kept in client memory and is used for normal API authorization.
+The refresh token is stored in an httpOnly cookie and is used only to obtain a new access token.
 
-Access tokens are short-lived JWTs (15 minutes by default) kept in memory on the frontend — never in localStorage. Refresh tokens are longer-lived JWTs stored as SHA-256 hashes in the database. On every refresh, the old token is revoked and a new one is issued. A leaked refresh token database does not expose usable tokens. The frontend Axios client handles token refresh automatically and transparently on 401 responses.
+Access tokens expire after 15 minutes by default.
+Refresh tokens expire after 7 days by default and rotate when used.
+Each refresh token carries a JTI so the server can revoke or detect specific token instances through Redis.
+
+When a user changes their password, passwordChangedAt invalidation prevents older tokens from continuing to authorize requests.
+Refresh token reuse detection treats a reused old refresh token as suspicious because rotation should have replaced it.
+That protects sessions when a refresh token has leaked or when a client tries to replay a stale token.
+
+The client-side access token is intentionally short lived.
+Keeping it in memory reduces the value of persistent browser storage compromise.
+The refresh cookie is protected by browser cookie controls and is not used as the bearer credential for ordinary API calls.
+
+Redis JTI state gives the backend a practical way to revoke token instances without waiting for natural expiry.
+That is useful during logout, password changes, suspicious reuse detection, and administrative account intervention.
+In production, losing Redis means losing part of the session safety model, so Redis should not be treated as optional.
+
+### File uploads
+
+Uploads enter the backend through multer memoryStorage.
+Keeping the upload in memory during validation lets the server inspect the file before it is written to durable storage.
+The backend performs magic-byte validation rather than trusting the filename or browser-provided MIME type.
+
+Images and PDFs are processed through libraries such as sharp and pdf-lib where the workflow requires transformation, normalization, or safe document generation.
+After validation and processing, files are stored in S3-compatible object storage when S3 settings are configured.
+If S3 is not configured, the backend falls back to local disk storage for single-server development or simple deployments.
+
+Serving protected files still goes through the application.
+The server checks role and enrollment rules before returning study materials, assignment submissions, marksheets, or other controlled files.
+This avoids turning private academic content into public static assets.
+
+Memory-based upload handling is paired with strict size limits.
+The system should reject oversized files before they create memory pressure, and role-based limits let the institution allow larger instructor or coordinator uploads without giving the same limit to every student submission.
+Magic-byte validation helps catch renamed files that pretend to be PDFs or images.
+
+S3 is the right production target when more than one backend instance can serve traffic.
+Local disk fallback keeps development simple and supports small single-server deployments.
+The application layer hides that storage difference from clients, so the API contract remains stable when storage moves.
 
 ### Real-time
 
-Socket.IO runs on the same Node.js server. Connections are authenticated via JWT on handshake. Each user joins a private room keyed to their user ID. All notification events are emitted directly to the relevant user's room.
+Socket.IO handles real-time delivery for web and mobile clients.
+Clients connect to the backend socket endpoint after authentication and receive events for notices, approvals, assignment activity, published marks, attendance updates, and other notification-backed workflows.
 
----
+In production, Socket.IO uses the Redis adapter so events can move across more than one backend instance.
+If Redis is not present in a local single-process setup, real-time delivery can fall back to in-memory behavior.
+That fallback is useful for development but is not a production substitute.
 
-## Stack reference
+BullMQ powers the notification queue.
+Queued jobs can retry with backoff when transient failures happen, which is important for email, push, and socket-related side effects.
+Redis is the shared queue backend and should be treated as required infrastructure in production.
 
-### Backend
+Socket connections are transient by nature.
+A browser tab may sleep, a phone may move between networks, and a user may open more than one device.
+The backend should therefore treat socket emission as delivery acceleration while keeping notification state available through normal API reads.
 
-| Package | Purpose |
-|---------|---------|
-| Express 5 | HTTP server and routing |
-| Prisma 7 + PostgreSQL | ORM and database |
-| jsonwebtoken | JWT signing and verification |
-| bcryptjs | Password hashing |
-| Socket.IO 4 | Real-time WebSocket server |
-| Multer 2 | Multipart file upload handling |
-| Sharp | Image processing and re-encoding |
-| PDFKit | Server-side PDF generation |
-| ExcelJS | XLSX export |
-| Nodemailer | Email delivery via Resend SMTP |
-| Zod 4 | Request validation schemas |
-| express-rate-limit + Redis | Rate limiting with shared Redis store |
-| Helmet | HTTP security headers |
-| Winston | Structured logging |
-| qrcode | QR code image generation |
+The Redis adapter is what lets horizontal scaling work.
+Without it, a user connected to one backend instance would not receive events emitted by another instance.
+For a production deployment with multiple replicas, the adapter is part of the real-time architecture rather than an optimization.
 
-### Frontend
+### Mobile
 
-| Package | Purpose |
-|---------|---------|
-| React 19 | UI framework |
-| Vite 8 | Build tool and dev server |
-| Tailwind CSS v4 | Utility-first styling |
-| React Router v7 | Client-side routing |
-| Axios | HTTP client with interceptors |
-| Socket.IO Client | Real-time connection |
-| Framer Motion | Animations and transitions |
-| jsQR | In-browser QR code scanning |
-| Lucide React | Icon library |
+The mobile app uses Expo Router for file-based routing.
+Screens live in the app directory and follow the route structure expected by Expo Router, while shared client code lives under mobile source modules.
 
----
+State and session handling use Zustand and SecureStore.
+Zustand keeps app state predictable without making every screen manage its own session copy.
+SecureStore holds sensitive persisted values that should survive app restarts but should not sit in plain AsyncStorage.
+
+API calls use Axios with an interceptor that refreshes expired access tokens.
+The refresh path is deduped so multiple simultaneous 401 responses do not trigger a refresh storm.
+TanStack Query manages server-state caching and refetch behavior for mobile screens that depend on API data.
+
+The mobile environment variables must point to addresses the device can actually reach.
+Localhost works for the development machine but not for most physical phones.
+During local testing on a phone, EXPO_PUBLIC_API_URL and EXPO_PUBLIC_SOCKET_URL usually need the computer's LAN IP address.
+
+The mobile app shares the same authorization model as the web client.
+It does not get a separate privileged API path.
+That keeps backend permissions consistent across devices and makes mobile behavior testable against the same endpoints.
 
 ## Project structure
 
-```
+```text
 TriLearn/
 ├── backend/
-│   ├── src/
-│   │   ├── controllers/
-│   │   │   ├── attendance/         # QR, manual, tickets, settings, export
-│   │   │   ├── admin.controller.js
-│   │   │   ├── auth.controller.js
-│   │   │   ├── assignment.controller.js
-│   │   │   ├── marks.controller.js
-│   │   │   ├── notice.controller.js
-│   │   │   ├── routine.controller.js
-│   │   │   ├── studyMaterial.controller.js
-│   │   │   ├── subject.controller.js
-│   │   │   ├── upload.controller.js
-│   │   │   └── ...
-│   │   ├── middleware/
-│   │   │   ├── auth.middleware.js
-│   │   │   ├── csrf.middleware.js
-│   │   │   ├── rateLimit.middleware.js
-│   │   │   ├── upload.middleware.js
-│   │   │   └── validate.middleware.js
-│   │   ├── routes/                 # One router per domain
-│   │   ├── utils/                  # Prisma, logger, mailer, tokens, realtime
-│   │   ├── validators/             # Zod schemas for every endpoint
-│   │   └── jobs/                   # Background token cleanup
 │   ├── prisma/
-│   │   ├── schema.prisma           # 23 models
-│   │   └── migrations/             # 32 migrations
-│   ├── test/                       # 14 test files, 3,400+ lines
-│   └── Dockerfile
-└── frontend/
-    └── src/
-        ├── pages/
-        │   ├── admin/              # 8 pages
-        │   ├── coordinator/        # 1 page
-        │   ├── instructor/         # 9 pages
-        │   ├── student/            # 11 pages
-        │   ├── gate/               # 1 page
-        │   ├── auth/               # 5 pages
-        │   └── shared/             # 3 pages
-        ├── components/             # Modal, Toast, LoadingSkeleton, Pagination, etc.
-        ├── hooks/                  # useApi (abort-safe), useForm
-        ├── context/                # AuthContext, SocketContext, ReferenceDataContext
-        └── utils/                  # API client, file helpers, QR scanner
+│   │   ├── migrations/
+│   │   └── schema.prisma
+│   ├── src/
+│   ├── test/
+│   ├── uploads/
+│   ├── .env.example
+│   ├── Dockerfile
+│   └── package.json
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   ├── test/
+│   ├── .env.example
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── mobile/
+│   ├── app/
+│   ├── assets/
+│   ├── src/
+│   ├── .env.example
+│   ├── app.json
+│   └── package.json
+├── docker-compose.yml
+├── DEPLOYMENT.md
+└── README.md
 ```
-
----
 
 ## Getting started
 
-### Prerequisites
+TriLearn requires Node.js 20 or newer, PostgreSQL 16, and Redis 7.
+Use PostgreSQL for the Prisma database and Redis for revocation, queues, rate limits, and real-time coordination.
+For local development, each layer can run in its own terminal.
+Start the backend first so the frontend and mobile clients have an API to call.
+Then start the web client or Expo app depending on the interface being developed.
+When using a physical phone, replace localhost mobile URLs with the development machine's LAN address.
 
-- Node.js 22
-- PostgreSQL 15 or later
-- Redis (optional in development, required in production)
-
-### Installation
+### Backend setup
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Arman-techiee/TriLearn.git
+git clone <repo-url>
+cd TriLearn/backend
+cp .env.example .env
+npm install
+npm run prisma:migrate:dev
+npm run dev
+```
+
+The backend command starts the Express API and Socket.IO server.
+Prisma migrations create the local schema expected by the application.
+Redis should be available before exercising refresh token revocation, rate limiting, notification queues, or multi-process real-time behavior.
+
+### Frontend setup
+
+```bash
+cd TriLearn/frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+The frontend Vite server reads VITE_API_URL from frontend/.env.
+Use the API path form, such as http://localhost:5000/api/v1, so the frontend API helper can route requests consistently.
+The same backend origin is also used for live notification connections.
+
+### Mobile setup
+
+```bash
+cd TriLearn/mobile
+cp .env.example .env
+npm install
+npx expo start
+```
+
+The Expo app reads public runtime configuration from mobile/.env.
+For Android emulators, the API host may need to be http://10.0.2.2:5000 instead of localhost.
+For physical devices, use the LAN IP of the machine running the backend.
+
+### Docker Compose shortcut
+
+```bash
 cd TriLearn
-
-# 2. Install backend dependencies
-cd backend && npm install
-
-# 3. Install frontend dependencies
-cd ../frontend && npm install
-```
-
-### Configuration
-
-```bash
+cp .env.example .env
 cp backend/.env.example backend/.env
-# Edit backend/.env with your values
+docker compose up
 ```
 
-### Database setup
-
-```bash
-cd backend
-npx prisma migrate dev --name init
-npx prisma generate
-```
-
-### Running locally
-
-```bash
-# Backend  →  http://localhost:5000
-cd backend && npm run dev
-
-# Frontend  →  http://localhost:5173
-cd frontend && npm run dev
-```
-
----
+The Compose file starts PostgreSQL, Redis, and the backend service.
+It does not replace the separate frontend and mobile development servers.
+Use it when you want the core backend dependencies and API to start together on a single development machine or server.
 
 ## Environment variables
 
-```env
-# ── Core (required) ───────────────────────────────────────
-NODE_ENV=development
-DATABASE_URL=postgresql://user:password@localhost:5432/trilearn
-JWT_ACCESS_SECRET=<random string, 32+ characters>
-JWT_REFRESH_SECRET=<random string, 32+ characters>
-QR_SIGNING_SECRET=<random string, 32+ characters>
-FRONTEND_URL=http://localhost:5173
+### Backend environment variables
 
-# ── Redis ─────────────────────────────────────────────────
-# Optional in development. Required in production — startup aborts without it.
-REDIS_URL=redis://localhost:6379
+| Variable | Required | Description |
+| --- | --- | --- |
+| DATABASE_URL | Yes | PostgreSQL connection string used by Prisma and the PostgreSQL adapter. |
+| JWT_ACCESS_SECRET | Yes | Secret used to sign short-lived access tokens. |
+| JWT_REFRESH_SECRET | Yes | Secret used to sign rotating refresh tokens. |
+| QR_SIGNING_SECRET | Yes | Secret used to sign digital student ID and attendance QR payloads. |
+| LOGIN_CAPTCHA_SECRET | Yes | Secret used to sign login captcha challenges. |
+| FRONTEND_URL | Yes | Trusted frontend origin for CORS, password reset links, and browser Socket.IO connections. |
+| NODE_ENV | Yes | Runtime mode, normally development, test, or production. |
+| REDIS_URL | Production | Redis connection string for JTI revocation, rate limits, Socket.IO scaling, and BullMQ. |
+| S3_BUCKET | Optional | S3-compatible bucket for upload storage; local disk is used when S3 settings are incomplete. |
+| S3_REGION | Optional | Region for S3-compatible upload storage. |
+| S3_ACCESS_KEY | Optional | Access key for S3-compatible upload storage. |
+| S3_SECRET_KEY | Optional | Secret key for S3-compatible upload storage. |
+| MAIL_FROM | Optional | Sender address for password reset and notification email. |
+| RESEND_SMTP_HOST | Optional | SMTP host for Resend or compatible SMTP delivery. |
+| RESEND_SMTP_PORT | Optional | SMTP port for Resend or compatible SMTP delivery. |
+| RESEND_SMTP_USER | Optional | SMTP user for Resend or compatible SMTP delivery. |
+| RESEND_SMTP_PASS | Optional | SMTP password for Resend or compatible SMTP delivery. |
+| BCRYPT_ROUNDS | Yes | Bcrypt cost factor for password hashing. |
+| ACCESS_TOKEN_EXPIRES_IN | Yes | Access token lifetime, usually 15m. |
+| REFRESH_TOKEN_EXPIRES_DAYS | Yes | Refresh token lifetime in days, usually 7. |
+| ENABLE_PASSWORD_RESET | Optional | Enables password reset email flow when SMTP settings are present. |
+| FORCE_HTTPS | Production | Requires HTTPS-aware behavior when the API is deployed behind a reverse proxy. |
+| UPLOAD_DIR | Optional | Local upload directory used when S3 storage is not configured. |
+| FCM_SERVER_KEY | Optional | Firebase Cloud Messaging server key for mobile push notifications. |
 
-# ── Email (Resend SMTP) ───────────────────────────────────
-MAIL_FROM=noreply@yourdomain.com
-RESEND_SMTP_HOST=smtp.resend.com
-RESEND_SMTP_PORT=587
-RESEND_SMTP_USER=resend
-RESEND_SMTP_PASS=re_xxxxxxxxxxxxxxxxxxxx
+### Frontend environment variables
 
-# ── Feature flags ─────────────────────────────────────────
-OPEN_REGISTRATION=false       # Allow public self-registration (disabled by default)
-ENABLE_PASSWORD_RESET=true    # Requires email to be configured
+| Variable | Required | Description |
+| --- | --- | --- |
+| VITE_API_URL | Yes | Browser API base URL, normally http://localhost:5000/api/v1 in local development. |
 
-# ── File storage ──────────────────────────────────────────
-UPLOAD_DIR=/app/uploads
-UPLOAD_PUBLIC_PATH=/uploads
-UPLOAD_BASE_URL=              # Leave blank for local disk; set to CDN origin for cloud
+### Mobile environment variables
 
-# ── Optional ──────────────────────────────────────────────
-PORT=5000
-ATTENDANCE_TIMEZONE=Asia/Kathmandu
-ACCESS_TOKEN_EXPIRES_IN=15m
-REFRESH_TOKEN_EXPIRES_DAYS=7
+| Variable | Required | Description |
+| --- | --- | --- |
+| EXPO_PUBLIC_API_URL | Yes | Mobile API base URL; physical devices need a reachable LAN or deployed HTTPS address. |
+| EXPO_PUBLIC_SOCKET_URL | Yes | Mobile Socket.IO origin; it should point to the same backend host without the API path. |
+
+## Running tests
+
+Run backend tests from the backend directory.
+
+```bash
+node --test test/*.test.js
 ```
 
----
+The backend has more than 9000 lines of tests covering authentication, upload security, rate limiting, QR signing, and integration behavior.
+These tests are the most important verification layer for security-sensitive API changes.
+They should be run before changing auth, middleware, upload handling, QR validation, attendance, marks publishing, or role permissions.
+Database-backed integration tests may require a reachable PostgreSQL instance and a test-safe DATABASE_URL.
+
+Run frontend tests from the frontend directory.
+
+```bash
+vitest run
+```
+
+Run mobile tests from the mobile directory.
+
+```bash
+jest
+```
+
+Frontend and mobile tests focus on client behavior and rendering-level expectations.
+They are useful companions to the backend test suite, but they do not replace API authorization and data-integrity coverage.
+When a change crosses layers, run the relevant tests in each affected directory.
 
 ## Deployment
 
-### Docker
+Production deployments should set NODE_ENV=production and use strong secrets for every signing and password-related setting.
+Run prisma migrate deploy before starting the backend so the database schema matches the application code.
+When the API is behind a reverse proxy, set FORCE_HTTPS=true and configure the proxy to forward the expected HTTPS and host headers.
 
-```bash
-# Build
-docker build -t trilearn-backend ./backend
+Redis is required in production.
+It backs distributed rate limits, the Socket.IO adapter, BullMQ notification jobs, and refresh-token JTI revocation.
+Running without Redis should be treated as a local development fallback only.
 
-# Run
-docker run \
-  --env-file backend/.env \
-  -p 5000:5000 \
-  -v /data/uploads:/app/uploads \
-  trilearn-backend
-```
+Use S3-compatible storage for uploads when running more than one backend instance.
+Local disk upload storage is acceptable for development and simple single-server deployments, but it does not give multiple application instances a shared file backend.
+Docker Compose can run PostgreSQL, Redis, and the backend for a single-server deployment path.
 
-### Production checklist
+A production reverse proxy should terminate TLS, forward the original protocol and host headers, and only expose the ports that are meant to be public.
+The backend should receive trusted proxy configuration that matches the actual deployment topology.
+Do not rely on development defaults for cookies, rate limits, or error output in production.
 
-- [ ] `NODE_ENV=production`
-- [ ] Unique random values for `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, and `QR_SIGNING_SECRET` (32+ characters each)
-- [ ] `REDIS_URL` configured — the server refuses to start in production without it
-- [ ] `FRONTEND_URL` set to the exact origin of the deployed frontend
-- [ ] Any future CDN-hosted frontend `<script src="...">` tags include both `integrity` and `crossorigin="anonymous"`
-- [ ] `npx prisma migrate deploy` executed before starting the server
-- [ ] Persistent volume or cloud storage configured for uploads
-- [ ] TLS termination via a reverse proxy (nginx or Caddy) in front of the Node process
+Backups should include PostgreSQL and any configured upload storage.
+Redis contains important live coordination and revocation state, but PostgreSQL and uploads are the durable institutional records.
+Plan restore procedures before the system is used for real academic data.
 
-### Recommended stack for a pilot deployment
-
-| Component | Provider |
-|-----------|----------|
-| Backend | Railway or Render |
-| Database | Neon or Supabase (PostgreSQL) |
-| Redis | Upstash |
-| Frontend | Vercel or Cloudflare Pages |
-| File storage | Cloudflare R2 (10 GB free tier) |
-
-### Cloud storage migration
-
-Local disk uploads do not survive ephemeral deployments. Before going to production on Railway, Render, or any stateless platform, migrate to cloud storage. The change is contained to three files: `upload.middleware.js`, `fileStorage.js`, and `upload.controller.js`. No other part of the codebase needs to change.
-
-Recommended providers: Cloudflare R2 (S3-compatible, zero egress fees), Supabase Storage, or Amazon S3.
-
----
-
-## Continuous integration
-
-A GitHub Actions workflow runs on every push and pull request. It installs dependencies, runs ESLint, and executes the full test suite for both backend and frontend.
-
-```
-.github/workflows/ci.yml
-```
-
----
-
-## Roadmap
-
-- [ ] React Native + Expo mobile app — architecture document and full file structure defined, backend mobile auth mode already implemented
-- [ ] FCM push notifications — device token model and dispatch scaffold already in the codebase
-- [ ] Cloud storage integration (Cloudflare R2)
-
----
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment details.
 
 ## Author
 
-**Arman Khan**
-BIT Student · Texas College of Management & IT, Kathmandu, Nepal
+Arman Khan
 
-I am a solo full-stack developer who is building TriLearn entirely independently alongside with my undergraduate coursework. The project started with a straightforward motivation: My own college uses an expensive third-party management system, and I wanted to build something better. That followed as a production-grade platform covering the full academic lifecycle of an institution, with real security, real-time features, and a mobile app in progress — written by me and learning for my career.
+Portfolio: [armankhan.com.np](https://armankhan.com.np)
 
-My focus is on building practical software that solves real problems in Nepal's education and technology sectors.
+GitHub: [armancore](https://github.com/armancore)
 
-- Portfolio — [armankhan.com.np](https://www.armankhan.com.np)
-- LinkedIn — [linkedin.com/in/arman-techiee](https://www.linkedin.com/in/techiee-arman)
-- GitHub — [github.com/armancore](https://github.com/armancore)
+## Licence
 
----
-
-## License
-
-Copyright © 2026 Arman Khan. All rights reserved.
-
-This software and its source code are the exclusive property of Arman Khan. Access to this repository is provided for review and evaluation purposes only.
-
-**You may not** copy, modify, distribute, sublicense, use in production, or create derivative works from this software without explicit written permission from the author.
-
-For licensing inquiries, deployment permissions, or institutional use, contact via LinkedIn or the portfolio above.
+TriLearn is open source under the [ISC License](LICENSE).

@@ -1,6 +1,7 @@
 {
   "name": "trilearn",
   "private": true,
+  "license": "ISC",
   "scripts": {
     "dev:docker": "docker-compose up --build"
   }
