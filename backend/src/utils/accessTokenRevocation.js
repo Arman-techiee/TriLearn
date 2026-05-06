@@ -84,7 +84,7 @@ const trackAccessToken = async (token) => {
   }
 }
 
-const revokeAllAccessTokensForUser = async (userId) => {
+const revokeAllAccessTokensForUser = async (userId, { throwOnFailure = false } = {}) => {
   if (!userId) {
     return 0
   }
@@ -125,6 +125,9 @@ const revokeAllAccessTokensForUser = async (userId) => {
     return revokedCount
   } catch (error) {
     logger.warn('Failed to revoke user access token jtis in Redis', { message: error.message, userId })
+    if (throwOnFailure) {
+      throw error
+    }
     return 0
   }
 }

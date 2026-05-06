@@ -1160,19 +1160,23 @@ const deleteUser = async (context, result = createServiceResponder()) => {
     }
   }
 
-  await prisma.$transaction([
-    prisma.refreshToken.updateMany({
-      where: {
-        userId: id,
-        revokedAt: null
-      },
-      data: { revokedAt: new Date() }
-    }),
-    prisma.user.delete({
-      where: { id }
+  await prisma.$transaction(async (tx) => {
+    const deletedAt = new Date()
+
+    await tx.user.update({
+      where: { id },
+      data: { deletedAt }
     })
-  ])
-  await revokeAllAccessTokensForUser(id)
+
+    // Revoke all active sessions for the deleted user
+    await tx.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: deletedAt }
+    })
+
+    // Also revoke the current access token from Redis if available
+    await revokeAllAccessTokensForUser(user.id, { throwOnFailure: true })
+  })
   clearStatsCache()
 
   result.ok({ message: 'User deleted successfully!' })

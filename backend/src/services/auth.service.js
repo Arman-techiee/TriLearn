@@ -148,6 +148,7 @@ const getUserSelect = ({ includeProfileDetails = false } = {}) => ({
   role: true,
   avatar: true,
   isActive: true,
+  deletedAt: true,
   emailVerified: true,
   mustChangePassword: true,
   profileCompleted: true,
@@ -1252,6 +1253,7 @@ const refreshSession = async (context, result, refreshToken, { includeRefreshTok
       storedRefreshToken.userId !== decoded.id ||
       storedRefreshToken.revokedAt ||
       storedRefreshToken.expiresAt <= now ||
+      storedRefreshToken.user.deletedAt ||
       !storedRefreshToken.user.isActive
     ) {
       return result.withStatus(401, { message: 'Refresh token is invalid or expired' })

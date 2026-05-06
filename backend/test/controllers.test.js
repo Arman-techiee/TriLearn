@@ -2530,30 +2530,32 @@ test('deleteUser blocks deleting the last admin account', async () => {
   assert.equal(deleteCalls.length, 0)
 })
 
-test('deleteUser permanently deletes the user and revokes refresh tokens', async () => {
+test('deleteUser soft-deletes the user and revokes refresh and access tokens inside the transaction', async () => {
   const transactionCalls = []
-  const { deleteUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
-    '../utils/prisma': {
-      user: {
-        findFirst: async () => ({
-          id: 'student-2',
-          role: 'STUDENT',
-          email: 'student2@example.com'
-        }),
-        count: async () => 2,
-        delete: async (payload) => {
-          transactionCalls.push({ type: 'user.delete', payload })
-          return payload
-        }
-      },
-      refreshToken: {
-        updateMany: async (payload) => {
-          transactionCalls.push({ type: 'refreshToken.updateMany', payload })
-          return { count: 1 }
-        }
-      },
-      $transaction: async (operations) => Promise.all(operations)
+  const accessRevocations = []
+  const prismaMock = {
+    user: {
+      findFirst: async () => ({
+        id: 'student-2',
+        role: 'STUDENT',
+        email: 'student2@example.com'
+      }),
+      count: async () => 2,
+      update: async (payload) => {
+        transactionCalls.push({ type: 'user.update', payload })
+        return payload
+      }
     },
+    refreshToken: {
+      updateMany: async (payload) => {
+        transactionCalls.push({ type: 'refreshToken.updateMany', payload })
+        return { count: 1 }
+      }
+    },
+    $transaction: async (callback) => callback(prismaMock)
+  }
+  const { deleteUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': prismaMock,
     'bcryptjs': {
       hash: async () => 'hashed'
     },
@@ -2574,6 +2576,12 @@ test('deleteUser permanently deletes the user and revokes refresh tokens', async
     },
     '../utils/emailTemplates': {
       welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/accessTokenRevocation': {
+      revokeAllAccessTokensForUser: async (userId, options) => {
+        accessRevocations.push({ userId, options })
+        return 1
+      }
     }
   })
 
@@ -2588,10 +2596,194 @@ test('deleteUser permanently deletes the user and revokes refresh tokens', async
   assert.equal(res.statusCode, 200)
   assert.deepEqual(res.body, { message: 'User deleted successfully!' })
   assert.equal(transactionCalls.length, 2)
-  assert.equal(transactionCalls[0].type, 'refreshToken.updateMany')
-  assert.equal(transactionCalls[0].payload.where.userId, 'student-2')
-  assert.equal(transactionCalls[1].type, 'user.delete')
-  assert.equal(transactionCalls[1].payload.where.id, 'student-2')
+  assert.equal(transactionCalls[0].type, 'user.update')
+  assert.equal(transactionCalls[0].payload.where.id, 'student-2')
+  assert.ok(transactionCalls[0].payload.data.deletedAt instanceof Date)
+  assert.equal(transactionCalls[1].type, 'refreshToken.updateMany')
+  assert.equal(transactionCalls[1].payload.where.userId, 'student-2')
+  assert.equal(transactionCalls[1].payload.where.revokedAt, null)
+  assert.deepEqual(accessRevocations, [{
+    userId: 'student-2',
+    options: { throwOnFailure: true }
+  }])
+})
+
+test('soft-deleted user cannot refresh with the prior session token', async () => {
+  process.env.QR_SIGNING_SECRET = 'test-qr-secret'
+  process.env.JWT_SECRET = 'test-jwt-secret'
+  process.env.LOGIN_CAPTCHA_SECRET = 'test-login-captcha-secret'
+
+  const users = new Map([[
+    'student-2',
+    {
+      id: 'student-2',
+      name: 'Student Two',
+      email: 'student2@example.com',
+      password: 'hashed-password',
+      role: 'STUDENT',
+      isActive: true,
+      emailVerified: true,
+      mustChangePassword: false,
+      profileCompleted: true,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      deletedAt: null,
+      avatar: null,
+      student: {
+        id: 'student-profile-2',
+        rollNumber: 'STU-002',
+        semester: 2,
+        section: 'A',
+        department: 'BCA'
+      },
+      instructor: null,
+      coordinator: null
+    }
+  ]])
+  const refreshTokens = new Map()
+  const hashToken = (token) => `hash:${token}`
+  const prismaMock = {
+    user: {
+      findUnique: async ({ where }) => {
+        if (where.email) {
+          return Array.from(users.values()).find((user) => user.email === where.email) || null
+        }
+
+        return users.get(where.id) || null
+      },
+      findFirst: async ({ where }) => {
+        const user = users.get(where.id)
+        return user && user.deletedAt === null ? user : null
+      },
+      count: async () => 2,
+      update: async ({ where, data }) => {
+        const user = users.get(where.id)
+        Object.assign(user, data)
+        return user
+      }
+    },
+    refreshToken: {
+      create: async ({ data }) => {
+        refreshTokens.set(data.tokenHash, {
+          id: 'refresh-token-1',
+          ...data,
+          revokedAt: null,
+          user: users.get(data.userId)
+        })
+        return refreshTokens.get(data.tokenHash)
+      },
+      findUnique: async ({ where, include }) => {
+        const token = refreshTokens.get(where.tokenHash)
+        if (!token) return null
+
+        return include?.user
+          ? { ...token, user: users.get(token.userId) }
+          : token
+      },
+      updateMany: async ({ where, data }) => {
+        let count = 0
+        for (const token of refreshTokens.values()) {
+          if (
+            (!where.userId || token.userId === where.userId) &&
+            (!where.tokenHash || token.tokenHash === where.tokenHash) &&
+            (where.revokedAt === undefined || token.revokedAt === where.revokedAt)
+          ) {
+            Object.assign(token, data)
+            count += 1
+          }
+        }
+        return { count }
+      }
+    },
+    $transaction: async (callback) => callback(prismaMock)
+  }
+  const commonMocks = {
+    '../utils/prisma': prismaMock,
+    'bcryptjs': {
+      compare: async () => true,
+      hash: async () => 'hashed'
+    },
+    '../utils/token': {
+      signAccessToken: () => 'access-token',
+      signRefreshToken: () => 'refresh-token',
+      verifyRefreshToken: () => ({ id: 'student-2' }),
+      hashToken,
+      getRefreshTokenExpiry: () => new Date(Date.now() + 86_400_000),
+      getRefreshCookieOptions: () => ({})
+    },
+    '../utils/accessTokenRevocation': {
+      revokeAllAccessTokensForUser: async () => 1,
+      revokeAccessTokenFromRequest: async () => true,
+      trackAccessToken: async () => true
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
+    },
+    '../utils/logger': {
+      info: () => {},
+      error: () => {},
+      warn: () => {}
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      passwordResetTemplate: () => ({ subject: 'Reset', html: '<p>Reset</p>', text: 'Reset' }),
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    'qrcode': {
+      toDataURL: async () => 'data:image/png;base64,qr'
+    }
+  }
+
+  const { login, refresh } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), {
+    ...commonMocks,
+    '../utils/token': {
+      ...commonMocks['../utils/token'],
+      signRefreshToken: () => 'refresh-token'
+    }
+  })
+
+  const loginReq = {
+    body: {
+      email: 'student2@example.com',
+      password: 'Password123'
+    },
+    get: () => 'test-user-agent'
+  }
+  const loginRes = createResponse()
+  await login(loginReq, loginRes)
+
+  assert.equal(loginRes.statusCode, 200)
+  assert.equal(refreshTokens.get('hash:refresh-token').revokedAt, null)
+
+  const { deleteUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), commonMocks)
+  const deleteRes = createResponse()
+  await deleteUser({
+    params: { id: 'student-2' },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }, deleteRes)
+
+  assert.equal(deleteRes.statusCode, 200)
+  assert.ok(users.get('student-2').deletedAt instanceof Date)
+  assert.ok(refreshTokens.get('hash:refresh-token').revokedAt instanceof Date)
+
+  const refreshRes = createResponse()
+  await refresh({
+    cookies: { refreshToken: 'refresh-token' },
+    body: {},
+    get: () => 'test-user-agent'
+  }, refreshRes)
+
+  assert.equal(refreshRes.statusCode, 401)
+  assert.deepEqual(refreshRes.body, { message: 'Refresh token is invalid or expired' })
 })
 
 test('getMyAttendance builds subject summary with groupBy instead of loading all records', async () => {
