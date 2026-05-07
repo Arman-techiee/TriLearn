@@ -3,6 +3,13 @@ const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const helmet = require('helmet')
+
+if (process.env.NODE_ENV !== 'production') {
+  // eslint-disable-next-line n/no-unpublished-require
+  require('dotenv').config()
+}
+// In production, environment variables are injected by the platform (Railway, Render, Docker --env-file, etc.)
+
 const logger = require('./utils/logger')
 const validateEnv = require('./utils/validateEnv')
 const { apiLimiter } = require('./middleware/rateLimit.middleware')
@@ -20,10 +27,6 @@ const { warmRedisConnection } = require('./utils/redis')
 const { startNotificationWorker, closeNotificationWorker } = require('./jobs/notificationWorker')
 const { notificationQueue } = require('./jobs/notificationQueue')
 
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config()
-}
-// In production, environment variables are injected by the platform (Railway, Render, Docker --env-file, etc.)
 validateEnv()
 
 const app = express()
@@ -35,6 +38,7 @@ let isShuttingDown = false
 const ENABLE_API_DOCS = process.env.ENABLE_API_DOCS === 'true'
 if (ENABLE_API_DOCS && process.env.NODE_ENV !== 'production') {
   try {
+    // eslint-disable-next-line n/no-unpublished-require
     const swaggerUi = require('swagger-ui-express')
     const { openApiDocument } = require('./docs/openapi')
 

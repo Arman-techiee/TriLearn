@@ -1,4 +1,7 @@
-require('dotenv').config()
+if (process.env.NODE_ENV !== 'production') {
+  // eslint-disable-next-line n/no-unpublished-require
+  require('dotenv').config()
+}
 
 const { PrismaClient } = require('@prisma/client')
 const { PrismaPg } = require('@prisma/adapter-pg')
