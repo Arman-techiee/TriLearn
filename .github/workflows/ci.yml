@@ -96,6 +96,7 @@ jobs:
       DATABASE_URL: postgresql://trilearn_user:trilearn_ci_password@localhost:5432/trilearn_test
       TEST_DATABASE_URL: postgresql://trilearn_user:trilearn_ci_password@localhost:5432/trilearn_test
       REDIS_URL: redis://localhost:6379
+      FRONTEND_URL: http://localhost:5173
       JWT_ACCESS_SECRET: ci-test-access-secret-minimum-32-characters
       JWT_REFRESH_SECRET: ci-test-refresh-secret-minimum-32-characters
       QR_SIGNING_SECRET: ci-test-qr-secret-minimum-32-characters

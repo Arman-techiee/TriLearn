@@ -16,6 +16,7 @@ process.env.QR_SIGNING_SECRET = process.env.QR_SIGNING_SECRET || 'test-qr-secret
 process.env.FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 process.env.NODE_ENV = process.env.NODE_ENV || 'test'
 
+const trustedOrigin = process.env.FRONTEND_URL
 const { app } = require('../src/index')
 const prisma = require('../src/utils/prisma')
 
@@ -54,6 +55,7 @@ test('POST /api/v1/auth/student-intake persists an application in the real datab
   try {
     const response = await request(app)
       .post('/api/v1/auth/student-intake')
+      .set('Origin', trustedOrigin)
       .send(buildStudentIntakePayload(email))
 
     assert.equal(response.status, 201)
@@ -104,6 +106,7 @@ test('POST /api/v1/auth/student-intake resets a reviewed application back to pen
 
     const response = await request(app)
       .post('/api/v1/auth/student-intake')
+      .set('Origin', trustedOrigin)
       .send(buildStudentIntakePayload(email))
 
     assert.equal(response.status, 201)
