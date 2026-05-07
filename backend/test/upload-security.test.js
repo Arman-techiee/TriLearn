@@ -292,14 +292,43 @@ test('validateUploadedPdf writes a valid PDF to disk only after in-memory valida
   assert.match(String(req.file.path), /assignment\.pdf$/i)
 })
 
-test('validateUploadedPdf strips action annotations and stores the sanitized PDF buffer', async () => {
+test('validateUploadedPdf strips active PDF content and stores the sanitized buffer', async () => {
   const writeCalls = []
   const removedAnnotationIndexes = []
   let formFlattened = false
   const sanitizedPdfBuffer = Buffer.from('%PDF-1.7 sanitized payload')
+  const deletedKeysByDict = {}
+  const createPdfDict = (label, values = {}) => ({
+    has: (key) => Object.prototype.hasOwnProperty.call(values, key),
+    get: (key) => values[key],
+    delete: (key) => {
+      deletedKeysByDict[label] = deletedKeysByDict[label] || []
+      deletedKeysByDict[label].push(key)
+      delete values[key]
+    },
+    entries: () => Object.entries(values)
+  })
+  const catalogNames = createPdfDict('names', {
+    JavaScript: createPdfDict('javascriptNames'),
+    EmbeddedFiles: createPdfDict('embeddedFiles')
+  })
+  const catalog = createPdfDict('catalog', {
+    OpenAction: createPdfDict('openAction', { JS: 'app.alert(1)' }),
+    AA: createPdfDict('catalogAdditionalActions', { JS: 'app.alert(2)' }),
+    AF: 'embedded-file-ref',
+    Names: catalogNames
+  })
+  const formDict = createPdfDict('form', {
+    XFA: 'xfa-payload',
+    AA: createPdfDict('formAdditionalActions', { JS: 'app.alert(3)' })
+  })
+  const fieldDict = createPdfDict('field', {
+    Action: createPdfDict('fieldAction', { JS: 'app.alert(4)' })
+  })
   const annotations = [
-    { has: (key) => key === 'A' },
-    { has: () => false }
+    createPdfDict('annotationWithAdditionalActions', { AA: createPdfDict('annotationAction') }),
+    createPdfDict('annotationWithJavaScript', { JS: 'app.alert(5)' }),
+    createPdfDict('safeAnnotation', {})
   ]
 
   const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
@@ -320,6 +349,7 @@ test('validateUploadedPdf strips action annotations and stores the sanitized PDF
           context: {
             lookup: (object) => object
           },
+          catalog,
           getPages: () => [{
             node: {
               get: (key) => key === 'Annots'
@@ -335,6 +365,14 @@ test('validateUploadedPdf strips action annotations and stores the sanitized PDF
             }
           }],
           getForm: () => ({
+            acroForm: {
+              dict: formDict
+            },
+            getFields: () => [{
+              acroField: {
+                dict: fieldDict
+              }
+            }],
             flatten: () => {
               formFlattened = true
             }
@@ -371,7 +409,11 @@ test('validateUploadedPdf strips action annotations and stores the sanitized PDF
   })
 
   assert.equal(nextCalled, true)
-  assert.deepEqual(removedAnnotationIndexes, [0])
+  assert.deepEqual(removedAnnotationIndexes, [1, 0])
+  assert.deepEqual(deletedKeysByDict.catalog, ['OpenAction', 'AA', 'AF', 'A', 'Action', 'AA', 'JS'])
+  assert.deepEqual(deletedKeysByDict.names, ['JavaScript', 'EmbeddedFiles', 'A', 'Action', 'AA', 'JS'])
+  assert.deepEqual(deletedKeysByDict.form, ['XFA', 'A', 'Action', 'AA', 'JS'])
+  assert.deepEqual(deletedKeysByDict.field, ['A', 'Action', 'AA', 'JS'])
   assert.equal(formFlattened, true)
   assert.deepEqual(req.file.buffer, sanitizedPdfBuffer)
   assert.equal(writeCalls.length, 1)

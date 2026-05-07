@@ -102,20 +102,52 @@ const lookupPdfObject = (pdfDoc, object) => {
   return pdfDoc.context.lookup(object)
 }
 
-const annotationHasAction = (annotation, actionKey) => (
-  Boolean(annotation?.has?.(actionKey) || annotation?.get?.(actionKey))
+const buildPdfNameMap = (names) => Object.fromEntries(names.map((name) => [name, PDFName.of(name)]))
+
+const hasPdfDictionaryKey = (dictionary, key) => (
+  Boolean(dictionary?.has?.(key) || dictionary?.get?.(key))
 )
 
-const sanitizePdfActiveContent = async (pdfDoc) => {
-  if (!PDFName || !pdfDoc?.getPages) {
-    return null
+const deletePdfDictionaryKeys = (dictionary, keys) => {
+  if (!dictionary?.delete) {
+    return
   }
 
-  const annotsKey = PDFName.of('Annots')
-  const actionKey = PDFName.of('A')
+  keys.forEach((key) => {
+    dictionary.delete(key)
+  })
+}
 
+const sanitizePdfObject = (pdfDoc, object, activeContentKeys, visited = new Set()) => {
+  const resolvedObject = lookupPdfObject(pdfDoc, object)
+  if (!resolvedObject || visited.has(resolvedObject)) {
+    return
+  }
+
+  visited.add(resolvedObject)
+  deletePdfDictionaryKeys(resolvedObject, activeContentKeys)
+
+  if (resolvedObject.entries) {
+    for (const [, value] of resolvedObject.entries()) {
+      sanitizePdfObject(pdfDoc, value, activeContentKeys, visited)
+    }
+    return
+  }
+
+  if (resolvedObject.asArray) {
+    for (const value of resolvedObject.asArray()) {
+      sanitizePdfObject(pdfDoc, value, activeContentKeys, visited)
+    }
+  }
+}
+
+const annotationHasActiveContent = (annotation, activeContentKeys) => (
+  activeContentKeys.some((key) => hasPdfDictionaryKey(annotation, key))
+)
+
+const sanitizePdfAnnotations = (pdfDoc, pdfNames, activeContentKeys) => {
   for (const page of pdfDoc.getPages()) {
-    const annotations = lookupPdfObject(pdfDoc, page.node.get(annotsKey))
+    const annotations = lookupPdfObject(pdfDoc, page.node.get(pdfNames.Annots))
 
     if (!annotations?.asArray || !annotations?.remove) {
       continue
@@ -123,15 +155,87 @@ const sanitizePdfActiveContent = async (pdfDoc) => {
 
     for (let index = annotations.asArray().length - 1; index >= 0; index -= 1) {
       const annotation = lookupPdfObject(pdfDoc, annotations.lookup?.(index) || annotations.get?.(index))
-      if (annotationHasAction(annotation, actionKey)) {
+      if (annotationHasActiveContent(annotation, activeContentKeys)) {
         annotations.remove(index)
+        continue
       }
+
+      sanitizePdfObject(pdfDoc, annotation, activeContentKeys)
     }
   }
+}
 
-  if (pdfDoc.getForm) {
-    pdfDoc.getForm().flatten()
+const sanitizePdfCatalog = (pdfDoc, pdfNames, activeContentKeys) => {
+  if (!pdfDoc.catalog) {
+    return
   }
+
+  deletePdfDictionaryKeys(pdfDoc.catalog, [
+    pdfNames.OpenAction,
+    pdfNames.AA,
+    pdfNames.AF
+  ])
+
+  const names = lookupPdfObject(pdfDoc, pdfDoc.catalog.get?.(pdfNames.Names))
+  if (names) {
+    deletePdfDictionaryKeys(names, [
+      pdfNames.JavaScript,
+      pdfNames.EmbeddedFiles
+    ])
+  }
+
+  sanitizePdfObject(pdfDoc, pdfDoc.catalog, activeContentKeys)
+}
+
+const sanitizePdfForm = (pdfDoc, pdfNames, activeContentKeys) => {
+  if (!pdfDoc.getForm) {
+    return
+  }
+
+  const form = pdfDoc.getForm()
+  deletePdfDictionaryKeys(form.acroForm?.dict, [
+    pdfNames.XFA,
+    ...activeContentKeys
+  ])
+
+  if (form.getFields) {
+    form.getFields().forEach((field) => {
+      sanitizePdfObject(pdfDoc, field.acroField?.dict, activeContentKeys)
+    })
+  }
+
+  form.flatten()
+}
+
+const sanitizePdfActiveContent = async (pdfDoc) => {
+  if (!PDFName || !pdfDoc?.getPages) {
+    return null
+  }
+
+  const pdfNames = buildPdfNameMap([
+    'A',
+    'AA',
+    'AF',
+    'Action',
+    'Annots',
+    'EmbeddedFiles',
+    'JavaScript',
+    'JS',
+    'Names',
+    'OpenAction',
+    'XFA'
+  ])
+  const activeContentKeys = [
+    pdfNames.A,
+    pdfNames.Action,
+    pdfNames.AA,
+    pdfNames.JS
+  ]
+
+  sanitizePdfAnnotations(pdfDoc, pdfNames, activeContentKeys)
+  sanitizePdfCatalog(pdfDoc, pdfNames, activeContentKeys)
+  sanitizePdfForm(pdfDoc, pdfNames, activeContentKeys)
+
 
   if (!pdfDoc.save) {
     return null
