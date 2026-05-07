@@ -167,7 +167,11 @@ const validateEnv = () => {
   // and reuse the existing trusted frontend origin configuration.
 
   if (process.env.NODE_ENV === 'production' && process.env.OPEN_REGISTRATION === 'true') {
-    console.warn('Warning: OPEN_REGISTRATION is deprecated and ignored. Use the student intake review flow instead.')
+    logger.warn(
+      'WARNING: OPEN_REGISTRATION=true is set in production. ' +
+      'This allows anyone on the internet to submit a student application. ' +
+      'Ensure this is intentional and that coordinator review is active.'
+    )
   }
 
 }
