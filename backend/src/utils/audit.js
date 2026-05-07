@@ -19,6 +19,11 @@ const recordAuditLog = async ({
   db = prisma
 }) => {
   try {
+    if (!actorId) {
+      logger.warn('Skipping audit log without actorId', { action, entityType, entityId })
+      return null
+    }
+
     const normalizedMetadata = metadata == null || (typeof metadata === 'object' && !Array.isArray(metadata))
       ? metadata
       : null
@@ -29,7 +34,7 @@ const recordAuditLog = async ({
 
     await db.auditLog.create({
       data: {
-        actorId: actorId || null,
+        actorId,
         actorRole: actorRole || null,
         action,
         entityType,

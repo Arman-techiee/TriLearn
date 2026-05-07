@@ -258,6 +258,10 @@ const getManagedUserDepartments = (user) => {
     return getInstructorDepartments(user.instructor)
   }
 
+  if (user.role === 'GATEKEEPER') {
+    return normalizeDepartmentList([user.gatekeeper?.department])
+  }
+
   if (user.role === 'COORDINATOR') {
     return normalizeDepartmentList([
       ...(Array.isArray(user.coordinator?.departments) ? user.coordinator.departments : []),
@@ -281,10 +285,6 @@ const coordinatorCanManageUser = (context, user) => {
 
   if (!user || ['ADMIN', 'COORDINATOR'].includes(user.role)) {
     return false
-  }
-
-  if (user.role === 'GATEKEEPER') {
-    return true
   }
 
   const coordinatorDepartments = getCoordinatorDepartments(context)
@@ -384,7 +384,16 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
       }
 
       if (!role || role === 'GATEKEEPER') {
-        departmentScopedRoles.push({ role: 'GATEKEEPER' })
+        departmentScopedRoles.push({
+          role: 'GATEKEEPER',
+          gatekeeper: {
+            is: {
+              department: {
+                in: coordinatorDepartments
+              }
+            }
+          }
+        })
       }
 
       andFilters.push({
@@ -425,6 +434,7 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
       { student: { is: { department: buildContainsSearch(search) } } },
       { instructor: { is: { department: buildContainsSearch(search) } } },
       { instructor: { is: { departmentMemberships: { some: { department: { is: { name: buildContainsSearch(search) } } } } } } },
+      { gatekeeper: { is: { department: buildContainsSearch(search) } } },
       { coordinator: { is: { department: buildContainsSearch(search) } } }
       ]
     })
@@ -452,6 +462,7 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
       createdAt: true,
       student: true,
       instructor: { include: instructorDepartmentMembershipInclude },
+      gatekeeper: true,
       admin: true,
       coordinator: true
       },
@@ -586,8 +597,9 @@ const createCoordinator = async (context, result = createServiceResponder()) => 
  * @returns {Promise<any>|any} Service result.
  */
 const createGatekeeper = async (context, result = createServiceResponder()) => {
-    const { name, email, password, phone, address } = context.body
+    const { name, email, password, phone, address, department } = context.body
   const normalizedEmail = normalizeEmail(email)
+  const normalizedDepartment = department?.trim() || null
   const sanitizedName = sanitizePlainText(name)
   const sanitizedPhone = sanitizeOptionalPlainText(phone)
   const sanitizedAddress = sanitizeOptionalPlainText(address)
@@ -595,6 +607,21 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
   const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (existingUser) {
     return result.withStatus(400, { message: 'Email already exists' })
+  }
+
+  const validDepartment = await ensureDepartmentExists(normalizedDepartment)
+  if (!validDepartment) {
+    return result.withStatus(400, { message: 'Please select a valid department' })
+  }
+
+  const candidateUser = {
+    role: 'GATEKEEPER',
+    gatekeeper: {
+      department: normalizedDepartment
+    }
+  }
+  if (!coordinatorCanManageUser(context, candidateUser)) {
+    return result.withStatus(403, { message: 'Coordinators can only create gatekeepers in their own department' })
   }
 
   const hashedPassword = await hashPassword(password)
@@ -606,7 +633,12 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
       password: hashedPassword,
       role: 'GATEKEEPER',
       phone: sanitizedPhone,
-      address: sanitizedAddress
+      address: sanitizedAddress,
+      gatekeeper: {
+        create: {
+          department: normalizedDepartment
+        }
+      }
     }
   })
   clearStatsCache()
@@ -617,7 +649,8 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      department: normalizedDepartment
     }
   })
 
@@ -627,7 +660,10 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
     action: 'USER_CREATED',
     entityType: 'User',
     entityId: user.id,
-    metadata: { role: user.role }
+    metadata: {
+      role: user.role,
+      department: normalizedDepartment
+    }
   })
 }
 

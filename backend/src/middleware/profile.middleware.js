@@ -11,7 +11,7 @@ const attachActorProfiles = async (req, _res, next) => {
     } else if (req.user.role === 'COORDINATOR') {
       req.coordinator = req.user.coordinator || null
     } else if (req.user.role === 'GATEKEEPER') {
-      req.gatekeeper = { userId: req.user.id }
+      req.gatekeeper = req.user.gatekeeper || { userId: req.user.id }
     }
 
     next()

@@ -33,6 +33,12 @@ const getUserSelectShape = () => ({
       }
     }
   },
+  gatekeeper: {
+    select: {
+      id: true,
+      department: true
+    }
+  },
   coordinator: {
     select: {
       id: true,

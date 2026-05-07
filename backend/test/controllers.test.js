@@ -2284,7 +2284,14 @@ test('getAllUsers scopes coordinator queries to their department', async () => {
         }
       },
       {
-        role: 'GATEKEEPER'
+        role: 'GATEKEEPER',
+        gatekeeper: {
+          is: {
+            department: {
+              in: ['BCA']
+            }
+          }
+        }
       }
     ]
   })
@@ -2540,6 +2547,71 @@ test('createInstructor blocks coordinators from creating instructors outside the
   assert.deepEqual(res.body, {
     message: 'Coordinators can only create instructors in their own department'
   })
+})
+
+test('createGatekeeper blocks coordinators from creating gatekeepers outside their department', async () => {
+  const createCalls = []
+  const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => null,
+        create: async (payload) => {
+          createCalls.push(payload)
+          return {
+            id: 'gatekeeper-user-1',
+            name: payload.data.name,
+            email: payload.data.email,
+            role: payload.data.role
+          }
+        }
+      }
+    },
+    '../utils/adminHelpers': {
+      normalizeEmail: (value) => String(value || '').trim().toLowerCase(),
+      sanitizeOptionalPlainText: (value) => value || null,
+      deleteStaleDeletedStudentAccounts: async () => {}
+    },
+    '../utils/security': {
+      hashPassword: async () => 'hashed-password',
+      generateTemporaryPassword: () => 'TempPass123!'
+    },
+    '../utils/sanitize': {
+      sanitizePlainText: (value) => value
+    },
+    '../utils/instructorDepartments': {
+      getInstructorDepartments: () => [],
+      normalizeDepartmentList: (values) => values.filter(Boolean)
+    },
+    './department.controller': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/statsCache': {
+      clearStatsCache: () => {}
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    }
+  })
+
+  const req = {
+    body: {
+      name: 'Gatekeeper One',
+      email: 'gatekeeper@example.com',
+      password: 'Str0ngPass!23',
+      department: 'Civil'
+    },
+    user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
+    coordinator: { id: 'coord-1', department: 'Computer Science' }
+  }
+  const res = createResponse()
+
+  await createGatekeeper(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, {
+    message: 'Coordinators can only create gatekeepers in their own department'
+  })
+  assert.equal(createCalls.length, 0)
 })
 
 test('deleteUser blocks deleting the last admin account', async () => {
@@ -3974,6 +4046,7 @@ test('scanStudentIdAttendance requires subjectId for instructor and coordinator 
 test('scanStudentIdAttendance allows gatekeeper scans without subjectId', async () => {
   let ownedSubjectCalls = 0
   let upsertCalls = 0
+  let eligibilityStudent = null
   const redisSetCalls = []
 
   const { scanStudentIdAttendance } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {
@@ -3996,15 +4069,18 @@ test('scanStudentIdAttendance allows gatekeeper scans without subjectId', async 
       parseQrPayload: () => ({}),
       getDailyGateWindows: async () => ({}),
       normalizeSemesterList: () => [],
-      getEligibleGateAttendanceForStudent: async () => ({
-        routines: [{ id: 'routine-1', subjectId: 'subject-1' }],
-        gateDay: {
-          dayRange: {
-            start: new Date('2026-04-03T00:00:00.000Z'),
-            end: new Date('2026-04-04T00:00:00.000Z')
+      getEligibleGateAttendanceForStudent: async (student) => {
+        eligibilityStudent = student
+        return {
+          routines: [{ id: 'routine-1', subjectId: 'subject-1' }],
+          gateDay: {
+            dayRange: {
+              start: new Date('2026-04-03T00:00:00.000Z'),
+              end: new Date('2026-04-04T00:00:00.000Z')
+            }
           }
         }
-      }),
+      },
       upsertPresentAttendanceForRoutines: async () => {
         upsertCalls += 1
         return {
@@ -4020,6 +4096,7 @@ test('scanStudentIdAttendance allows gatekeeper scans without subjectId', async 
           rollNumber: 'BCA-001',
           semester: 4,
           section: 'A',
+          department: 'BCA',
           user: { name: 'Arman Dev' }
         }
       }),
@@ -4040,7 +4117,12 @@ test('scanStudentIdAttendance allows gatekeeper scans without subjectId', async 
 
   const req = {
     body: { qrData: 'student-id-qr' },
-    user: { id: 'gatekeeper-user-1', role: 'GATEKEEPER' }
+    user: {
+      id: 'gatekeeper-user-1',
+      role: 'GATEKEEPER',
+      gatekeeper: { id: 'gatekeeper-1', department: 'Computer Science' }
+    },
+    gatekeeper: { id: 'gatekeeper-1', department: 'Computer Science' }
   }
   const res = createResponse()
 
@@ -4050,6 +4132,7 @@ test('scanStudentIdAttendance allows gatekeeper scans without subjectId', async 
   assert.equal(res.body.mode, 'GATE_WINDOW')
   assert.equal(upsertCalls, 1)
   assert.equal(ownedSubjectCalls, 0)
+  assert.equal(eligibilityStudent.department, 'BCA')
   assert.equal(redisSetCalls.length, 1)
   assert.match(redisSetCalls[0][0], /^qr-used:student-1:/)
   assert.equal(redisSetCalls[0][2].NX, true)

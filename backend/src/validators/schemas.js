@@ -490,7 +490,11 @@ const schemas = {
         department: optionalString(100)
       })
     },
-    createGatekeeper: { body: userBaseSchema },
+    createGatekeeper: {
+      body: userBaseSchema.extend({
+        department: z.string().trim().min(2).max(100)
+      })
+    },
     createInstructor: {
       body: userBaseSchema.extend({
         department: optionalString(100),
