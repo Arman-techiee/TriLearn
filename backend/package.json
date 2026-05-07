@@ -28,7 +28,6 @@
     "bullmq": "^5.76.4",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
@@ -47,7 +46,6 @@
     "redis": "^5.12.1",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
-    "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0",
     "zod": "^4.3.6"
   },
@@ -59,9 +57,11 @@
     "@eslint/js": "^9.39.4",
     "eslint": "^9.39.4",
     "eslint-plugin-n": "^17.23.1",
+    "dotenv": "^17.3.1",
     "globals": "^17.4.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
-    "supertest": "^7.1.4"
+    "supertest": "^7.1.4",
+    "swagger-ui-express": "^5.0.1"
   }
 }
