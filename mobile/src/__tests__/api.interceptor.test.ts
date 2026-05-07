@@ -1,4 +1,5 @@
 import type { InternalAxiosRequestConfig } from 'axios';
+import { createHmac } from 'crypto';
 import type { AuthUser } from '@/src/types/auth';
 import { useAuthStore } from '@/src/store/auth.store';
 
@@ -61,12 +62,19 @@ const getRequestInterceptor = () => {
 
 describe('api request interceptor', () => {
   beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(60000);
+    process.env.EXPO_PUBLIC_MOBILE_CLIENT_SECRET = 'test-mobile-secret';
     useAuthStore.setState({
       user: null,
       accessToken: null,
       refreshToken: null,
       isHydrated: false,
     });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    delete process.env.EXPO_PUBLIC_MOBILE_CLIENT_SECRET;
   });
 
   it('attaches the Authorization header when accessToken is present in the store', () => {
@@ -87,5 +95,20 @@ describe('api request interceptor', () => {
     const config = interceptor({ headers: {} } as InternalAxiosRequestConfig);
 
     expect((config.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it('attaches signed mobile client headers', () => {
+    const interceptor = getRequestInterceptor();
+    const config = interceptor({ headers: {} } as InternalAxiosRequestConfig);
+    const headers = config.headers as Record<string, string>;
+    const expectedSignature = createHmac('sha256', 'test-mobile-secret')
+      .update(`mobile:1.0.0:${headers['X-App-Platform']}:2`)
+      .digest('hex');
+
+    expect(headers['X-Client-Type']).toBe('mobile');
+    expect(headers['X-Client-Version']).toBe('1.0.0');
+    expect(headers['X-App-Version']).toBe('1.0.0');
+    expect(headers['X-App-Platform']).toBeTruthy();
+    expect(headers['X-Client-Signature']).toBe(expectedSignature);
   });
 });

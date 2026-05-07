@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 
 import { API_BASE_URL } from '@/src/constants/config';
 import { refreshAccessToken } from '@/src/services/auth.service';
+import { APP_PLATFORM, buildMobileClientSignature, CLIENT_TYPE } from '@/src/services/mobileClientSignature';
 import { updateSocketToken } from '@/src/services/socket.service';
 import { useAuthStore } from '@/src/store/auth.store';
 import type { RefreshTokenResponse } from '@/src/types/auth';
@@ -24,13 +25,16 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
-    'X-Client-Type': 'mobile',
+    'X-Client-Type': CLIENT_TYPE,
+    'X-Client-Version': APP_VERSION,
     'X-App-Version': APP_VERSION,
+    'X-App-Platform': APP_PLATFORM,
   },
 });
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
+  const clientSignature = buildMobileClientSignature(APP_VERSION);
 
   if (token) {
     config.headers = config.headers ?? {};
@@ -38,8 +42,14 @@ api.interceptors.request.use((config) => {
   }
 
   config.headers = config.headers ?? {};
-  (config.headers as Record<string, string>)['X-Client-Type'] = 'mobile';
+  (config.headers as Record<string, string>)['X-Client-Type'] = CLIENT_TYPE;
+  (config.headers as Record<string, string>)['X-Client-Version'] = APP_VERSION;
   (config.headers as Record<string, string>)['X-App-Version'] = APP_VERSION;
+  (config.headers as Record<string, string>)['X-App-Platform'] = APP_PLATFORM;
+
+  if (clientSignature) {
+    (config.headers as Record<string, string>)['X-Client-Signature'] = clientSignature;
+  }
 
   return config;
 });
@@ -90,8 +100,10 @@ api.interceptors.response.use(
 
       originalRequest.headers = originalRequest.headers ?? {};
       (originalRequest.headers as Record<string, string>).Authorization = `Bearer ${refreshed.accessToken}`;
-      (originalRequest.headers as Record<string, string>)['X-Client-Type'] = 'mobile';
+      (originalRequest.headers as Record<string, string>)['X-Client-Type'] = CLIENT_TYPE;
+      (originalRequest.headers as Record<string, string>)['X-Client-Version'] = APP_VERSION;
       (originalRequest.headers as Record<string, string>)['X-App-Version'] = APP_VERSION;
+      (originalRequest.headers as Record<string, string>)['X-App-Platform'] = APP_PLATFORM;
 
       return api(originalRequest);
     } catch (refreshError) {

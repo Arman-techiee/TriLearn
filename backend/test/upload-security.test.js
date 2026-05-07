@@ -4,6 +4,7 @@ const path = require('node:path')
 const { createRequire } = require('node:module')
 const express = require('express')
 const request = require('supertest')
+const { PDFDocument, PDFName } = require('pdf-lib')
 
 const resolveFromTest = (...segments) => path.resolve(__dirname, '..', ...segments)
 
@@ -468,15 +469,75 @@ test('validateUploadedPdf strips active PDF content and stores the sanitized buf
   })
 
   assert.equal(nextCalled, true)
-  assert.deepEqual(removedAnnotationIndexes, [1, 0])
-  assert.deepEqual(deletedKeysByDict.catalog, ['OpenAction', 'AA', 'AF', 'A', 'Action', 'AA', 'JS'])
-  assert.deepEqual(deletedKeysByDict.names, ['JavaScript', 'EmbeddedFiles', 'A', 'Action', 'AA', 'JS'])
-  assert.deepEqual(deletedKeysByDict.form, ['XFA', 'A', 'Action', 'AA', 'JS'])
-  assert.deepEqual(deletedKeysByDict.field, ['A', 'Action', 'AA', 'JS'])
+  assert.deepEqual(removedAnnotationIndexes, [])
+  assert.deepEqual(deletedKeysByDict.catalog, ['OpenAction', 'AA', 'AF', 'XFA', 'A', 'Action', 'AA', 'JS', 'XFA'])
+  assert.deepEqual(deletedKeysByDict.names, ['JavaScript', 'EmbeddedFiles', 'A', 'Action', 'AA', 'JS', 'XFA'])
+  assert.deepEqual(deletedKeysByDict.form, ['XFA', 'A', 'Action', 'AA', 'JS', 'XFA'])
+  assert.deepEqual(deletedKeysByDict.field, ['A', 'Action', 'AA', 'JS', 'XFA'])
   assert.equal(formFlattened, true)
   assert.deepEqual(req.file.buffer, sanitizedPdfBuffer)
   assert.equal(writeCalls.length, 1)
   assert.deepEqual(writeCalls[0].buffer, sanitizedPdfBuffer)
+})
+
+test('validateUploadedPdf stores embedded JavaScript PDFs with the JavaScript stripped', async () => {
+  const writeCalls = []
+  const sourcePdf = await PDFDocument.create()
+  sourcePdf.addPage()
+  sourcePdf.addJavaScript('evil', 'app.alert("owned")')
+  const sourceBuffer = Buffer.from(await sourcePdf.save({ useObjectStreams: false }))
+
+  assert.match(sourceBuffer.toString('latin1'), /\/JavaScript/)
+  assert.match(sourceBuffer.toString('latin1'), /006100700070002E0061006C006500720074/i)
+
+  const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        writeFile: async (filePath, buffer) => {
+          writeCalls.push({ filePath, buffer: Buffer.from(buffer) })
+        },
+        unlink: async () => {}
+      }
+    },
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const req = {
+    file: {
+      originalname: 'javascript.pdf',
+      mimetype: 'application/pdf',
+      buffer: sourceBuffer
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await validateUploadedPdf(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, true)
+  assert.equal(writeCalls.length, 1)
+
+  const storedBuffer = writeCalls[0].buffer
+  const storedRaw = storedBuffer.toString('latin1')
+  const storedPdf = await PDFDocument.load(storedBuffer)
+  const names = storedPdf.catalog.lookup(PDFName.of('Names'))
+
+  assert.equal(names?.get?.(PDFName.of('JavaScript')), undefined)
+  assert.doesNotMatch(storedRaw, /006100700070002E0061006C006500720074/i)
+  assert.doesNotMatch(storedRaw, /\/JS\s/)
+  assert.doesNotMatch(storedRaw, /\/JavaScript/)
 })
 
 test('validateUploadedPdf records uploaded file ownership after storage', async () => {
