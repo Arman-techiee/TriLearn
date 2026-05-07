@@ -64,6 +64,17 @@ const createServiceResponder = () => {
     return lastResult
   }
 
+  stream.redirect = (url, statusCode = 302) => {
+    lastResult = {
+      redirectUrl: url,
+      statusCode,
+      headers,
+      cookies,
+      clears
+    }
+    return lastResult
+  }
+
   stream.internalError = (error) => {
     throw error
   }

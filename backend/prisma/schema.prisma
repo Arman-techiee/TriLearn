@@ -46,6 +46,7 @@ model User {
   deviceTokens DeviceToken[]
   refreshTokens RefreshToken[]
   auditLogs  AuditLog[]
+  uploadedFiles UploadedFile[] @relation("UploadedFiles")
 
   @@index([role])
   @@index([isActive])
@@ -372,6 +373,19 @@ model StudyMaterial {
 
   @@index([subjectId])
   @@index([instructorId])
+}
+
+model UploadedFile {
+  id           String   @id @default(uuid())
+  fileName     String   @unique
+  fileUrl      String
+  mimeType     String?
+  storage      String   @default("LOCAL")
+  uploadedById String
+  uploadedBy   User     @relation("UploadedFiles", fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([uploadedById])
 }
 
 // ================================

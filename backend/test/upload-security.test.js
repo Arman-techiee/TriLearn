@@ -164,6 +164,83 @@ test('serveUploadedFile denies instructor access to another user avatar', async 
   assert.equal(auditCalls[0].entityId, 'avatar.png')
 })
 
+test('serveUploadedFile denies direct uploaded file access to non-owners', async () => {
+  const auditCalls = []
+  const { serveUploadedFile } = loadWithMocks(resolveFromTest('src', 'controllers', 'upload.controller.js'), {
+    '../utils/prisma': {
+      uploadedFile: {
+        findUnique: async () => ({ id: 'file-1', uploadedById: 'owner-user-1' })
+      },
+      user: { findFirst: async () => null },
+      assignment: { findFirst: async () => null },
+      submission: { findFirst: async () => null },
+      studyMaterial: { findFirst: async () => null }
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads',
+      uploadPublicPath: '/api/v1/uploads'
+    },
+    '../utils/audit': {
+      recordAuditLog: async (payload) => {
+        auditCalls.push(payload)
+      }
+    },
+    '../middleware/csrf.middleware': {
+      getTrustedOrigins: () => []
+    }
+  })
+
+  const req = {
+    params: { filename: 'private.pdf' },
+    user: { id: 'different-user', role: 'STUDENT' }
+  }
+  const res = createResponse()
+
+  await serveUploadedFile(req, res)
+
+  assert.equal(res.statusCode, 403)
+  assert.deepEqual(res.body, { message: 'Access denied' })
+  assert.equal(res.sentFile, null)
+  assert.equal(auditCalls.length, 1)
+  assert.equal(auditCalls[0].metadata.resourceType, 'UPLOAD')
+})
+
+test('serveUploadedFile allows direct uploaded file access to the owner', async () => {
+  const { serveUploadedFile } = loadWithMocks(resolveFromTest('src', 'controllers', 'upload.controller.js'), {
+    '../utils/prisma': {
+      uploadedFile: {
+        findUnique: async () => ({ id: 'file-1', uploadedById: 'owner-user-1' })
+      },
+      user: { findFirst: async () => null },
+      assignment: { findFirst: async () => null },
+      submission: { findFirst: async () => null },
+      studyMaterial: { findFirst: async () => null }
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads',
+      uploadPublicPath: '/api/v1/uploads'
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../middleware/csrf.middleware': {
+      getTrustedOrigins: () => []
+    }
+  })
+
+  const req = {
+    params: { filename: 'private.pdf' },
+    user: { id: 'owner-user-1', role: 'STUDENT' }
+  }
+  const res = createResponse()
+
+  await serveUploadedFile(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.match(res.sentFile.filePath, /private\.pdf$/i)
+  assert.match(res.headers['Content-Disposition'], /^attachment; filename="private\.pdf"$/i)
+})
+
 test('validateUploadedPdf writes a valid PDF to disk only after in-memory validation', async () => {
   const writeCalls = []
   const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
@@ -213,6 +290,145 @@ test('validateUploadedPdf writes a valid PDF to disk only after in-memory valida
   assert.equal(req.file.filename.endsWith('-assignment.pdf'), true)
   assert.equal(req.file.originalname, 'assignment.pdf')
   assert.match(String(req.file.path), /assignment\.pdf$/i)
+})
+
+test('validateUploadedPdf strips action annotations and stores the sanitized PDF buffer', async () => {
+  const writeCalls = []
+  const removedAnnotationIndexes = []
+  let formFlattened = false
+  const sanitizedPdfBuffer = Buffer.from('%PDF-1.7 sanitized payload')
+  const annotations = [
+    { has: (key) => key === 'A' },
+    { has: () => false }
+  ]
+
+  const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        writeFile: async (filePath, buffer) => {
+          writeCalls.push({ filePath, buffer: Buffer.from(buffer) })
+        },
+        unlink: async () => {}
+      }
+    },
+    'pdf-lib': {
+      PDFName: {
+        of: (name) => name
+      },
+      PDFDocument: {
+        load: async () => ({
+          context: {
+            lookup: (object) => object
+          },
+          getPages: () => [{
+            node: {
+              get: (key) => key === 'Annots'
+                ? {
+                    asArray: () => annotations,
+                    lookup: (index) => annotations[index],
+                    remove: (index) => {
+                      removedAnnotationIndexes.push(index)
+                      annotations.splice(index, 1)
+                    }
+                  }
+                : undefined
+            }
+          }],
+          getForm: () => ({
+            flatten: () => {
+              formFlattened = true
+            }
+          }),
+          save: async () => sanitizedPdfBuffer
+        })
+      }
+    },
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads'
+    }
+  })
+
+  const req = {
+    file: {
+      originalname: 'assignment.pdf',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7 active payload')
+    }
+  }
+  const res = createResponse()
+  let nextCalled = false
+
+  await validateUploadedPdf(req, res, () => {
+    nextCalled = true
+  })
+
+  assert.equal(nextCalled, true)
+  assert.deepEqual(removedAnnotationIndexes, [0])
+  assert.equal(formFlattened, true)
+  assert.deepEqual(req.file.buffer, sanitizedPdfBuffer)
+  assert.equal(writeCalls.length, 1)
+  assert.deepEqual(writeCalls[0].buffer, sanitizedPdfBuffer)
+})
+
+test('validateUploadedPdf records uploaded file ownership after storage', async () => {
+  const upsertCalls = []
+  const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {
+    fs: {
+      promises: {
+        writeFile: async () => {},
+        unlink: async () => {}
+      }
+    },
+    'pdf-lib': {
+      PDFDocument: {
+        load: async () => ({})
+      }
+    },
+    sharp: () => ({
+      rotate: () => ({
+        toFile: async () => {}
+      })
+    }),
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../utils/prisma': {
+      uploadedFile: {
+        upsert: async (payload) => {
+          upsertCalls.push(payload)
+        }
+      }
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads',
+      isS3Configured: () => false
+    }
+  })
+
+  const req = {
+    user: { id: 'uploader-1' },
+    file: {
+      originalname: 'assignment.pdf',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7 valid payload')
+    }
+  }
+  const res = createResponse()
+
+  await validateUploadedPdf(req, res, () => {})
+
+  assert.equal(upsertCalls.length, 1)
+  assert.equal(upsertCalls[0].create.uploadedById, 'uploader-1')
+  assert.equal(upsertCalls[0].create.storage, 'LOCAL')
+  assert.match(upsertCalls[0].where.fileName, /assignment\.pdf$/i)
 })
 
 test('validateUploadedPdf sanitizes the uploaded original filename before it propagates', async () => {

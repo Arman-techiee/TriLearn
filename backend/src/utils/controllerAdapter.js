@@ -49,6 +49,10 @@ const applyServiceResult = (response, result) => {
     return response.sendFile(result.filePath, result.fileOptions)
   }
 
+  if (result.redirectUrl) {
+    return response.redirect(result.statusCode || 302, result.redirectUrl)
+  }
+
   if (result.statusCode) {
     response.status(result.statusCode)
   }

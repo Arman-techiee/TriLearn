@@ -2,7 +2,13 @@ const { createServiceResponder } = require('../utils/serviceResult')
 const fs = require('fs')
 const path = require('path')
 const prisma = require('../utils/prisma')
-const { uploadPath, legacyUploadPaths, uploadPublicPath, uploadPublicPaths } = require('../utils/fileStorage')
+const {
+  uploadPath,
+  legacyUploadPaths,
+  uploadPublicPath,
+  uploadPublicPaths,
+  getPresignedDownloadUrl
+} = require('../utils/fileStorage')
 const { getTrustedOrigins } = require('../middleware/csrf.middleware')
 const { recordAuditLog } = require('../utils/audit')
 
@@ -62,7 +68,16 @@ const resolveExistingUploadFilePath = (fileName) => {
   return path.join(uploadPath, fileName)
 }
 
-const sendUploadFile = (result, fileName) => {
+const sendUploadFile = async (result, fileName) => {
+  const presignedUrl = typeof getPresignedDownloadUrl === 'function'
+    ? await getPresignedDownloadUrl(fileName)
+    : null
+
+  if (presignedUrl) {
+    result.header('Cache-Control', 'private, no-store')
+    return result.redirect(presignedUrl, 302)
+  }
+
   setUploadSecurityHeaders(result)
   const contentType = getSafeContentType(fileName)
   const absolutePath = resolveExistingUploadFilePath(fileName)
@@ -184,6 +199,14 @@ const logUploadAccessDenied = async (context, fileName, resourceType) => {
   })
 }
 
+const canAccessUploadedFileRecord = (user, uploadedFile) => {
+  if (!user || !uploadedFile) {
+    return false
+  }
+
+  return uploadedFile.uploadedById === user.id || ['ADMIN', 'COORDINATOR'].includes(user.role)
+}
+
 /**
  * Handles serve uploaded file business logic.
  * @param {...any} args - Service arguments.
@@ -198,6 +221,16 @@ const serveUploadedFile = async (context, result = createServiceResponder()) => 
   const relativePaths = buildRelativeUploadPaths(fileName)
 
   const user = context.user
+  const uploadedFile = prisma.uploadedFile?.findUnique
+    ? await prisma.uploadedFile.findUnique({
+        where: { fileName },
+        select: {
+          id: true,
+          uploadedById: true,
+          fileUrl: true
+        }
+      })
+    : null
 
   const avatar = await prisma.user.findFirst({
     where: { avatar: { in: relativePaths } },
@@ -265,6 +298,15 @@ const serveUploadedFile = async (context, result = createServiceResponder()) => 
   if (material) {
     if (!(await canAccessMaterialFile(user, material))) {
       await logUploadAccessDenied(context, fileName, 'MATERIAL')
+      return result.withStatus(403, { message: 'Access denied' })
+    }
+
+    return sendUploadFile(result, fileName)
+  }
+
+  if (uploadedFile) {
+    if (!canAccessUploadedFileRecord(user, uploadedFile)) {
+      await logUploadAccessDenied(context, fileName, 'UPLOAD')
       return result.withStatus(403, { message: 'Access denied' })
     }
 

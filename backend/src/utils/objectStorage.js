@@ -48,12 +48,14 @@ const getS3Config = () => {
   const region = String(process.env.S3_REGION || '').trim()
   const accessKeyId = String(process.env.S3_ACCESS_KEY || '').trim()
   const secretAccessKey = String(process.env.S3_SECRET_KEY || '').trim()
+  const endpoint = String(process.env.S3_ENDPOINT || '').trim()
+  const forcePathStyle = String(process.env.S3_FORCE_PATH_STYLE || '').toLowerCase() === 'true'
 
   if (!bucket || !region || !accessKeyId || !secretAccessKey) {
     return null
   }
 
-  return { bucket, region, accessKeyId, secretAccessKey }
+  return { bucket, region, accessKeyId, secretAccessKey, endpoint, forcePathStyle }
 }
 
 const isS3Configured = () => Boolean(getS3Config())
@@ -80,6 +82,8 @@ const getS3Client = () => {
     const { S3Client } = require('@aws-sdk/client-s3')
     s3Client = new S3Client({
       region: config.region,
+      endpoint: config.endpoint || undefined,
+      forcePathStyle: config.forcePathStyle,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey
@@ -104,7 +108,7 @@ const uploadFile = async (fileBuffer, fileName, mimeType) => {
     }))
 
     return {
-      url: `https://${s3Config.bucket}.s3.${s3Config.region}.amazonaws.com/${encodeURIComponent(fileName)}`
+      url: buildUploadedFileUrl({ filename: fileName })
     }
   }
 
@@ -140,6 +144,25 @@ const deleteFile = async (fileUrl) => {
   await fs.promises.unlink(path.join(uploadPath, fileName)).catch(() => {})
 }
 
+const getPresignedDownloadUrl = async (fileName) => {
+  const s3Config = getS3Config()
+  const s3 = getS3Client()
+
+  if (!s3Config || !s3) {
+    return null
+  }
+
+  const { GetObjectCommand } = require('@aws-sdk/client-s3')
+  const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
+
+  return getSignedUrl(s3, new GetObjectCommand({
+    Bucket: s3Config.bucket,
+    Key: decodeURIComponent(fileName)
+  }), {
+    expiresIn: Number.parseInt(process.env.S3_PRESIGNED_URL_TTL_SECONDS || '300', 10)
+  })
+}
+
 module.exports = {
   uploadPath,
   legacyUploadPaths,
@@ -148,5 +171,6 @@ module.exports = {
   buildUploadedFileUrl,
   isS3Configured,
   uploadFile,
+  getPresignedDownloadUrl,
   deleteFile
 }

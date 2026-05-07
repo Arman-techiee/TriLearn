@@ -121,13 +121,6 @@ const validateEnv = () => {
     throw new Error('FATAL: REDIS_URL is required in production. Rate limiting and session scaling depend on Redis.')
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    const missingS3EnvVars = s3EnvVars.filter((key) => !String(process.env[key] || '').trim())
-    if (missingS3EnvVars.length > 0) {
-      console.warn(`Warning: Missing S3 env vars: ${missingS3EnvVars.join(', ')}. Uploads will fall back to local disk and will not be shared across instances.`)
-    }
-  }
-
   if (process.env.NODE_ENV === 'production' && process.env.DISABLE_RATE_LIMITS === 'true') {
     throw new Error('FATAL: DISABLE_RATE_LIMITS=true is not permitted in production. Remove this variable or set it to false.')
   }
@@ -161,6 +154,13 @@ const validateEnv = () => {
   if (process.env.NODE_ENV === 'production' && String(allowSocketNoOriginFlag || '').trim() === 'true') {
     console.error('Invalid configuration: ALLOW_SOCKET_NO_ORIGIN=true is not allowed in production.')
     process.exit(1)
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    const missingS3EnvVars = s3EnvVars.filter((key) => !String(process.env[key] || '').trim())
+    if (missingS3EnvVars.length > 0) {
+      throw new Error(`FATAL: Missing S3 env vars: ${missingS3EnvVars.join(', ')}. Production uploads require private S3/R2 storage.`)
+    }
   }
 
   // Real-time notifications run over Socket.IO on the same backend server

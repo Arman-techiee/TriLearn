@@ -260,6 +260,32 @@ test('validateEnv rejects TRUST_PROXY=true in production', () => {
   }
 })
 
+test('validateEnv requires private S3-compatible storage in production', () => {
+  const originalEnv = { ...process.env }
+  Object.assign(process.env, baseEnv, {
+    NODE_ENV: 'production',
+    REDIS_URL: 'redis://localhost:6379',
+    MAIL_FROM: 'TriLearn <no-reply@example.com>',
+    RESEND_SMTP_HOST: 'smtp.resend.com',
+    RESEND_SMTP_PORT: '465',
+    RESEND_SMTP_USER: 'resend',
+    RESEND_SMTP_PASS: 'secret'
+  })
+  delete process.env.S3_BUCKET
+  delete process.env.S3_REGION
+  delete process.env.S3_ACCESS_KEY
+  delete process.env.S3_SECRET_KEY
+
+  try {
+    assert.throws(
+      () => validateEnv(),
+      /FATAL: Missing S3 env vars: S3_BUCKET, S3_REGION, S3_ACCESS_KEY, S3_SECRET_KEY\. Production uploads require private S3\/R2 storage\./
+    )
+  } finally {
+    restoreEnv(originalEnv)
+  }
+})
+
 test('validateEnv rejects known secret placeholders in production by throwing', () => {
   const originalEnv = { ...process.env }
   Object.assign(process.env, baseEnv, {

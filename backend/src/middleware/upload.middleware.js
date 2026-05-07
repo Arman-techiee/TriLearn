@@ -5,9 +5,10 @@ const { TextDecoder } = require('util')
 const multer = require('multer')
 const sharp = require('sharp')
 const { fileTypeFromBuffer } = require('file-type')
-const { PDFDocument } = require('pdf-lib')
+const { PDFDocument, PDFName } = require('pdf-lib')
 const logger = require('../utils/logger')
 const fileStorage = require('../utils/fileStorage')
+const prisma = require('../utils/prisma')
 
 const {
   uploadPath,
@@ -64,6 +65,79 @@ const storeValidatedUpload = async (buffer, fileName, mimeType) => {
     path: isS3Configured() ? storedFile.url : localPath,
     url: storedFile.url
   }
+}
+
+const registerUploadedFile = async (req) => {
+  if (!req.user?.id || !req.file?.filename || !req.file?.url) {
+    return
+  }
+
+  if (!prisma.uploadedFile?.upsert) {
+    return
+  }
+
+  await prisma.uploadedFile.upsert({
+    where: { fileName: req.file.filename },
+    create: {
+      fileName: req.file.filename,
+      fileUrl: req.file.url,
+      mimeType: req.file.mimetype || null,
+      storage: isS3Configured() ? 'S3' : 'LOCAL',
+      uploadedById: req.user.id
+    },
+    update: {
+      fileUrl: req.file.url,
+      mimeType: req.file.mimetype || null,
+      storage: isS3Configured() ? 'S3' : 'LOCAL',
+      uploadedById: req.user.id
+    }
+  })
+}
+
+const lookupPdfObject = (pdfDoc, object) => {
+  if (!object || !pdfDoc?.context?.lookup) {
+    return object
+  }
+
+  return pdfDoc.context.lookup(object)
+}
+
+const annotationHasAction = (annotation, actionKey) => (
+  Boolean(annotation?.has?.(actionKey) || annotation?.get?.(actionKey))
+)
+
+const sanitizePdfActiveContent = async (pdfDoc) => {
+  if (!PDFName || !pdfDoc?.getPages) {
+    return null
+  }
+
+  const annotsKey = PDFName.of('Annots')
+  const actionKey = PDFName.of('A')
+
+  for (const page of pdfDoc.getPages()) {
+    const annotations = lookupPdfObject(pdfDoc, page.node.get(annotsKey))
+
+    if (!annotations?.asArray || !annotations?.remove) {
+      continue
+    }
+
+    for (let index = annotations.asArray().length - 1; index >= 0; index -= 1) {
+      const annotation = lookupPdfObject(pdfDoc, annotations.lookup?.(index) || annotations.get?.(index))
+      if (annotationHasAction(annotation, actionKey)) {
+        annotations.remove(index)
+      }
+    }
+  }
+
+  if (pdfDoc.getForm) {
+    pdfDoc.getForm().flatten()
+  }
+
+  if (!pdfDoc.save) {
+    return null
+  }
+
+  return Buffer.from(await pdfDoc.save())
 }
 
 const pdfOnly = (_req, file, cb) => {
@@ -226,9 +300,11 @@ const validateUploadedPdf = async (req, res, next) => {
       return res.status(400).json({ message: 'Uploaded file content is not a valid PDF' })
     }
 
-    await PDFDocument.load(req.file.buffer)
-    // TODO: Strip active content (JavaScript, XFA, embedded files) from uploaded PDFs.
-    // Use pdf-lib to iterate annotations and form fields and remove action dictionaries.
+    const pdfDoc = await PDFDocument.load(req.file.buffer)
+    const sanitizedBuffer = await sanitizePdfActiveContent(pdfDoc)
+    if (sanitizedBuffer) {
+      req.file.buffer = sanitizedBuffer
+    }
 
     const fileName = generateUploadedFileName(req.file.originalname)
     const storedFile = await storeValidatedUpload(req.file.buffer, fileName, req.file.mimetype)
@@ -236,6 +312,7 @@ const validateUploadedPdf = async (req, res, next) => {
     req.file.filename = fileName
     req.file.path = storedFile.path
     req.file.url = storedFile.url
+    await registerUploadedFile(req)
 
     next()
   } catch (error) {
@@ -279,6 +356,7 @@ const validateUploadedImage = async (req, res, next) => {
     req.file.filename = fileName
     req.file.path = storedFile.path
     req.file.url = storedFile.url
+    await registerUploadedFile(req)
 
     next()
   } catch (error) {
@@ -355,6 +433,7 @@ const validateUploadedSpreadsheet = async (req, res, next) => {
     req.file.filename = fileName
     req.file.path = storedFile.path
     req.file.url = storedFile.url
+    await registerUploadedFile(req)
 
     return next()
   } catch (error) {
