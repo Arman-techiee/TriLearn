@@ -122,14 +122,19 @@ const markAttendanceQR = async (context, result = createServiceResponder()) => {
 
   const qrHash = crypto.createHash('sha256').update(qrData).digest('hex')
   const qrReplayKey = `qr-used:${student.id}:${qrHash}`
-  let redis = null
+  const remainingValiditySeconds = Math.max(1, Math.ceil((expiresAt.getTime() - Date.now()) / 1000))
   try {
-    redis = await getReadyRedisClient({ context: 'QR attendance replay guard' })
-    if (redis && await redis.exists(qrReplayKey)) {
+    const redis = await getReadyRedisClient({ context: 'QR attendance replay guard' })
+    if (!redis) {
+      return result.withStatus(503, { message: 'Attendance service temporarily unavailable, try again shortly' })
+    }
+
+    const reservationResult = await redis.set(qrReplayKey, '1', { EX: remainingValiditySeconds, NX: true })
+    if (reservationResult !== 'OK') {
       return result.withStatus(409, { message: 'Attendance already recorded for this QR code' })
     }
   } catch {
-    redis = null
+    return result.withStatus(503, { message: 'Attendance service temporarily unavailable, try again shortly' })
   }
 
   const { subjectId, instructorId } = parsedQR
@@ -172,15 +177,6 @@ const markAttendanceQR = async (context, result = createServiceResponder()) => {
       student: { include: { user: { select: { name: true } } } }
     }
   })
-
-  if (redis) {
-    try {
-      const remainingValiditySeconds = Math.max(1, Math.ceil((expiresAt.getTime() - Date.now()) / 1000))
-      await redis.set(qrReplayKey, '1', { EX: remainingValiditySeconds })
-    } catch {
-      // Redis replay tracking is best-effort; attendance should not fail after the database write.
-    }
-  }
 
   result.withStatus(201, {
     message: 'Attendance marked successfully!',

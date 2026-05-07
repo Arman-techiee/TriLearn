@@ -455,11 +455,22 @@ export const refreshSession = async () => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const originalRequest = error.config
+    const hadSessionHintBeforeUnauthorized = hasSessionHint()
+    const usedAccessTokenBeforeUnauthorized = requestUsedAccessToken(originalRequest)
+
     const shouldSuppressExpectedUnauthorizedError = (
       error?.response?.status === 401 &&
-      !hasSessionHint() &&
+      !hadSessionHintBeforeUnauthorized &&
       !isAuthRouteRequest(error?.config)
     )
+
+    if (
+      error?.response?.status === 401 &&
+      !isAuthRouteRequest(originalRequest)
+    ) {
+      clearAuthState()
+    }
 
     if (
       import.meta.env.DEV &&
@@ -468,8 +479,6 @@ api.interceptors.response.use(
     ) {
       console.error('API Error:', sanitizeAxiosError(error))
     }
-
-    const originalRequest = error.config
 
     if (
       originalRequest &&
@@ -493,7 +502,7 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest?._retry &&
-      (requestUsedAccessToken(originalRequest) || Boolean(authState.user)) &&
+      (usedAccessTokenBeforeUnauthorized || hadSessionHintBeforeUnauthorized) &&
       !isAuthRouteRequest(originalRequest)
     ) {
       originalRequest._retry = true
@@ -514,7 +523,7 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !isAuthRouteRequest(originalRequest) &&
-      hasSessionHint()
+      hadSessionHintBeforeUnauthorized
     ) {
       handleUnauthorizedRedirect()
     }

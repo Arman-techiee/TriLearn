@@ -69,20 +69,25 @@ const resolveExistingUploadFilePath = (fileName) => {
 }
 
 const sendUploadFile = async (result, fileName) => {
+  const contentType = getSafeContentType(fileName)
+  const absolutePath = resolveExistingUploadFilePath(fileName)
+  // Force download - prevents inline rendering of PDFs with embedded JavaScript.
+  const safeFilename = getSafeDownloadFileName(absolutePath)
   const presignedUrl = typeof getPresignedDownloadUrl === 'function'
-    ? await getPresignedDownloadUrl(fileName)
+    ? await getPresignedDownloadUrl(fileName, {
+        downloadName: safeFilename,
+        contentType
+      })
     : null
 
   if (presignedUrl) {
+    setUploadSecurityHeaders(result)
+    result.header('Content-Disposition', `attachment; filename="${safeFilename}"`)
     result.header('Cache-Control', 'private, no-store')
     return result.redirect(presignedUrl, 302)
   }
 
   setUploadSecurityHeaders(result)
-  const contentType = getSafeContentType(fileName)
-  const absolutePath = resolveExistingUploadFilePath(fileName)
-  // Force download - prevents inline rendering of PDFs with embedded JavaScript.
-  const safeFilename = getSafeDownloadFileName(absolutePath)
 
   result.header('Content-Disposition', `attachment; filename="${safeFilename}"`)
   result.header('X-Content-Type-Options', 'nosniff')

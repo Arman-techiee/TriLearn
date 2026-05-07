@@ -50,6 +50,7 @@ const loadWithMocks = (targetPath, mocks) => {
 test('attendance QR route flow generates QR, records attendance, and blocks duplicate scan', async () => {
   let capturedQrPayload = null
   const attendanceByKey = new Map()
+  const replayKeys = new Set()
   const dayStart = new Date('2026-04-19T00:00:00.000Z')
 
   const mockShared = {
@@ -134,6 +135,18 @@ test('attendance QR route flow generates QR, records attendance, and blocks dupl
 
   const qrController = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {
     './shared': mockShared,
+    '../../utils/redis': {
+      getReadyRedisClient: async () => ({
+        set: async (key, value, options) => {
+          if (options?.NX && replayKeys.has(key)) {
+            return null
+          }
+
+          replayKeys.add(key)
+          return 'OK'
+        }
+      })
+    },
     qrcode: {
       toDataURL: async (payload) => {
         capturedQrPayload = payload
@@ -249,7 +262,7 @@ test('attendance QR route flow generates QR, records attendance, and blocks dupl
 
   assert.equal(duplicateScanResponse.status, 409)
   assert.deepEqual(duplicateScanResponse.body, {
-    message: 'Attendance has already been recorded for this subject today.'
+    message: 'Attendance already recorded for this QR code'
   })
   assert.equal(attendanceByKey.size, 1)
 })

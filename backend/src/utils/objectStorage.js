@@ -144,7 +144,11 @@ const deleteFile = async (fileUrl) => {
   await fs.promises.unlink(path.join(uploadPath, fileName)).catch(() => {})
 }
 
-const getPresignedDownloadUrl = async (fileName) => {
+const getSafeResponseHeaderValue = (value) => String(value || '')
+  .replace(/[\r\n"]/g, '_')
+  .trim()
+
+const getPresignedDownloadUrl = async (fileName, options = {}) => {
   const s3Config = getS3Config()
   const s3 = getS3Client()
 
@@ -155,9 +159,14 @@ const getPresignedDownloadUrl = async (fileName) => {
   const { GetObjectCommand } = require('@aws-sdk/client-s3')
   const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 
+  const downloadName = getSafeResponseHeaderValue(options.downloadName || path.basename(String(fileName || '')))
+  const contentType = getSafeResponseHeaderValue(options.contentType || 'application/octet-stream')
+
   return getSignedUrl(s3, new GetObjectCommand({
     Bucket: s3Config.bucket,
-    Key: decodeURIComponent(fileName)
+    Key: decodeURIComponent(fileName),
+    ResponseContentDisposition: `attachment; filename="${downloadName || 'download'}"`,
+    ResponseContentType: contentType || 'application/octet-stream'
   }), {
     expiresIn: Number.parseInt(process.env.S3_PRESIGNED_URL_TTL_SECONDS || '300', 10)
   })

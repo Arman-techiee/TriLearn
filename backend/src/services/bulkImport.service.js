@@ -16,6 +16,10 @@ const { hashPassword, generateTemporaryPassword } = require('../utils/security')
 const { sanitizePlainText, sanitizeXlsxCell } = require('../utils/sanitize')
 const { clearStatsCache } = require('../utils/statsCache')
 const {
+  BULK_STUDENT_IMPORT_JOB,
+  notificationQueue
+} = require('../jobs/notificationQueue')
+const {
   sanitizeOptionalPlainText,
   deleteStaleDeletedStudentAccounts
 } = require('../utils/adminHelpers')
@@ -175,7 +179,7 @@ const getCoordinatorDepartments = (context) => {
  * @param {...any} args - Service arguments.
  * @returns {Promise<any>|any} Service result.
  */
-const importStudents = async (context, result = createServiceResponder()) => {
+const processStudentImportFile = async (context, result = createServiceResponder()) => {
   const uploadedFilePath = context.file?.path
 
   try {
@@ -519,8 +523,104 @@ const importStudents = async (context, result = createServiceResponder()) => {
   }
 }
 
+const buildStudentImportJobPayload = (context) => ({
+  file: {
+    path: context.file.path,
+    originalname: context.file.originalname,
+    filename: context.file.filename,
+    mimetype: context.file.mimetype,
+    size: context.file.size
+  },
+  user: context.user
+    ? {
+        id: context.user.id,
+        role: context.user.role
+      }
+    : null,
+  coordinator: context.coordinator
+    ? {
+        id: context.coordinator.id,
+        department: context.coordinator.department,
+        departments: context.coordinator.departments
+      }
+    : null
+})
+
+const importStudents = async (context, result = createServiceResponder()) => {
+  if (!context.file?.path) {
+    return result.withStatus(400, { message: 'Please upload a CSV or XLSX file to import students' })
+  }
+
+  try {
+    const job = await notificationQueue.add(BULK_STUDENT_IMPORT_JOB, buildStudentImportJobPayload(context), {
+      removeOnComplete: 100,
+      removeOnFail: 500
+    })
+
+    if (job) {
+      return result.withStatus(202, {
+        message: 'Student import queued.',
+        jobId: String(job.id),
+        statusUrl: `/api/v1/admin/users/student-import/${job.id}`
+      })
+    }
+  } catch (error) {
+    logger.error('Student import queue failed', {
+      message: error.message,
+      stack: error.stack
+    })
+
+    await fs.promises.unlink(context.file.path).catch(() => {})
+    return result.withStatus(503, { message: 'Student import queue is temporarily unavailable. Please try again shortly.' })
+  }
+
+  return processStudentImportFile(context, result)
+}
+
+const processStudentImportJob = async (payload) => {
+  const result = createServiceResponder()
+  await processStudentImportFile({
+    file: payload.file,
+    user: payload.user,
+    coordinator: payload.coordinator
+  }, result)
+
+  const serviceResult = result.toServiceResult()
+  if (!serviceResult || serviceResult.statusCode >= 400) {
+    const error = new Error(serviceResult?.body?.message || 'Student import failed')
+    error.result = serviceResult?.body
+    throw error
+  }
+
+  return serviceResult.body
+}
+
+const getStudentImportJob = async (context, result = createServiceResponder()) => {
+  const jobId = String(context.params.jobId || '').trim()
+  if (!jobId) {
+    return result.withStatus(400, { message: 'Job id is required' })
+  }
+
+  const job = await notificationQueue.getJob(jobId)
+  if (!job) {
+    return result.withStatus(404, { message: 'Student import job not found' })
+  }
+
+  const state = await job.getState()
+  return result.ok({
+    id: String(job.id),
+    state,
+    progress: job.progress,
+    failedReason: job.failedReason || null,
+    result: state === 'completed' ? job.returnvalue || null : null
+  })
+}
+
 module.exports = {
-  importStudents
+  importStudents,
+  getStudentImportJob,
+  processStudentImportJob,
+  processStudentImportFile
 }
 
 

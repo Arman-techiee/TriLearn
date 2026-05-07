@@ -5,6 +5,7 @@ const NOTIFICATION_QUEUE_NAME = 'notifications'
 const CREATE_NOTIFICATIONS_JOB = 'create-notifications'
 const NOTICE_POSTED_JOB = 'notice-posted'
 const PASSWORD_RESET_EMAIL_JOB = 'password-reset-email'
+const BULK_STUDENT_IMPORT_JOB = 'bulk-student-import'
 
 let queue = null
 let redisWarningShown = false
@@ -59,6 +60,14 @@ const notificationQueue = {
 
     return activeQueue.add(jobName, payload, options)
   },
+  getJob: async (jobId) => {
+    const activeQueue = getNotificationQueue()
+    if (!activeQueue) {
+      return null
+    }
+
+    return activeQueue.getJob(jobId)
+  },
   close: async () => {
     if (!queue) {
       return
@@ -74,6 +83,7 @@ module.exports = {
   CREATE_NOTIFICATIONS_JOB,
   NOTICE_POSTED_JOB,
   PASSWORD_RESET_EMAIL_JOB,
+  BULK_STUDENT_IMPORT_JOB,
   getNotificationQueueConnection,
   notificationQueue
 }

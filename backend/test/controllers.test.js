@@ -1896,7 +1896,8 @@ test('getAdminStats returns fresh server-side aggregate counts', async () => {
       promoteStudentSemester: async () => {}
     },
     './bulkImport.controller': {
-      importStudents: async () => {}
+      importStudents: async () => {},
+      getStudentImportJob: async () => {}
     },
     './studentApplications.controller': {
       getStudentApplications: async () => {},
@@ -3749,6 +3750,12 @@ test('markAttendanceQR creates a present attendance record for eligible students
       getStudentByIdCardQr: async () => ({}),
       recordAuditLog: async () => {}
     },
+    '../../utils/redis': {
+      getReadyRedisClient: async () => ({
+        set: async () => 'OK',
+        exists: async () => 0
+      })
+    },
     qrcode: {
       toDataURL: async () => 'data:image/png;base64,qr'
     }
@@ -3814,6 +3821,12 @@ test('markAttendanceQR rejects replay when attendance already exists for the sam
       getStudentByIdCardQr: async () => ({}),
       recordAuditLog: async () => {}
     },
+    '../../utils/redis': {
+      getReadyRedisClient: async () => ({
+        set: async () => 'OK',
+        exists: async () => 0
+      })
+    },
     qrcode: {
       toDataURL: async () => 'data:image/png;base64,qr'
     }
@@ -3831,6 +3844,70 @@ test('markAttendanceQR rejects replay when attendance already exists for the sam
   assert.equal(res.statusCode, 409)
   assert.deepEqual(res.body, {
     message: 'Attendance has already been recorded for this subject today.'
+  })
+  assert.equal(createCalls.length, 0)
+})
+
+test('markAttendanceQR rejects scans while Redis replay guard is unavailable', async () => {
+  const createCalls = []
+  const { markAttendanceQR } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'qr.controller.js'), {
+    './shared': {
+      QR_VALIDITY_MINUTES: 15,
+      prisma: {
+        subject: {
+          findUnique: async () => ({ id: 'subject-1', name: 'Database Systems' })
+        },
+        subjectEnrollment: {
+          findUnique: async () => ({ id: 'enrollment-1' })
+        },
+        attendance: {
+          findUnique: async () => null,
+          create: async (payload) => {
+            createCalls.push(payload)
+            return payload
+          }
+        }
+      },
+      getDayRange: () => ({
+        start: new Date('2026-04-03T00:00:00.000Z'),
+        end: new Date('2026-04-04T00:00:00.000Z')
+      }),
+      getOwnedSubject: async () => ({}),
+      createSignedQrPayload: () => 'signed',
+      hashQrPayload: (value) => `hashed:${value}`,
+      parseQrPayload: () => ({
+        subjectId: 'subject-1',
+        instructorId: 'instructor-1',
+        expiresAt: new Date(Date.now() + 60_000).toISOString()
+      }),
+      getDailyGateWindows: async () => ({}),
+      normalizeSemesterList: () => [],
+      getEligibleGateAttendanceForStudent: async () => ({}),
+      upsertPresentAttendanceForRoutines: async () => ({}),
+      syncClosedRoutineAbsences: async () => {},
+      getStudentByIdCardQr: async () => ({}),
+      recordAuditLog: async () => {}
+    },
+    '../../utils/redis': {
+      getReadyRedisClient: async () => null
+    },
+    qrcode: {
+      toDataURL: async () => 'data:image/png;base64,qr'
+    }
+  })
+
+  const req = {
+    body: { qrData: 'qr-payload' },
+    user: { id: 'user-1', role: 'STUDENT' },
+    student: { id: 'student-1' }
+  }
+  const res = createResponse()
+
+  await markAttendanceQR(req, res)
+
+  assert.equal(res.statusCode, 503)
+  assert.deepEqual(res.body, {
+    message: 'Attendance service temporarily unavailable, try again shortly'
   })
   assert.equal(createCalls.length, 0)
 })

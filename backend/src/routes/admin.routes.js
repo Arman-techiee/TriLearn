@@ -32,7 +32,7 @@ const {
   createGatekeeper,
   createInstructor
 } = require('../controllers/staff.controller')
-const { importStudents } = require('../controllers/bulkImport.controller')
+const { importStudents, getStudentImportJob } = require('../controllers/bulkImport.controller')
 
 router.use(protect)
 router.use(attachActorProfiles)
@@ -68,6 +68,7 @@ router.post('/users/gatekeeper', allowRoles('ADMIN', 'COORDINATOR'), validate(sc
 router.post('/users/instructor', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.createInstructor), createInstructor)
 router.post('/users/student', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.createStudent), createStudent)
 router.post('/users/student-import', allowRoles('ADMIN', 'COORDINATOR'), staffUploadLimiter, uploadSpreadsheet.single('file'), validateUploadedSpreadsheet, importStudents)
+router.get('/users/student-import/:jobId', allowRoles('ADMIN', 'COORDINATOR'), getStudentImportJob)
 router.patch('/users/students/assign-section', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.bulkAssignStudentSection), bulkAssignStudentSection)
 router.put('/users/:id', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.updateUser), updateUser)
 router.patch('/users/:id/promote-semester', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.userId), promoteStudentSemester)

@@ -8,6 +8,7 @@ const {
   CREATE_NOTIFICATIONS_JOB,
   NOTICE_POSTED_JOB,
   PASSWORD_RESET_EMAIL_JOB,
+  BULK_STUDENT_IMPORT_JOB,
   getNotificationQueueConnection
 } = require('./notificationQueue')
 
@@ -179,6 +180,11 @@ const processNotificationJob = async (job) => {
       userId: job.data.userId
     })
     return { sent: true }
+  }
+
+  if (job.name === BULK_STUDENT_IMPORT_JOB) {
+    const { processStudentImportJob } = require('../services/bulkImport.service')
+    return processStudentImportJob(job.data)
   }
 
   throw new Error(`Unknown notification job: ${job.name}`)

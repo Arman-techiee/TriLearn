@@ -340,7 +340,8 @@ test('journey: admin views dashboard stats and creates a student account', async
       deleteUser: async (_req, res) => res.status(501).json({ message: 'unused' })
     },
     '../controllers/bulkImport.controller': {
-      importStudents: async (_req, res) => res.status(501).json({ message: 'unused' })
+      importStudents: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      getStudentImportJob: async (_req, res) => res.status(501).json({ message: 'unused' })
     },
     '../middleware/auth.middleware': authMiddleware,
     '../middleware/profile.middleware': profileMiddleware,
