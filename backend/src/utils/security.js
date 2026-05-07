@@ -1,6 +1,5 @@
 const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
-const logger = require('./logger')
 
 const DEFAULT_BCRYPT_SALT_ROUNDS = 12
 const MINIMUM_STRONG_PASSWORD_LENGTH = 12
@@ -24,11 +23,7 @@ const parseBcryptSaltRounds = (value) => {
 }
 
 const getBcryptSaltRounds = () => {
-  if (!process.env.BCRYPT_ROUNDS && process.env.BCRYPT_SALT_ROUNDS) {
-    logger.warn('BCRYPT_SALT_ROUNDS is deprecated and will be removed in a future version. Rename it to BCRYPT_ROUNDS in your .env file.')
-  }
-
-  return parseBcryptSaltRounds(process.env.BCRYPT_ROUNDS || process.env.BCRYPT_SALT_ROUNDS)
+  return parseBcryptSaltRounds(process.env.BCRYPT_ROUNDS)
 }
 
 const hashPassword = (password) => bcrypt.hash(password, getBcryptSaltRounds())

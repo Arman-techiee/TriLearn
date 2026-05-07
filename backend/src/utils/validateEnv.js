@@ -58,6 +58,10 @@ const validateEnv = () => {
     throw new Error('LOGIN_CAPTCHA_SECRET is required. Generate with: openssl rand -hex 32')
   }
 
+  if (process.env.BCRYPT_SALT_ROUNDS) {
+    throw new Error('BCRYPT_SALT_ROUNDS is no longer supported. Rename it to BCRYPT_ROUNDS in your .env file.')
+  }
+
   const missing = required.filter((key) => !process.env[key])
 
   if (missing.length > 0) {
