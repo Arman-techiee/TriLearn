@@ -17,17 +17,21 @@ const {
 } = require('../controllers/studentApplications.controller')
 const {
   getAllUsers,
-  getUserById,
-  createCoordinator,
-  createGatekeeper,
-  createInstructor,
+  getUserById
+} = require('../controllers/users.controller')
+const {
   createStudent,
   updateUser,
   bulkAssignStudentSection,
   promoteStudentSemester,
   toggleUserStatus,
   deleteUser
-} = require('../controllers/users.controller')
+} = require('../controllers/students.controller')
+const {
+  createCoordinator,
+  createGatekeeper,
+  createInstructor
+} = require('../controllers/staff.controller')
 const { importStudents } = require('../controllers/bulkImport.controller')
 
 router.use(protect)
