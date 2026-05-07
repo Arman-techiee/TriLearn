@@ -381,11 +381,14 @@ model UploadedFile {
   fileUrl      String
   mimeType     String?
   storage      String   @default("LOCAL")
+  entityType   String?
+  entityId     String?
   uploadedById String
   uploadedBy   User     @relation("UploadedFiles", fields: [uploadedById], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
 
   @@index([uploadedById])
+  @@index([entityType, entityId])
 }
 
 // ================================

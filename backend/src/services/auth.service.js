@@ -6,9 +6,14 @@ const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
 const { recordAuditLog } = require('../utils/audit')
 const { buildUploadedFileUrl } = require('../utils/fileStorage')
+const { attachUploadedFileToEntity } = require('../utils/uploadRecords')
 const { removeUploadedFile } = require('../middleware/upload.middleware')
 const { sendMail } = require('../utils/mailer')
 const { passwordResetTemplate } = require('../utils/emailTemplates')
+const {
+  PASSWORD_RESET_EMAIL_JOB,
+  notificationQueue
+} = require('../jobs/notificationQueue')
 const {
   createEmailVerificationToken,
   hashEmailVerificationToken,
@@ -193,6 +198,33 @@ const getLoginLockoutExpiry = () => {
 }
 
 const getProfileSelect = () => getUserSelect({ includeProfileDetails: true })
+
+const queuePasswordResetEmail = async ({ user, subject, html, text }) => {
+  const job = await notificationQueue.add(PASSWORD_RESET_EMAIL_JOB, {
+    userId: user.id,
+    to: user.email,
+    subject,
+    html,
+    text
+  }, {
+    jobId: `password-reset:${user.id}:${Date.now()}`
+  })
+
+  if (job) {
+    logger.info('Password reset email queued', {
+      userId: user.id,
+      email: user.email,
+      jobId: job.id
+    })
+    return
+  }
+
+  await sendMail({ to: user.email, subject, html, text })
+  logger.info('Password reset email sent without queue', {
+    userId: user.id,
+    email: user.email
+  })
+}
 
 // ================================
 // REGISTER
@@ -621,6 +653,7 @@ const uploadAvatar = async (context, result = createServiceResponder()) => {
       data: { avatar: nextAvatarUrl },
       select: getProfileSelect()
     })
+    await attachUploadedFileToEntity(context.file, 'USER_AVATAR', user.id)
 
     if (existingUser?.avatar && existingUser.avatar !== nextAvatarUrl) {
       await removeUploadedFile(existingUser.avatar)
@@ -846,16 +879,7 @@ const forgotPassword = async (context, result = createServiceResponder()) => {
       resetUrl
     })
 
-    sendMail({ to: user.email, subject, html, text })
-      .then(() => {
-        logger.info('Password reset email queued', {
-          userId: user.id,
-          email: user.email
-        })
-      })
-      .catch((mailError) => {
-        logger.error(mailError.message, { stack: mailError.stack, userId: user.id })
-      })
+    await queuePasswordResetEmail({ user, subject, html, text })
   }
 
   await waitForMinimumDuration(startedAt, FORGOT_PASSWORD_MIN_RESPONSE_MS)

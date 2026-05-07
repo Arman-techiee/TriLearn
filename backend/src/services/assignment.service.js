@@ -1,6 +1,7 @@
 const { createServiceResponder } = require('../utils/serviceResult')
 const prisma = require('../utils/prisma')
 const { buildUploadedFileUrl } = require('../utils/fileStorage')
+const { attachUploadedFileToEntity } = require('../utils/uploadRecords')
 const { getPagination } = require('../utils/pagination')
 const ExcelJS = require('exceljs')
 const PDFDocument = require('pdfkit')
@@ -129,6 +130,7 @@ const createAssignment = async (context, result = createServiceResponder()) => {
       instructor: { include: { user: { select: { name: true } } } }
     }
   })
+  await attachUploadedFileToEntity(context.file, 'ASSIGNMENT', assignment.id)
 
   result.withStatus(201, {
     message: 'Assignment created successfully!',
@@ -291,6 +293,7 @@ const updateAssignment = async (context, result = createServiceResponder()) => {
       totalMarks: parsedTotalMarks
     }
   })
+  await attachUploadedFileToEntity(context.file, 'ASSIGNMENT', updated.id)
 
   result.ok({ message: 'Assignment updated successfully!', assignment: updated })
 }
@@ -375,6 +378,7 @@ const submitAssignment = async (context, result = createServiceResponder()) => {
       student: { include: { user: { select: { name: true } } } }
     }
   })
+  await attachUploadedFileToEntity(context.file, 'SUBMISSION', submission.id)
 
   result.withStatus(201, {
     message: isLate ? 'Assignment submitted late!' : 'Assignment submitted successfully!',

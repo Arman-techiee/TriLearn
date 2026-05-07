@@ -1,11 +1,13 @@
 const { Worker } = require('bullmq')
 const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
+const { sendMail } = require('../utils/mailer')
 const { emitNotificationCreated } = require('../utils/realtime')
 const {
   NOTIFICATION_QUEUE_NAME,
   CREATE_NOTIFICATIONS_JOB,
   NOTICE_POSTED_JOB,
+  PASSWORD_RESET_EMAIL_JOB,
   getNotificationQueueConnection
 } = require('./notificationQueue')
 
@@ -167,6 +169,16 @@ const processNotificationJob = async (job) => {
 
   if (job.name === CREATE_NOTIFICATIONS_JOB) {
     return createNotificationRecords(job.data.notifications)
+  }
+
+  if (job.name === PASSWORD_RESET_EMAIL_JOB) {
+    const { to, subject, html, text } = job.data
+    await sendMail({ to, subject, html, text })
+    logger.info('Password reset email sent', {
+      jobId: job.id,
+      userId: job.data.userId
+    })
+    return { sent: true }
   }
 
   throw new Error(`Unknown notification job: ${job.name}`)

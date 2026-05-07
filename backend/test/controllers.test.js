@@ -115,6 +115,12 @@ const authControllerMocks = (overrides = {}) => ({
   '../utils/mailer': {
     sendMail: async () => {}
   },
+  '../jobs/notificationQueue': {
+    PASSWORD_RESET_EMAIL_JOB: 'password-reset-email',
+    notificationQueue: {
+      add: async () => null
+    }
+  },
   '../utils/emailTemplates': {
     passwordResetTemplate: () => ({ subject: 'Reset', html: '<p>Reset</p>', text: 'Reset' })
   },
@@ -509,6 +515,7 @@ test('login blocks requests while the account is locked', async () => {
 
 test('forgotPassword returns the same generic response when account exists and queues reset email', async () => {
   const userUpdates = []
+  const queueCalls = []
   const sendMailCalls = []
 
   const { forgotPassword } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
@@ -530,6 +537,15 @@ test('forgotPassword returns the same generic response when account exists and q
         sendMailCalls.push(payload)
         return Promise.resolve()
       }
+    },
+    '../jobs/notificationQueue': {
+      PASSWORD_RESET_EMAIL_JOB: 'password-reset-email',
+      notificationQueue: {
+        add: async (...args) => {
+          queueCalls.push(args)
+          return { id: 'job-1' }
+        }
+      }
     }
   }))
 
@@ -549,6 +565,58 @@ test('forgotPassword returns the same generic response when account exists and q
       message: 'If an account with that email exists, a reset link has been sent.'
     })
     assert.equal(userUpdates.length, 1)
+    assert.equal(queueCalls.length, 1)
+    assert.equal(queueCalls[0][0], 'password-reset-email')
+    assert.equal(queueCalls[0][1].to, 'student@example.com')
+    assert.equal(sendMailCalls.length, 0)
+  } finally {
+    if (previousFlag === undefined) {
+      delete process.env.ENABLE_PASSWORD_RESET
+    } else {
+      process.env.ENABLE_PASSWORD_RESET = previousFlag
+    }
+  }
+})
+
+test('forgotPassword falls back to awaited send when notification queue is unavailable', async () => {
+  const sendMailCalls = []
+
+  const { forgotPassword } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          name: 'Student User',
+          email: 'student@example.com'
+        }),
+        update: async (payload) => payload
+      }
+    },
+    '../utils/mailer': {
+      sendMail: async (payload) => {
+        sendMailCalls.push(payload)
+      }
+    },
+    '../jobs/notificationQueue': {
+      PASSWORD_RESET_EMAIL_JOB: 'password-reset-email',
+      notificationQueue: {
+        add: async () => null
+      }
+    }
+  }))
+
+  const previousFlag = process.env.ENABLE_PASSWORD_RESET
+  process.env.ENABLE_PASSWORD_RESET = 'true'
+
+  try {
+    const req = {
+      body: { email: 'Student@Example.com' }
+    }
+    const res = createResponse()
+
+    await forgotPassword(req, res)
+
+    assert.equal(res.statusCode, 200)
     assert.equal(sendMailCalls.length, 1)
   } finally {
     if (previousFlag === undefined) {

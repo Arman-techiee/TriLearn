@@ -241,6 +241,65 @@ test('serveUploadedFile allows direct uploaded file access to the owner', async 
   assert.match(res.headers['Content-Disposition'], /^attachment; filename="private\.pdf"$/i)
 })
 
+test('serveUploadedFile allows uploaded assignment file access through parent entity enrollment', async () => {
+  const { serveUploadedFile } = loadWithMocks(resolveFromTest('src', 'controllers', 'upload.controller.js'), {
+    '../utils/prisma': {
+      uploadedFile: {
+        findUnique: async () => ({
+          id: 'file-1',
+          uploadedById: 'instructor-user-1',
+          entityType: 'ASSIGNMENT',
+          entityId: 'assignment-1'
+        })
+      },
+      assignment: {
+        findUnique: async () => ({
+          id: 'assignment-1',
+          subjectId: 'subject-1',
+          instructorId: 'instructor-1'
+        }),
+        findFirst: async () => null
+      },
+      subjectEnrollment: {
+        findUnique: async (payload) => (
+          payload.where.subjectId_studentId.subjectId === 'subject-1' &&
+          payload.where.subjectId_studentId.studentId === 'student-1'
+            ? { id: 'enrollment-1' }
+            : null
+        )
+      },
+      user: { findFirst: async () => null },
+      submission: { findFirst: async () => null },
+      studyMaterial: { findFirst: async () => null }
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads',
+      uploadPublicPath: '/api/v1/uploads'
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../middleware/csrf.middleware': {
+      getTrustedOrigins: () => []
+    }
+  })
+
+  const req = {
+    params: { filename: 'assignment.pdf' },
+    user: {
+      id: 'student-user-1',
+      role: 'STUDENT',
+      student: { id: 'student-1' }
+    }
+  }
+  const res = createResponse()
+
+  await serveUploadedFile(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.match(res.sentFile.filePath, /assignment\.pdf$/i)
+})
+
 test('validateUploadedPdf writes a valid PDF to disk only after in-memory validation', async () => {
   const writeCalls = []
   const { validateUploadedPdf } = loadWithMocks(resolveFromTest('src', 'middleware', 'upload.middleware.js'), {

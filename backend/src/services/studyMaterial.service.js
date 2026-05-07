@@ -2,6 +2,7 @@ const { createServiceResponder } = require('../utils/serviceResult')
 const prisma = require('../utils/prisma')
 const { getPagination } = require('../utils/pagination')
 const { buildUploadedFileUrl } = require('../utils/fileStorage')
+const { attachUploadedFileToEntity } = require('../utils/uploadRecords')
 const { sanitizePlainText } = require('../utils/sanitize')
 
 const resolveMaterialManager = async (context, subjectId) => {
@@ -75,6 +76,7 @@ const createMaterial = async (context, result = createServiceResponder()) => {
       instructor: { include: { user: { select: { name: true } } } }
     }
   })
+  await attachUploadedFileToEntity(context.file, 'STUDY_MATERIAL', material.id)
 
   result.withStatus(201, {
     message: 'Study material uploaded successfully!',

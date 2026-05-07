@@ -204,7 +204,68 @@ const canAccessUploadedFileRecord = (user, uploadedFile) => {
     return false
   }
 
-  return uploadedFile.uploadedById === user.id || ['ADMIN', 'COORDINATOR'].includes(user.role)
+  return uploadedFile.uploadedById === user.id ||
+    uploadedFile.entityId === user.id ||
+    ['ADMIN', 'COORDINATOR'].includes(user.role)
+}
+
+const canAccessUploadedFileEntity = async (user, uploadedFile) => {
+  if (canAccessUploadedFileRecord(user, uploadedFile)) {
+    return true
+  }
+
+  if (!uploadedFile?.entityType || !uploadedFile?.entityId) {
+    return false
+  }
+
+  if (uploadedFile.entityType === 'ASSIGNMENT') {
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: uploadedFile.entityId },
+      select: {
+        id: true,
+        subjectId: true,
+        instructorId: true
+      }
+    })
+
+    return assignment ? canAccessAssignmentFile(user, assignment) : false
+  }
+
+  if (uploadedFile.entityType === 'SUBMISSION') {
+    const submission = await prisma.submission.findUnique({
+      where: { id: uploadedFile.entityId },
+      select: {
+        id: true,
+        studentId: true,
+        assignment: {
+          select: {
+            instructorId: true
+          }
+        }
+      }
+    })
+
+    return submission ? canAccessSubmissionFile(user, submission) : false
+  }
+
+  if (uploadedFile.entityType === 'STUDY_MATERIAL') {
+    const material = await prisma.studyMaterial.findUnique({
+      where: { id: uploadedFile.entityId },
+      select: {
+        id: true,
+        subjectId: true,
+        instructorId: true
+      }
+    })
+
+    return material ? canAccessMaterialFile(user, material) : false
+  }
+
+  if (uploadedFile.entityType === 'USER_AVATAR') {
+    return user?.id === uploadedFile.entityId
+  }
+
+  return false
 }
 
 /**
@@ -227,7 +288,9 @@ const serveUploadedFile = async (context, result = createServiceResponder()) => 
         select: {
           id: true,
           uploadedById: true,
-          fileUrl: true
+          fileUrl: true,
+          entityType: true,
+          entityId: true
         }
       })
     : null
@@ -305,7 +368,7 @@ const serveUploadedFile = async (context, result = createServiceResponder()) => 
   }
 
   if (uploadedFile) {
-    if (!canAccessUploadedFileRecord(user, uploadedFile)) {
+    if (!(await canAccessUploadedFileEntity(user, uploadedFile))) {
       await logUploadAccessDenied(context, fileName, 'UPLOAD')
       return result.withStatus(403, { message: 'Access denied' })
     }
