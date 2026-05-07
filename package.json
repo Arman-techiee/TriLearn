@@ -7,9 +7,9 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "backend/src/**/*.{js,jsx}": "npm --prefix backend exec -- eslint --config backend/eslint.config.cjs --fix",
-    "frontend/src/**/*.{js,jsx}": "npm --prefix frontend exec -- eslint --config frontend/eslint.config.js --fix",
-    "mobile/src/**/*.{ts,tsx}": "npm --prefix mobile exec -- eslint --config mobile/eslint.config.js --fix"
+    "backend/src/**/*.{js,jsx}": "npm --prefix backend run lint:staged --",
+    "frontend/src/**/*.{js,jsx}": "npm --prefix frontend run lint:staged --",
+    "mobile/src/**/*.{ts,tsx}": "npm --prefix mobile run lint:staged --"
   },
   "devDependencies": {
     "husky": "^9.1.7",

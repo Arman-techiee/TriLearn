@@ -1,5 +1,5 @@
 import type { InternalAxiosRequestConfig } from 'axios';
-import { createHmac } from 'crypto';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { AuthUser } from '@/src/types/auth';
 import { useAuthStore } from '@/src/store/auth.store';
 
@@ -101,14 +101,15 @@ describe('api request interceptor', () => {
     const interceptor = getRequestInterceptor();
     const config = interceptor({ headers: {} } as InternalAxiosRequestConfig);
     const headers = config.headers as Record<string, string>;
-    const expectedSignature = createHmac('sha256', 'test-mobile-secret')
-      .update(`mobile:1.0.0:${headers['X-App-Platform']}:2`)
-      .digest('hex');
+    const expectedSignatures: Record<string, string> = {
+      android: 'e21f89aa4044359f63fdbbc51a0d0347d789462d67dfb43366d9ad87a969c5ac',
+      ios: '70eda7e04dec8b891fafede067a418196bcce557d79809e789c46a4037e9ee3f',
+    };
 
     expect(headers['X-Client-Type']).toBe('mobile');
     expect(headers['X-Client-Version']).toBe('1.0.0');
     expect(headers['X-App-Version']).toBe('1.0.0');
     expect(headers['X-App-Platform']).toBeTruthy();
-    expect(headers['X-Client-Signature']).toBe(expectedSignature);
+    expect(headers['X-Client-Signature']).toBe(expectedSignatures[headers['X-App-Platform']]);
   });
 });

@@ -9,6 +9,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
     "lint": "eslint .",
+    "lint:staged": "eslint --fix",
     "test": "node --test test/*.test.js",
     "test:db": "node --test test/db.real.js",
     "start": "node src/index.js",
