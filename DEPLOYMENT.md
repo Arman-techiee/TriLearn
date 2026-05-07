@@ -41,6 +41,13 @@ You can also add connection parameters directly to `DATABASE_URL`, for example:
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/trilearn?connection_limit=10&pool_timeout=20
 ```
 
+## Timezone configuration
+
+Set `ATTENDANCE_TIMEZONE` to your institution's IANA timezone, for example
+`America/New_York`. Attendance day boundaries, month ranges, gate windows, and
+absence sync all use this timezone. If it is missing or wrong, attendance can be
+recorded under the wrong local day.
+
 ## Health checks
 
 - `GET /ping` for a simple liveness probe
@@ -161,6 +168,10 @@ The response for `text/html` should include `Content-Security-Policy`.
 ## Docker
 
 The backend includes [backend/Dockerfile](backend/Dockerfile) for containerized deployment.
+
+Use [docker-compose.prod.yml](docker-compose.prod.yml) for production compose
+deployments. It builds the backend image and runs it without mounting the source
+directory. [docker-compose.yml](docker-compose.yml) is for development only.
 
 Example:
 

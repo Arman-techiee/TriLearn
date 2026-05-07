@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const logger = require('./logger')
 
 const backendRoot = path.resolve(__dirname, '..', '..')
 
@@ -114,7 +115,7 @@ const uploadFile = async (fileBuffer, fileName, mimeType) => {
 
   if (!localStorageWarningShown) {
     localStorageWarningShown = true
-    console.warn('Warning: S3 storage is not configured; uploaded files are stored on local disk and are not shared across instances')
+    logger.warn('Warning: S3 storage is not configured; uploaded files are stored on local disk and are not shared across instances')
   }
 
   await ensureLocalUploadDirectory()

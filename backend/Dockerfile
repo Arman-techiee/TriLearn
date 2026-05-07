@@ -2,9 +2,6 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-ENV TZ=Asia/Kathmandu
-ENV ATTENDANCE_TIMEZONE=Asia/Kathmandu
-
 COPY package*.json ./
 RUN npm ci --ignore-scripts
 
@@ -28,8 +25,6 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV TZ=Asia/Kathmandu
-ENV ATTENDANCE_TIMEZONE=Asia/Kathmandu
 
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

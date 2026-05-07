@@ -2,23 +2,29 @@ const { createController } = require('../utils/controllerAdapter')
 const {
   register: registerService,
   submitStudentIntake: submitStudentIntakeService,
+  changePassword: changePasswordService,
+  getActivity: getActivityService
+} = require('../services/auth.account.service')
+const {
   login: loginService,
+  refresh: refreshService,
+  refreshMobile: refreshMobileService,
+  logout: logoutService,
+  logoutAll: logoutAllService
+} = require('../services/auth.session.service')
+const {
   getStudentIdQr: getStudentIdQrService,
   getMe: getMeService,
   updateProfile: updateProfileService,
   uploadAvatar: uploadAvatarService,
-  changePassword: changePasswordService,
-  completeProfile: completeProfileService,
+  completeProfile: completeProfileService
+} = require('../services/auth.profile.service')
+const {
   forgotPassword: forgotPasswordService,
   verifyEmail: verifyEmailService,
   resendVerification: resendVerificationService,
-  resetPassword: resetPasswordService,
-  refresh: refreshService,
-  refreshMobile: refreshMobileService,
-  logout: logoutService,
-  getActivity: getActivityService,
-  logoutAll: logoutAllService
-} = require('../services/auth.service')
+  resetPassword: resetPasswordService
+} = require('../services/auth.email.service')
 
 const register = createController(registerService)
 const submitStudentIntake = createController(submitStudentIntakeService)

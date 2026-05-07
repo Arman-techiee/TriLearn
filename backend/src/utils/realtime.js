@@ -2,6 +2,7 @@ const { Server } = require('socket.io')
 const { createAdapter } = require('@socket.io/redis-adapter')
 const jwt = require('jsonwebtoken')
 const prisma = require('./prisma')
+const logger = require('./logger')
 const { isRedisConfigured, getReadyRedisClient } = require('./redis')
 
 let io = null
@@ -133,7 +134,7 @@ const attachRedisAdapter = async (socketServer) => {
   if (!isRedisConfigured()) {
     if (!memoryAdapterWarningShown) {
       memoryAdapterWarningShown = true
-      console.warn('Warning: REDIS_URL not set - Socket.io uses the per-process in-memory adapter that is not shared across cluster workers or instances')
+      logger.warn('Warning: REDIS_URL not set - Socket.io uses the per-process in-memory adapter that is not shared across cluster workers or instances')
     }
 
     return
@@ -146,7 +147,7 @@ const attachRedisAdapter = async (socketServer) => {
 
   const subClient = pubClient.duplicate()
   subClient.on('error', (error) => {
-    console.warn(`Warning: Socket.io Redis adapter subscriber error (${error.message})`)
+    logger.warn(`Warning: Socket.io Redis adapter subscriber error (${error.message})`)
   })
 
   try {
@@ -154,7 +155,7 @@ const attachRedisAdapter = async (socketServer) => {
     socketServer.adapter(createAdapter(pubClient, subClient))
     redisAdapterSubClient = subClient
   } catch (error) {
-    console.warn(`Warning: Socket.io Redis adapter unavailable, falling back to in-memory adapter (${error.message})`)
+    logger.warn(`Warning: Socket.io Redis adapter unavailable, falling back to in-memory adapter (${error.message})`)
     try {
       await subClient.quit()
     } catch {

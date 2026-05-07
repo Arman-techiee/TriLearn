@@ -3,6 +3,16 @@
   "private": true,
   "license": "ISC",
   "scripts": {
-    "dev:docker": "docker-compose up --build"
+    "dev:docker": "docker-compose up --build",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "backend/src/**/*.{js,jsx}": "npm --prefix backend exec -- eslint --config backend/eslint.config.cjs --fix",
+    "frontend/src/**/*.{js,jsx}": "npm --prefix frontend exec -- eslint --config frontend/eslint.config.js --fix",
+    "mobile/src/**/*.{ts,tsx}": "npm --prefix mobile exec -- eslint --config mobile/eslint.config.js --fix"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.2"
   }
 }

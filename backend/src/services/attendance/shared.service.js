@@ -1,5 +1,6 @@
 const prisma = require('../../utils/prisma')
 const { recordAuditLog } = require('../../utils/audit')
+const logger = require('../../utils/logger')
 const { signQrPayload, verifyQrPayload } = require('../../utils/qrSigning')
 const { hashToken } = require('../../utils/token')
 
@@ -8,8 +9,22 @@ const QR_VALIDITY_MINUTES = 15
 const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const DEFAULT_ATTENDANCE_TIMEZONE = 'Asia/Kathmandu'
 const formatterCache = new Map()
+let attendanceTimezoneWarningLogged = false
 
-const getAttendanceTimezone = () => process.env.ATTENDANCE_TIMEZONE || process.env.TZ || DEFAULT_ATTENDANCE_TIMEZONE
+const getAttendanceTimezone = () => {
+  const configuredTimezone = process.env.ATTENDANCE_TIMEZONE || process.env.TZ
+
+  if (configuredTimezone) {
+    return configuredTimezone
+  }
+
+  if (!attendanceTimezoneWarningLogged) {
+    logger.warn('ATTENDANCE_TIMEZONE and TZ are not set. Falling back to Asia/Kathmandu; configure ATTENDANCE_TIMEZONE to the institution IANA timezone before production use.')
+    attendanceTimezoneWarningLogged = true
+  }
+
+  return DEFAULT_ATTENDANCE_TIMEZONE
+}
 
 const getFormatter = (cacheKey, options) => {
   if (!formatterCache.has(cacheKey)) {
