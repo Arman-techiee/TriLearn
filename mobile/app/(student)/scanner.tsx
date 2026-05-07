@@ -1,15 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { AppButton } from '@/src/components/AppButton';
 import { COLORS } from '@/src/constants/colors';
 import { api } from '@/src/services/api';
+import {
+  enqueueAttendanceScan,
+  isRetryableAttendanceScanError,
+  replayQueuedAttendanceScans,
+} from '@/src/services/attendanceScanQueue';
 
 type FlashState = {
   type: 'success' | 'error';
@@ -56,7 +61,7 @@ const parseAttendanceQr = (qrData: string): ParsedAttendanceQr => {
 };
 
 const getErrorMessage = (error: unknown): string => {
-  if (axios.isAxiosError<{ message?: string }>(error)) {
+  if (isAxiosError<{ message?: string }>(error)) {
     return error.response?.data?.message || error.message || 'Could not mark attendance.';
   }
 
@@ -75,12 +80,38 @@ export default function StudentScannerScreen() {
   const [flash, setFlash] = useState<FlashState>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isProcessingRef = useRef(false);
+  const isReplayingQueueRef = useRef(false);
+
+  const replayPendingScans = useCallback(async () => {
+    if (isReplayingQueueRef.current) {
+      return;
+    }
+
+    isReplayingQueueRef.current = true;
+    try {
+      await replayQueuedAttendanceScans();
+    } finally {
+      isReplayingQueueRef.current = false;
+    }
+  }, []);
 
   const scanMutation = useMutation({
     mutationFn: async (qrData: string) => {
       const parsedQr = parseAttendanceQr(qrData);
-      const response = await api.post<{ message?: string }>(parsedQr.endpoint, { qrData: parsedQr.qrData });
-      return response.data.message ?? 'Attendance marked successfully.';
+
+      try {
+        await replayPendingScans();
+        const response = await api.post<{ message?: string }>(parsedQr.endpoint, { qrData: parsedQr.qrData });
+        void replayPendingScans();
+        return response.data.message ?? 'Attendance marked successfully.';
+      } catch (error) {
+        if (isRetryableAttendanceScanError(error)) {
+          await enqueueAttendanceScan(parsedQr.endpoint, parsedQr.qrData);
+          return 'Saved offline. Attendance will sync when the connection returns.';
+        }
+
+        throw error;
+      }
     },
   });
 
@@ -111,6 +142,25 @@ export default function StudentScannerScreen() {
     clearResetTimer();
     isProcessingRef.current = false;
   }, [clearResetTimer]);
+
+  useEffect(() => {
+    void replayPendingScans();
+
+    const retryTimer = setInterval(() => {
+      void replayPendingScans();
+    }, 30000);
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void replayPendingScans();
+      }
+    });
+
+    return () => {
+      clearInterval(retryTimer);
+      subscription.remove();
+    };
+  }, [replayPendingScans]);
 
   const handleBarcodeScanned = useCallback(async ({ data }: BarcodeScanningResult) => {
     if (isProcessingRef.current || !isScanning || !data) {

@@ -4,6 +4,11 @@ import React from 'react';
 import type { Mock } from 'jest-mock';
 
 import { api } from '@/src/services/api';
+import {
+  enqueueAttendanceScan,
+  isRetryableAttendanceScanError,
+  replayQueuedAttendanceScans,
+} from '@/src/services/attendanceScanQueue';
 
 type CameraViewProps = { onBarcodeScanned?: (event: { data: string }) => void };
 type UseMutationOptions = { mutationFn: (value: string) => Promise<string> };
@@ -57,6 +62,12 @@ jest.mock('@/src/services/api', () => ({
   },
 }));
 
+jest.mock('@/src/services/attendanceScanQueue', () => ({
+  enqueueAttendanceScan: jest.fn(),
+  isRetryableAttendanceScanError: jest.fn(() => false),
+  replayQueuedAttendanceScans: jest.fn(async () => ({ delivered: 0, pending: 0 })),
+}));
+
 const StudentScannerScreen = require('../../app/(student)/scanner').default;
 
 describe('student QR scanner flow', () => {
@@ -84,6 +95,41 @@ describe('student QR scanner flow', () => {
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/attendance/scan-qr', { qrData: validQrPayload });
+    });
+    expect(replayQueuedAttendanceScans).toHaveBeenCalled();
+  });
+
+  it('queues retryable scan failures so they can sync later', async () => {
+    const validQrPayload = JSON.stringify({
+      payload: {
+        subjectId: 'subject-1',
+        instructorId: 'instructor-1',
+        expiresAt: '2030-01-01T00:00:00.000Z',
+      },
+      signature: 'valid-signature',
+    });
+    const networkError = new Error('Network Error');
+    (api.post as unknown as ApiPostMock).mockRejectedValueOnce(networkError);
+    (isRetryableAttendanceScanError as jest.Mock).mockReturnValueOnce(true);
+    (enqueueAttendanceScan as jest.Mock).mockResolvedValueOnce({
+      id: 'queued-1',
+      endpoint: '/attendance/scan-qr',
+      qrData: validQrPayload,
+      createdAt: '2026-05-07T00:00:00.000Z',
+      attempts: 0,
+    });
+
+    const screen = render(React.createElement(StudentScannerScreen));
+
+    await act(async () => {
+      await cameraViewProps?.onBarcodeScanned?.({ data: validQrPayload });
+    });
+
+    await waitFor(() => {
+      expect(enqueueAttendanceScan).toHaveBeenCalledWith('/attendance/scan-qr', validQrPayload);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText('Saved offline. Attendance will sync when the connection returns.').length).toBeGreaterThan(0);
     });
   });
 
