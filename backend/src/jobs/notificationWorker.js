@@ -2,6 +2,7 @@ const { Worker } = require('bullmq')
 const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
 const { sendMail } = require('../utils/mailer')
+const { sendPushNotification } = require('../utils/fcm')
 const { emitNotificationCreated } = require('../utils/realtime')
 const {
   NOTIFICATION_QUEUE_NAME,
@@ -96,7 +97,7 @@ const normalizeNotificationRecords = (notifications = []) => notifications
 const emitCreatedNotifications = async (records) => {
   const dedupeKeys = records.map((record) => record.dedupeKey).filter(Boolean)
   if (!dedupeKeys.length) {
-    return
+    return []
   }
 
   const notifications = await prisma.notification.findMany({
@@ -110,6 +111,111 @@ const emitCreatedNotifications = async (records) => {
   notifications.forEach((notification) => {
     emitNotificationCreated(notification.userId, notification)
   })
+
+  return notifications
+}
+
+const buildPushData = (notification) => ({
+  notificationId: notification.id,
+  type: notification.type,
+  link: notification.link || '',
+  metadata: notification.metadata || {}
+})
+
+const removeStaleDeviceTokens = async (results = []) => {
+  const staleTokens = results
+    .filter((result) => result?.stale && result.token)
+    .map((result) => result.token)
+
+  if (!staleTokens.length || !prisma.deviceToken?.deleteMany) {
+    return 0
+  }
+
+  const deleteResult = await prisma.deviceToken.deleteMany({
+    where: {
+      token: {
+        in: [...new Set(staleTokens)]
+      }
+    }
+  })
+
+  return deleteResult.count || 0
+}
+
+const deliverPushNotifications = async (notifications = []) => {
+  if (!notifications.length || !prisma.deviceToken?.findMany) {
+    return { attempted: 0, staleRemoved: 0 }
+  }
+
+  const userIds = uniqueUserIds(notifications.map((notification) => notification.userId))
+  if (!userIds.length) {
+    return { attempted: 0, staleRemoved: 0 }
+  }
+
+  const deviceTokens = await prisma.deviceToken.findMany({
+    where: {
+      userId: {
+        in: userIds
+      }
+    },
+    select: {
+      userId: true,
+      token: true,
+      platform: true
+    }
+  })
+
+  if (!deviceTokens.length) {
+    return { attempted: 0, staleRemoved: 0 }
+  }
+
+  const tokensByUserId = deviceTokens.reduce((acc, deviceToken) => {
+    if (!acc.has(deviceToken.userId)) {
+      acc.set(deviceToken.userId, [])
+    }
+    acc.get(deviceToken.userId).push(deviceToken.token)
+    return acc
+  }, new Map())
+
+  const pushResults = []
+
+  for (const notification of notifications) {
+    const tokens = tokensByUserId.get(notification.userId) || []
+    if (!tokens.length) {
+      continue
+    }
+
+    const results = await sendPushNotification(
+      tokens,
+      notification.title,
+      notification.message,
+      buildPushData(notification)
+    )
+    pushResults.push(...results)
+  }
+
+  const staleRemoved = await removeStaleDeviceTokens(pushResults)
+  if (staleRemoved > 0) {
+    logger.info('Removed stale FCM device tokens', { count: staleRemoved })
+  }
+
+  return {
+    attempted: pushResults.length,
+    staleRemoved
+  }
+}
+
+const deliverPushNotificationsSafely = async (notifications) => {
+  try {
+    return await deliverPushNotifications(notifications)
+  } catch (error) {
+    logger.error('FCM push delivery failed without failing notification job', {
+      message: error.message,
+      stack: error.stack
+    })
+
+    return { attempted: 0, staleRemoved: 0, failed: true }
+  }
 }
 
 const createNotificationRecords = async (notifications = []) => {
@@ -123,7 +229,8 @@ const createNotificationRecords = async (notifications = []) => {
     skipDuplicates: true
   })
 
-  await emitCreatedNotifications(records)
+  const createdNotifications = await emitCreatedNotifications(records)
+  await deliverPushNotificationsSafely(createdNotifications)
   return { count: result.count }
 }
 
@@ -235,6 +342,7 @@ const closeNotificationWorker = async () => {
 
 module.exports = {
   createNotificationRecords,
+  deliverPushNotifications,
   startNotificationWorker,
   closeNotificationWorker
 }
