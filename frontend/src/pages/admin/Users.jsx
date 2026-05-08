@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Upload, UserPlus } from 'lucide-react'
+import { Download, Upload, UserPlus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
@@ -43,6 +43,49 @@ const semesterFilterOptions = [
   { value: 'graduate', label: 'Graduates' }
 ]
 const academicSemesterOptions = Array.from({ length: 8 }, (_, index) => String(index + 1))
+const STUDENT_IMPORT_POLL_INTERVAL_MS = 1500
+const STUDENT_IMPORT_MAX_POLL_ATTEMPTS = 40
+const STUDENT_IMPORT_TEMPLATE_FILENAME = 'trilearn-student-import-template.csv'
+const STUDENT_IMPORT_TEMPLATE_ROWS = [
+  ['name', 'email', 'studentId', 'department', 'semester', 'section', 'phone', 'address'],
+  ['Asha Sharma', 'asha@example.edu', 'CS-001', 'CS', '1', 'A', '9800000000', 'Kathmandu']
+]
+
+const wait = (ms) => new Promise((resolve) => {
+  window.setTimeout(resolve, ms)
+})
+
+const normalizeApiStatusPath = (statusUrl) => (
+  String(statusUrl || '').replace(/^\/api\/v\d+/i, '') || statusUrl
+)
+
+const escapeCsvCell = (value) => {
+  const stringValue = String(value ?? '')
+  if (!/[",\r\n]/.test(stringValue)) {
+    return stringValue
+  }
+
+  return `"${stringValue.replace(/"/g, '""')}"`
+}
+
+const buildStudentImportTemplateCsv = () => (
+  STUDENT_IMPORT_TEMPLATE_ROWS
+    .map((row) => row.map(escapeCsvCell).join(','))
+    .join('\r\n')
+)
+
+const downloadStudentImportTemplate = () => {
+  const blob = new Blob([buildStudentImportTemplateCsv()], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = STUDENT_IMPORT_TEMPLATE_FILENAME
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 const Users = () => {
   const { user: currentUser } = useAuth()
   const { departments, loadDepartments } = useReferenceData()
@@ -485,17 +528,59 @@ const Users = () => {
     try {
       setImportingStudents(true)
       setError('')
-      const response = await api.post('/admin/users/student-import', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      const response = await api.post('/admin/users/student-import', formData)
+      let importResponseData = response.data
 
-      setImportResult(response.data)
+      if (response.status === 202 && response.data?.statusUrl) {
+        setImportResult({
+          message: response.data.message || 'Student import queued.',
+          jobId: response.data.jobId,
+          state: 'queued'
+        })
+
+        const statusPath = normalizeApiStatusPath(response.data.statusUrl)
+        let completedJob = null
+
+        for (let attempt = 0; attempt < STUDENT_IMPORT_MAX_POLL_ATTEMPTS; attempt += 1) {
+          await wait(STUDENT_IMPORT_POLL_INTERVAL_MS)
+          const jobResponse = await api.get(statusPath)
+          const job = jobResponse.data
+
+          setImportResult({
+            message: response.data.message || 'Student import queued.',
+            jobId: job.id,
+            state: job.state,
+            progress: job.progress
+          })
+
+          if (job.state === 'completed') {
+            completedJob = job
+            break
+          }
+
+          if (job.state === 'failed') {
+            const failedImport = job.result || {
+              message: job.failedReason || 'Student import failed.'
+            }
+            setImportResult(failedImport)
+            setError(failedImport.message || 'Student import failed.')
+            return
+          }
+        }
+
+        if (!completedJob) {
+          setError('Student import is still processing. Please check again in a moment.')
+          return
+        }
+
+        importResponseData = completedJob.result
+      }
+
+      setImportResult(importResponseData)
       await fetchUsers()
       showToast({
         title: 'Student import completed.',
-        description: `${response.data.summary?.created || 0} students created, ${response.data.summary?.failed || 0} rows failed.`,
+        description: `${importResponseData?.summary?.created || 0} students created, ${importResponseData?.summary?.failed || 0} rows failed.`,
         type: 'success',
         duration: 5000
       })
@@ -694,6 +779,14 @@ const Users = () => {
             <div className="rounded-xl bg-[var(--color-surface-muted)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
               Use a CSV or XLSX file with these columns: `name`, `email`, `studentId`, `department`, `semester`, `section`.
               Optional columns: `phone`, `address`. Department can match either the department name or code.
+              <button
+                type="button"
+                onClick={downloadStudentImportTemplate}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-heading)] transition hover:bg-[var(--color-surface-subtle)]"
+              >
+                <Download className="h-4 w-4" />
+                Download CSV template
+              </button>
             </div>
 
             <label className="ui-form-file">
@@ -709,6 +802,18 @@ const Users = () => {
               />
               <span>{importFile ? `${importFile.name} selected` : 'Choose a CSV or XLSX file'}</span>
             </label>
+
+            {importResult && !importResult.summary ? (
+              <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 text-sm text-[var(--color-text-muted)]">
+                <p className="font-semibold text-[var(--color-heading)]">{importResult.message || 'Student import status'}</p>
+                {importResult.state ? (
+                  <p className="mt-2">Status: <span className="font-medium text-[var(--color-heading)]">{importResult.state}</span></p>
+                ) : null}
+                {importResult.jobId ? (
+                  <p className="mt-1">Job ID: <span className="font-medium text-[var(--color-heading)]">{importResult.jobId}</span></p>
+                ) : null}
+              </div>
+            ) : null}
 
             {importResult?.summary ? (
               <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4">

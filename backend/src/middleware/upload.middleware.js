@@ -533,6 +533,12 @@ const validateUploadedSpreadsheet = async (req, res, next) => {
     const isLegacyXls = hasLegacyXlsSignature(req.file.buffer)
     const isCsv = isLikelyCsvUpload(req.file, detectedType)
 
+    if (isLegacyXls) {
+      return res.status(400).json({
+        message: 'Legacy .xls files are not supported. Please save/export the sheet as .xlsx or CSV and upload it again.'
+      })
+    }
+
     if (!isAllowedSpreadsheetType && !isLegacyXls && !isCsv) {
       return res.status(400).json({
         message: 'Invalid file: content does not match a valid spreadsheet format'

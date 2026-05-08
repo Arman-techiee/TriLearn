@@ -38,6 +38,7 @@ const roleBadgeClasses = {
 
 const DEEP_BLUE = '#1A3C6E'
 const SAFFRON = '#F4A623'
+const CHART_HEIGHT = 260
 
 // TODO: Replace with GET /api/v1/attendance/summary when an admin trend endpoint is available.
 const attendanceTrendFallback = [
@@ -169,10 +170,10 @@ const Dashboard = () => {
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <div className="ui-card rounded-2xl p-6">
+          <div className="ui-card min-w-0 rounded-2xl p-6">
             <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-[var(--color-text)]">Monthly attendance trend</h2>
-            <div className="h-[260px] max-w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[260px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={CHART_HEIGHT} minWidth={0}>
                 <BarChart data={chartData.attendanceTrend}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" />
@@ -184,10 +185,10 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="ui-card rounded-2xl p-6">
+          <div className="ui-card min-w-0 rounded-2xl p-6">
             <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-[var(--color-text)]">Subject enrollment breakdown</h2>
-            <div className="h-[260px] max-w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[260px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={CHART_HEIGHT} minWidth={0}>
                 <PieChart>
                   <Pie
                     data={chartData.departmentBreakdown}
@@ -208,10 +209,10 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="ui-card rounded-2xl p-6">
+          <div className="ui-card min-w-0 rounded-2xl p-6">
             <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-[var(--color-text)]">Marks distribution</h2>
-            <div className="h-[260px] max-w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[260px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={CHART_HEIGHT} minWidth={0}>
                 <BarChart data={chartData.marksDistribution}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="grade" />

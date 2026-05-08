@@ -177,9 +177,18 @@ const getRetryAfterMs = (error, fallbackMs = 60_000) => {
 const sanitizeAxiosError = (error) => ({
   message: error?.message,
   status: error?.response?.status,
+  data: error?.response?.data,
   url: error?.config?.url,
   method: error?.config?.method
 })
+
+const formatAxiosErrorForConsole = (error) => {
+  try {
+    return JSON.stringify(sanitizeAxiosError(error), null, 2)
+  } catch {
+    return sanitizeAxiosError(error)
+  }
+}
 
 const setRefreshCooldown = (cooldownUntil) => {
   refreshCooldownUntil = cooldownUntil
@@ -530,7 +539,7 @@ api.interceptors.response.use(
       !isRequestCanceled(error) &&
       !shouldSuppressExpectedUnauthorizedError
     ) {
-      console.error('API Error:', sanitizeAxiosError(error))
+      console.error('API Error:', formatAxiosErrorForConsole(error))
     }
 
     if (

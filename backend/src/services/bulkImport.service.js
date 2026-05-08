@@ -26,6 +26,9 @@ const {
 const { normalizeDepartmentList } = require('../utils/instructorDepartments')
 
 const MAX_STUDENT_SEMESTER = 8
+const WELCOME_EMAIL_SEND_DELAY_MS = 1200
+const WELCOME_EMAIL_RATE_LIMIT_RETRY_DELAY_MS = 2500
+const WELCOME_EMAIL_MAX_ATTEMPTS = 3
 const sanitizeImportedSpreadsheetText = (value) => sanitizeXlsxCell(sanitizePlainText(value))
 
 
@@ -66,8 +69,17 @@ const loadStudentImportRows = async (filePath, originalName) => {
   } else if (extension === '.xlsx') {
     try {
       await workbook.xlsx.readFile(filePath)
-    } catch {
-      throw new Error('Unable to read the XLSX file. Please save it again as a valid .xlsx workbook or upload a CSV file.')
+    } catch (readFileError) {
+      try {
+        const workbookBuffer = await fs.promises.readFile(filePath)
+        await workbook.xlsx.load(workbookBuffer)
+      } catch {
+        logger.warn('Student import XLSX parse failed', {
+          message: readFileError?.message,
+          fileName: originalName
+        })
+        throw new Error('Unable to read the XLSX file. Please save/export it as a real .xlsx workbook or use the CSV template from this import dialog.')
+      }
     }
   } else {
     throw new Error('Please upload a CSV or XLSX file')
@@ -172,6 +184,38 @@ const getCoordinatorDepartments = (context) => {
     ...(Array.isArray(context.coordinator?.departments) ? context.coordinator.departments : []),
     context.coordinator?.department
   ])
+}
+
+const wait = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms)
+})
+
+const isRateLimitedEmailError = (error) => (
+  /too many requests|rate limit/i.test(String(error?.message || ''))
+)
+
+const sendWelcomeEmailWithRetry = async ({ row, subject, html, text }) => {
+  for (let attempt = 1; attempt <= WELCOME_EMAIL_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await sendMail({ to: row.email, subject, html, text })
+      return true
+    } catch (emailError) {
+      if (attempt < WELCOME_EMAIL_MAX_ATTEMPTS && isRateLimitedEmailError(emailError)) {
+        await wait(WELCOME_EMAIL_RATE_LIMIT_RETRY_DELAY_MS * attempt)
+        continue
+      }
+
+      logger.error('Welcome email failed', {
+        message: emailError?.message,
+        stack: emailError?.stack,
+        userId: row.id,
+        attempt
+      })
+      return false
+    }
+  }
+
+  return false
 }
 
 /**
@@ -460,7 +504,11 @@ const processStudentImportFile = async (context, result = createServiceResponder
         created = createdRows
         failures.push(...conflictFailures)
 
-        await Promise.allSettled(created.map(async (row) => {
+        for (const [index, row] of created.entries()) {
+          if (index > 0) {
+            await wait(WELCOME_EMAIL_SEND_DELAY_MS)
+          }
+
           const { subject, html, text } = welcomeTemplate({
             name: row.name,
             email: row.email,
@@ -468,20 +516,11 @@ const processStudentImportFile = async (context, result = createServiceResponder
             verificationUrl: buildEmailVerificationUrl(row.emailVerificationToken)
           })
 
-          await sendMail({ to: row.email, subject, html, text })
-        })).then((results) => {
-          results.forEach((result, index) => {
-            if (result.status === 'rejected') {
-              logger.error('Welcome email failed', {
-                message: result.reason?.message,
-                stack: result.reason?.stack,
-                userId: created[index]?.id
-              })
-            } else if (created[index]) {
-              created[index].welcomeEmailSent = true
-            }
-          })
-        })
+          const wasSent = await sendWelcomeEmailWithRetry({ row, subject, html, text })
+          if (wasSent) {
+            row.welcomeEmailSent = true
+          }
+        }
       } catch (error) {
         rowsToCreate.forEach((row) => {
           failures.push(buildStudentImportError(row.rowNumber, error?.message || 'Unable to create the student accounts', row))

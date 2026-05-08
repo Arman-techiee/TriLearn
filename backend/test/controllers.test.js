@@ -5,6 +5,7 @@ const path = require('node:path')
 const { createRequire } = require('node:module')
 
 const resolveFromTest = (...segments) => path.resolve(__dirname, '..', ...segments)
+const SYNTHETIC_TEST_PASSWORD = 'not-a-real-password-for-tests'
 
 const loadWithMocks = (targetPath, mocks) => {
   const modulePath = path.resolve(targetPath)
@@ -2597,7 +2598,7 @@ test('createGatekeeper blocks coordinators from creating gatekeepers outside the
     body: {
       name: 'Gatekeeper One',
       email: 'gatekeeper@example.com',
-      password: 'Str0ngPass!23',
+      password: SYNTHETIC_TEST_PASSWORD,
       department: 'Civil'
     },
     user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
