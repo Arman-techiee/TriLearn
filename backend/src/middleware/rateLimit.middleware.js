@@ -65,7 +65,7 @@ const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator }
   return rateLimit({
     windowMs,
     max,
-    standardHeaders: true,
+    standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { message },
     keyGenerator,

@@ -145,10 +145,11 @@ const Login = () => {
 
       <form onSubmit={handleSubmit(handleLogin)} className="mt-6 space-y-5">
         <div>
-          <label className="ui-form-label">Email</label>
+          <label htmlFor="login-email" className="ui-form-label">Email</label>
           <div className="relative">
             <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-soft)]" />
             <input
+              id="login-email"
               name="email"
               type="email"
               value={values.email}
@@ -158,12 +159,12 @@ const Login = () => {
               className={`ui-form-input pl-11 ${errors.email ? 'ui-form-input-error' : ''}`}
             />
           </div>
-          {errors.email && <p className="ui-form-helper-error">{errors.email}</p>}
+          {errors.email && <p className="ui-form-helper-error" role="alert">{errors.email}</p>}
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <label className="ui-form-label mb-0">Password</label>
+            <label htmlFor="login-password" className="ui-form-label mb-0">Password</label>
             <button
               type="button"
               onClick={() => navigate('/forgot-password')}
@@ -175,6 +176,7 @@ const Login = () => {
           <div className="relative">
             <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-soft)]" />
             <input
+              id="login-password"
               name="password"
               type={showPassword ? 'text' : 'password'}
               value={values.password}
@@ -192,16 +194,17 @@ const Login = () => {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="ui-form-helper-error">{errors.password}</p>}
+          {errors.password && <p className="ui-form-helper-error" role="alert">{errors.password}</p>}
         </div>
 
         {captchaChallenge ? (
           <div>
-            <label className="ui-form-label">Security check</label>
+            <label htmlFor="login-captcha-answer" className="ui-form-label">Security check</label>
             <p className="mb-2 text-sm text-[var(--color-text-muted)]">
               Too many failed sign-in attempts. {captchaChallenge.prompt}
             </p>
             <input
+              id="login-captcha-answer"
               name="captchaAnswer"
               type="text"
               value={values.captchaAnswer}
@@ -210,7 +213,7 @@ const Login = () => {
               required
               className={`ui-form-input ${errors.captchaAnswer ? 'ui-form-input-error' : ''}`}
             />
-            {errors.captchaAnswer && <p className="ui-form-helper-error">{errors.captchaAnswer}</p>}
+            {errors.captchaAnswer && <p className="ui-form-helper-error" role="alert">{errors.captchaAnswer}</p>}
           </div>
         ) : null}
 
@@ -218,6 +221,7 @@ const Login = () => {
           type="submit"
           disabled={loading || retryCountdown > 0}
           className="ui-auth-primary-button"
+          aria-live="polite"
         >
           {loading ? <span className="ui-auth-spinner" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" />}
           <span>

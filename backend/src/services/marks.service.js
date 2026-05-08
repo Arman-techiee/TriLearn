@@ -226,9 +226,9 @@ const getRankingSummary = async ({ student, examType }) => {
 }
 
 /**
- * Handles get my marks summary business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getMyMarksSummary = async (context, result = createServiceResponder()) => {
     const { examType } = context.query
@@ -361,9 +361,9 @@ const getStudentMarksheetPayload = async ({ student, examType }) => {
 }
 
 /**
- * Handles export my marksheet pdf business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const exportMyMarksheetPdf = async (context, result = createServiceResponder()) => {
     const { examType } = context.query
@@ -537,9 +537,9 @@ const createMarkPayload = ({ studentId, subjectId, instructorId, examType, total
 })
 
 /**
- * Handles add marks business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const addMarks = async (context, result = createServiceResponder()) => {
     const { studentId, subjectId, examType, totalMarks, obtainedMarks, remarks } = context.body
@@ -606,9 +606,9 @@ const addMarks = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles add marks bulk business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const addMarksBulk = async (context, result = createServiceResponder()) => {
   try {
@@ -710,9 +710,9 @@ const addMarksBulk = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles update marks business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const updateMarks = async (context, result = createServiceResponder()) => {
     const { id } = context.params
@@ -756,9 +756,9 @@ const updateMarks = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles get marks by subject business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getMarksBySubject = async (context, result = createServiceResponder()) => {
     const { subjectId } = context.params
@@ -816,9 +816,9 @@ const getMarksBySubject = async (context, result = createServiceResponder()) => 
 }
 
 /**
- * Handles get marks review business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getMarksReview = async (context, result = createServiceResponder()) => {
     const { examType, subjectId } = context.query
@@ -872,9 +872,9 @@ const getMarksReview = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles get enrolled students by subject business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getEnrolledStudentsBySubject = async (context, result = createServiceResponder()) => {
     const { subjectId } = context.params
@@ -922,9 +922,9 @@ const getEnrolledStudentsBySubject = async (context, result = createServiceRespo
 }
 
 /**
- * Handles get my marks business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getMyMarks = async (context, result = createServiceResponder()) => {
     const { page, limit, skip } = getPagination(context.query)
@@ -966,9 +966,9 @@ const getMyMarks = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles delete marks business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const deleteMarks = async (context, result = createServiceResponder()) => {
     const { id } = context.params
@@ -1002,9 +1002,9 @@ const deleteMarks = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles publish marks business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const publishMarks = async (context, result = createServiceResponder()) => {
     const { subjectId, examType } = context.body

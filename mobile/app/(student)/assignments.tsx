@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { COLORS } from '@/src/constants/colors';
+import EmptyState from '@/src/components/EmptyState';
 import { WEB_APP_URL } from '@/src/constants/config';
 import { useAuth } from '@/src/hooks/useAuth';
 import { api } from '@/src/services/api';
@@ -42,7 +43,7 @@ const AssignmentSkeleton = () => (
 export default function StudentAssignmentsScreen() {
   const { isAuthenticated } = useAuth();
   const [activeFilter, setActiveFilter] = useState<AssignmentFilter>('ALL');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
   const assignmentsQuery = useQuery({
@@ -84,12 +85,12 @@ export default function StudentAssignmentsScreen() {
 
   const selectedSubmission = selectedAssignment ? getSubmission(selectedAssignment, submissionMap) : null;
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       await Promise.all([assignmentsQuery.refetch(), submissionsQuery.refetch()]);
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, [assignmentsQuery, submissionsQuery]);
 
@@ -104,9 +105,9 @@ export default function StudentAssignmentsScreen() {
         refreshControl={
           <RefreshControl
             colors={[COLORS.primary]}
-            refreshing={isRefreshing}
+            refreshing={refreshing}
             tintColor={COLORS.primary}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
           />
         }
       >
@@ -139,8 +140,7 @@ export default function StudentAssignmentsScreen() {
             </>
           ) : assignments.length === 0 ? (
             <View className="items-center rounded-2xl bg-white px-5 py-10">
-              <Text className="text-lg font-bold text-slate-900">No assignments found</Text>
-              <Text className="mt-2 text-center text-sm text-slate-500">Assignments matching this filter will appear here.</Text>
+              <EmptyState title="No assignments yet" subtitle="Assignments matching this filter will appear here." />
             </View>
           ) : (
             assignments.map((assignment) => {

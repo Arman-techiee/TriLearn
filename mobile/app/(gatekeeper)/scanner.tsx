@@ -1,11 +1,11 @@
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { AppButton } from '@/src/components/AppButton';
-import { COLORS } from '@/src/constants/colors';
 import { api } from '@/src/services/api';
 import type { ScanResult } from '@/src/types/gatekeeper';
 
@@ -51,8 +51,10 @@ export default function GatekeeperScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isConnected } = useNetInfo();
+  const isOffline = isConnected === false;
 
-  const isScannerLocked = Boolean(overlay);
+  const isScannerLocked = Boolean(overlay) || isOffline;
 
   const mutation = useMutation({
     mutationFn: async (body: { qrData: string }) => {
@@ -160,6 +162,7 @@ export default function GatekeeperScannerScreen() {
           <Text className="text-center text-sm font-semibold text-white">
             Student ID QR scans only
           </Text>
+          {isOffline ? <Text className="mt-2 text-center text-xs font-semibold text-amber-200">Unavailable while offline</Text> : null}
         </View>
       </View>
 

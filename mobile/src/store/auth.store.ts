@@ -9,9 +9,11 @@ interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
   refreshToken: string | null;
+  pushToken: string | null;
   isHydrated: boolean;
   setSession: (payload: { user: AuthUser; accessToken: string; refreshToken: string }) => void;
   setTokens: (payload: { accessToken: string; refreshToken: string }) => void;
+  setPushToken: (token: string | null) => void;
   updateUser: (user: AuthUser) => void;
   logout: () => void;
   clearSession: () => void;
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
+      pushToken: null,
       isHydrated: false,
       setSession: ({ user, accessToken, refreshToken }) => {
         set({ user, accessToken, refreshToken });
@@ -41,16 +44,19 @@ export const useAuthStore = create<AuthState>()(
       setTokens: ({ accessToken, refreshToken }) => {
         set({ accessToken, refreshToken });
       },
+      setPushToken: (token) => {
+        set({ pushToken: token });
+      },
       updateUser: (user) => {
         set({ user });
       },
       logout: () => {
         queryClient.removeQueries({ queryKey: ['student-id-qr'] });
-        set({ user: null, accessToken: null, refreshToken: null });
+        set({ user: null, accessToken: null, refreshToken: null, pushToken: null });
       },
       clearSession: () => {
         queryClient.removeQueries({ queryKey: ['student-id-qr'] });
-        set({ user: null, accessToken: null, refreshToken: null });
+        set({ user: null, accessToken: null, refreshToken: null, pushToken: null });
       },
       setHydrated: (value) => {
         set({ isHydrated: value });
@@ -63,6 +69,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
+        pushToken: state.pushToken,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);

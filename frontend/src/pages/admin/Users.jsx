@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowUpCircle, FileSpreadsheet, PencilLine, Power, Trash2, Upload, UserPlus } from 'lucide-react'
+import { Upload, UserPlus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import EmptyState from '../../components/EmptyState'
-import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
-import Pagination from '../../components/Pagination'
-import StatusBadge from '../../components/StatusBadge'
 import { useToast } from '../../components/Toast'
+import CreateUserModal from '../../components/users/CreateUserModal'
+import EditUserModal from '../../components/users/EditUserModal'
+import UserFilters from '../../components/users/UserFilters'
+import UserTable from '../../components/users/UserTable'
 import { useAuth } from '../../context/AuthContext'
 import { useReferenceData } from '../../context/ReferenceDataContext'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
@@ -43,23 +43,6 @@ const semesterFilterOptions = [
   { value: 'graduate', label: 'Graduates' }
 ]
 const academicSemesterOptions = Array.from({ length: 8 }, (_, index) => String(index + 1))
-const getInstructorDepartments = (instructor) => (
-  Array.isArray(instructor?.departments) && instructor.departments.length > 0
-    ? instructor.departments
-    : [instructor?.department].filter(Boolean)
-)
-const getStudentDetails = (student) => {
-  if (!student) {
-    return ''
-  }
-
-  const academicLabel = student.isGraduated
-    ? `Graduate${student.graduationYear ? ` ${student.graduationYear}` : ''}`
-    : `Sem ${student.semester}`
-
-  return `${academicLabel} · ${student.rollNumber}`
-}
-
 const Users = () => {
   const { user: currentUser } = useAuth()
   const { departments, loadDepartments } = useReferenceData()
@@ -635,526 +618,65 @@ const Users = () => {
         {/* Success/Error messages */}
         <Alert type="error" message={error} />
 
-        {/* Filter */}
-        <div className="mb-6 space-y-4">
-          {!isCoordinator ? (
-            <div className="rounded-2xl border border-dashed border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-heading)]">Bulk student import</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">Upload a CSV or XLSX file with `name`, `email`, `studentId`, `department`, `semester`, and `section`. `phone` and `address` are optional.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={openImportModal}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-2 text-sm font-semibold text-[var(--color-heading)] transition hover:bg-[var(--color-surface-subtle)]"
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  <span>Upload roster</span>
-                </button>
-              </div>
-            </div>
-          ) : null}
-          <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
-            <label className="mb-2 block text-sm font-medium text-[var(--color-page-text)]">Search users</label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by name, email, phone, roll number, or department"
-              className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          {(filterRole === '' || filterRole === ROLES.STUDENT) && (
-            <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
-              <label className="mb-2 block text-sm font-medium text-[var(--color-page-text)]">Filter students by semester</label>
-              <select
-                value={semesterFilter}
-                onChange={(event) => {
-                  const nextValue = event.target.value
-                  setSemesterFilter(nextValue)
-                  if (nextValue && filterRole !== ROLES.STUDENT) {
-                    setFilterRole(ROLES.STUDENT)
-                  }
-                }}
-                className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                {semesterFilterOptions.map((option) => (
-                  <option key={option.value || 'all-semesters'} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-3">
-            {visibleRoles.map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => {
-                  setFilterRole(role)
-                  if (role && role !== ROLES.STUDENT) {
-                    setSemesterFilter('')
-                  }
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition
-                  ${filterRole === role
-                    ? 'bg-primary text-white'
-                    : 'border border-[var(--color-card-border)] bg-[var(--color-card-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
-                  }`}
-              >
-                {role || 'All'}
-              </button>
-            ))}
-          </div>
-          <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
-            <div className="flex flex-col gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[var(--color-heading)]">Bulk Section Assignment</p>
-                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  Select students in the table and move them together to one section.
-                </p>
-              </div>
-              <div className="grid gap-3 md:grid-cols-4">
-                <div>
-                  <label className="ui-form-label">Department</label>
-                  <select
-                    value={bulkSectionForm.department}
-                    onChange={(event) => {
-                      const nextDepartment = event.target.value
-                      const nextSections = getSectionOptions(nextDepartment, bulkSectionForm.semester)
-                      setBulkSectionForm((current) => ({
-                        ...current,
-                        department: nextDepartment,
-                        section: nextSections[0] || ''
-                      }))
-                    }}
-                    className="ui-form-input"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((department) => (
-                      <option key={department.id} value={department.name}>
-                        {department.name} ({department.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="ui-form-label">Semester</label>
-                  <select
-                    value={bulkSectionForm.semester}
-                    onChange={(event) => {
-                      const nextSemester = event.target.value
-                      const nextSections = getSectionOptions(bulkSectionForm.department, nextSemester)
-                      setBulkSectionForm((current) => ({
-                        ...current,
-                        semester: nextSemester,
-                        section: nextSections[0] || ''
-                      }))
-                    }}
-                    className="ui-form-input"
-                  >
-                    {academicSemesterOptions.map((semesterOption) => (
-                      <option key={semesterOption} value={semesterOption}>
-                        Semester {semesterOption}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="ui-form-label">Section</label>
-                  <select
-                    value={bulkSectionForm.section}
-                    onChange={(event) => setBulkSectionForm((current) => ({ ...current, section: event.target.value }))}
-                    className="ui-form-input"
-                    disabled={getSectionOptions(bulkSectionForm.department, bulkSectionForm.semester).length === 0}
-                  >
-                    {getSectionOptions(bulkSectionForm.department, bulkSectionForm.semester).length === 0 ? (
-                      <option value="">No configured sections</option>
-                    ) : (
-                      getSectionOptions(bulkSectionForm.department, bulkSectionForm.semester).map((sectionOption) => (
-                        <option key={sectionOption} value={sectionOption}>
-                          {sectionOption}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleBulkAssignStudentSection()
-                    }}
-                    disabled={bulkAssigningSection || selectedStudentIds.length === 0}
-                    className="ui-role-fill w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {bulkAssigningSection ? 'Updating...' : `Move ${selectedStudentIds.length} Student${selectedStudentIds.length === 1 ? '' : 's'}`}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <UserFilters
+          isCoordinator={isCoordinator}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          filterRole={filterRole}
+          setFilterRole={setFilterRole}
+          semesterFilter={semesterFilter}
+          setSemesterFilter={setSemesterFilter}
+          semesterFilterOptions={semesterFilterOptions}
+          visibleRoles={visibleRoles}
+          bulkSectionForm={bulkSectionForm}
+          setBulkSectionForm={setBulkSectionForm}
+          departments={departments}
+          academicSemesterOptions={academicSemesterOptions}
+          getSectionOptions={getSectionOptions}
+          selectedStudentIds={selectedStudentIds}
+          bulkAssigningSection={bulkAssigningSection}
+          handleBulkAssignStudentSection={handleBulkAssignStudentSection}
+          openImportModal={openImportModal}
+        />
 
-        {/* Users Table */}
-        <div className="overflow-hidden rounded-2xl bg-[var(--color-card-surface)] shadow-sm dark:shadow-slate-900/50">
-          {loading ? (
-            <div className="p-6">
-              <LoadingSkeleton rows={6} itemClassName="h-16" />
-            </div>
-          ) : (
-            <>
-              {users.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState
-                    icon={UserPlus}
-                    title="No users found"
-                    description={filterRole === ROLES.INSTRUCTOR
-                      ? 'No instructors matched this filter yet. Create one to get started.'
-                      : filterRole === ROLES.COORDINATOR
-                        ? 'No coordinators matched this filter yet.'
-                      : filterRole === ROLES.STUDENT
-                        ? 'No students matched this filter yet. Add a student or change the filter.'
-                        : 'Try a different role filter or create a new account for your campus.'}
-                    action={(
-                      <button
-                        type="button"
-                        onClick={() => openModal(filterRole === ROLES.INSTRUCTOR ? 'instructor' : 'student')}
-                        className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                        <span>{filterRole === ROLES.INSTRUCTOR ? 'Add Instructor' : 'Add Student'}</span>
-                      </button>
-                    )}
-                  />
-                </div>
-              ) : (
-              <>
-              <div className="flex items-center justify-between border-b border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-[var(--color-heading)]">Directory</h2>
-                  <p className="text-sm text-[var(--color-text-muted)]">Manage account access, roles, and user status.</p>
-                </div>
-                <span className="ui-status-badge ui-status-neutral">{total} records</span>
-              </div>
-              <div className="overflow-x-auto max-h-[720px]">
-              <table className="w-full min-w-[840px]">
-                <thead className="sticky top-0 z-10 bg-[var(--color-surface-muted)]">
-                  <tr className="text-left text-sm text-[--color-text-muted] dark:text-slate-300">
-                    <th scope="col" className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={studentsOnPage.length > 0 && studentsOnPage.every((student) => selectedStudentIds.includes(student.id))}
-                        onChange={handleToggleAllStudentsOnPage}
-                        className="h-4 w-4 accent-[var(--color-role-accent)]"
-                        aria-label="Select all students on this page"
-                      />
-                    </th>
-                    <th scope="col" className="px-6 py-4">Name</th>
-                    <th scope="col" className="px-6 py-4">Email</th>
-                    <th scope="col" className="px-6 py-4">Role</th>
-                    <th scope="col" className="px-6 py-4">Details</th>
-                    <th scope="col" className="px-6 py-4">Status</th>
-                    <th scope="col" className="px-6 py-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-t border-[var(--color-card-border)] transition-colors hover:bg-primary-50/30 dark:hover:bg-primary-950/15">
-                      <td className="px-4 py-4">
-                        {user.student ? (
-                          <input
-                            type="checkbox"
-                            checked={selectedStudentIds.includes(user.id)}
-                            onChange={() => handleToggleStudentSelection(user.id)}
-                            className="h-4 w-4 accent-[var(--color-role-accent)]"
-                            aria-label={`Select ${user.name}`}
-                          />
-                        ) : null}
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-[var(--color-heading)]">{user.name}</p>
-                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{user.phone || user.email}</p>
-                      </td>
-                      <td className="px-6 py-4 text-[--color-text-muted] dark:text-slate-300 text-sm">{user.email}</td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={user.role} />
-                      </td>
-                      <td className="px-6 py-4 text-sm text-[--color-text-muted] dark:text-slate-300">
-                        {user.student && getStudentDetails(user.student)}
-                        {user.instructor && `${getInstructorDepartments(user.instructor).join(', ') || 'No dept'}`}
-                        {user.coordinator && `${user.coordinator.department || 'No dept'} coordinator`}
-                        {user.role === ROLES.GATEKEEPER && 'Gate QR operator'}
-                        {user.admin && 'Administrator'}
-                        {user.mustChangePassword && ' · Password reset pending'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={user.isActive ? 'ACTIVE' : 'DISABLED'} />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          {user.student ? (
-                            <button
-                              type="button"
-                              onClick={() => openStudentSectionModal(user)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                              aria-label={`Update ${user.name} section`}
-                            >
-                              <PencilLine className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                          {user.student && !user.student.isGraduated ? (
-                            <button
-                              type="button"
-                              onClick={() => setStudentToPromote(user)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary-100 text-primary transition hover:bg-primary-200 dark:bg-primary-900/35 dark:text-primary-200 dark:hover:bg-primary-900/50"
-                              aria-label={Number(user.student.semester) >= 8
-                                ? `Mark ${user.name} as graduated`
-                                : `Promote ${user.name} to semester ${Number(user.student.semester) + 1}`}
-                            >
-                              <ArrowUpCircle className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                          {canToggleStatus(user) ? (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(user.id, user.isActive)}
-                              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition
-                                ${user.isActive
-                                  ? 'bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-900/35 dark:text-accent-200 dark:hover:bg-accent-900/50'
-                                  : 'bg-primary-100 text-primary hover:bg-primary-200 dark:bg-primary-900/35 dark:text-primary-200 dark:hover:bg-primary-900/50'
-                                }`}
-                              aria-label={user.isActive ? `Disable ${user.name}` : `Enable ${user.name}`}
-                            >
-                              <Power className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                          {(currentUser?.role === ROLES.ADMIN || currentUser?.role === ROLES.COORDINATOR) && (
-                            <button
-                              type="button"
-                              onClick={() => setUserToDelete(user)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent-100 text-accent-700 transition hover:bg-accent-200 dark:bg-accent-900/35 dark:text-accent-200 dark:hover:bg-accent-900/50"
-                              aria-label={`Delete ${user.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-              </>
-              )}
-              <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
-            </>
-          )}
-        </div>
+        <UserTable
+          loading={loading}
+          users={users}
+          total={total}
+          page={page}
+          limit={limit}
+          setPage={setPage}
+          filterRole={filterRole}
+          openModal={openModal}
+          studentsOnPage={studentsOnPage}
+          selectedStudentIds={selectedStudentIds}
+          handleToggleAllStudentsOnPage={handleToggleAllStudentsOnPage}
+          handleToggleStudentSelection={handleToggleStudentSelection}
+          openStudentSectionModal={openStudentSectionModal}
+          setStudentToPromote={setStudentToPromote}
+          canToggleStatus={canToggleStatus}
+          handleToggleStatus={handleToggleStatus}
+          currentUser={currentUser}
+          setUserToDelete={setUserToDelete}
+        />
 
       </div>
 
-      {/* Modal */}
       {showModal && (
-        <Modal
-          title={`Add ${modalType === 'coordinator' ? 'Coordinator' : modalType === 'instructor' ? 'Instructor' : modalType === 'gatekeeper' ? 'Gate Account' : 'Student'}`}
+        <CreateUserModal
+          modalType={modalType}
           onClose={() => setShowModal(false)}
-        >
-            <Alert type="error" message={error} />
-
-            <form onSubmit={handleSubmit(handleCreateUser)} className="space-y-4">
-              <div>
-                <label className="ui-form-label">Full Name</label>
-                <input
-                  name="name"
-                  type="text"
-                  required
-                  value={values.name}
-                  onChange={handleChange}
-                  className={`ui-form-input ${errors.name ? 'ui-form-input-error' : ''}`}
-                />
-                {errors.name && <p className="ui-form-helper-error">{errors.name}</p>}
-              </div>
-              {modalType === 'student' ? (
-                <>
-                  <div>
-                    <label className="ui-form-label">Student Personal Email</label>
-                    <input
-                      name="email"
-                      type="email"
-                      required
-                      value={values.email}
-                      onChange={handleChange}
-                      className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
-                    />
-                    {errors.email && <p className="ui-form-helper-error">{errors.email}</p>}
-                  </div>
-                  <div>
-                    <label className="ui-form-label">Student ID / Roll Number</label>
-                    <input
-                      name="studentId"
-                      type="text"
-                      required
-                      value={values.studentId}
-                      onChange={handleChange}
-                      className={`ui-form-input ${errors.studentId ? 'ui-form-input-error' : ''}`}
-                    />
-                    {errors.studentId && <p className="ui-form-helper-error">{errors.studentId}</p>}
-                  </div>
-                  <div className="rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary dark:bg-primary-950/30 dark:text-primary-300">
-                    The student will sign in using their personal email address and will be forced to change the default password on first login.
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="ui-form-label">Email</label>
-                    <input
-                      name="email"
-                      type="email"
-                      required
-                      value={values.email}
-                      onChange={handleChange}
-                      className={`ui-form-input ${errors.email ? 'ui-form-input-error' : ''}`}
-                    />
-                    {errors.email && <p className="ui-form-helper-error">{errors.email}</p>}
-                  </div>
-                  <div>
-                    <label className="ui-form-label">Password</label>
-                    <input
-                      name="password"
-                      type="password"
-                      required
-                      value={values.password}
-                      onChange={handleChange}
-                      className={`ui-form-input ${errors.password ? 'ui-form-input-error' : ''}`}
-                    />
-                    {errors.password && <p className="ui-form-helper-error">{errors.password}</p>}
-                  </div>
-                  <p className="text-xs text-[--color-text-muted] dark:text-slate-300">
-                    Use at least 8 characters with uppercase, lowercase, and a number.
-                  </p>
-                </>
-              )}
-              <div>
-                <label className="ui-form-label">Phone</label>
-                <input
-                  name="phone"
-                  type="text"
-                  placeholder="Optional"
-                  value={values.phone}
-                  onChange={handleChange}
-                  className="ui-form-input"
-                />
-              </div>
-              {modalType === 'instructor' ? (
-                <div>
-                  <label className="ui-form-label">Departments</label>
-                  <div className="grid gap-2 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3 sm:grid-cols-2">
-                    {departments.map((department) => {
-                      const checked = values.departments.includes(department.name)
-
-                      return (
-                        <label key={department.id} className="flex items-center gap-3 rounded-lg bg-[var(--color-card-surface)] px-3 py-2 text-sm text-[var(--color-heading)]">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => handleInstructorDepartmentToggle(department.name)}
-                            className="h-4 w-4 accent-[var(--color-role-accent)]"
-                          />
-                          <span>{department.name} ({department.code})</span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                  <p className="mt-2 text-xs text-[var(--color-text-soft)]">Select every department this instructor teaches, such as `BIT` and `BCS`.</p>
-                  {errors.department && <p className="ui-form-helper-error">{errors.department}</p>}
-                </div>
-              ) : modalType !== 'gatekeeper' && (
-                <div>
-                  <label className="ui-form-label">Department</label>
-                  <select
-                    name="department"
-                    value={values.department}
-                    onChange={handleChange}
-                    className={`ui-form-input ${errors.department ? 'ui-form-input-error' : ''}`}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((department) => (
-                      <option key={department.id} value={department.name}>
-                        {department.name} ({department.code})
-                      </option>
-                    ))}
-                  </select>
-                  {errors.department && <p className="ui-form-helper-error">{errors.department}</p>}
-                </div>
-              )}
-
-              {modalType === 'student' && (
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="ui-form-label">Semester</label>
-                    <select
-                      name="semester"
-                      value={values.semester}
-                      onChange={handleChange}
-                      className={`ui-form-input ${errors.semester ? 'ui-form-input-error' : ''}`}
-                    >
-                      {academicSemesterOptions.map((semesterOption) => (
-                        <option key={semesterOption} value={semesterOption}>
-                          Semester {semesterOption}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="ui-form-label">Section</label>
-                    <select
-                      name="section"
-                      value={values.section}
-                      onChange={handleChange}
-                      className={`ui-form-input ${errors.section ? 'ui-form-input-error' : ''}`}
-                      disabled={getSectionOptions(values.department, values.semester).length === 0}
-                    >
-                      {getSectionOptions(values.department, values.semester).length === 0 ? (
-                        <option value="">No sections configured</option>
-                      ) : (
-                        getSectionOptions(values.department, values.semester).map((sectionOption) => (
-                          <option key={sectionOption} value={sectionOption}>
-                            {sectionOption}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    {getSectionOptions(values.department, values.semester).length === 0 ? (
-                      <p className="mt-2 text-xs text-[var(--color-text-soft)]">
-                        Create sections from Departments first for this semester.
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-              {modalType === 'student' && errors.semester && <p className="ui-form-helper-error">{errors.semester}</p>}
-              {modalType === 'student' && errors.section && <p className="ui-form-helper-error">{errors.section}</p>}
-
-              <div className="ui-modal-footer">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 border border-[--color-border] dark:border-slate-700 text-[--color-text-muted] dark:text-slate-300 py-2 rounded-lg text-sm hover:bg-[--color-bg] dark:bg-slate-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary font-medium"
-                >
-                  Create {modalType === 'coordinator' ? 'Coordinator' : modalType === 'instructor' ? 'Instructor' : modalType === 'gatekeeper' ? 'Gate Account' : 'Student'}
-                </button>
-              </div>
-            </form>
-        </Modal>
+          error={error}
+          handleSubmit={handleSubmit}
+          handleCreateUser={handleCreateUser}
+          values={values}
+          errors={errors}
+          handleChange={handleChange}
+          departments={departments}
+          handleInstructorDepartmentToggle={handleInstructorDepartmentToggle}
+          academicSemesterOptions={academicSemesterOptions}
+          getSectionOptions={getSectionOptions}
+        />
       )}
 
       {showImportModal && (
@@ -1263,113 +785,19 @@ const Users = () => {
       )}
 
       {studentToManageSection && (
-        <Modal
-          title={`Update Section · ${studentToManageSection.name}`}
-          onClose={() => {
-            if (!updatingStudentSection) {
-              setStudentToManageSection(null)
-              setStudentSectionError('')
-            }
-          }}
-        >
-          <Alert type="error" message={studentSectionError} />
-
-          <form onSubmit={handleUpdateStudentSection} className="space-y-4">
-            <div>
-              <label className="ui-form-label">Department</label>
-              <select
-                value={studentSectionForm.department}
-                onChange={(event) => {
-                  const nextDepartment = event.target.value
-                  const nextSectionOptions = getSectionOptions(nextDepartment, studentSectionForm.semester)
-                  setStudentSectionForm((current) => ({
-                    ...current,
-                    department: nextDepartment,
-                    section: nextSectionOptions[0] || ''
-                  }))
-                }}
-                className="ui-form-input"
-                required
-              >
-                <option value="">Select Department</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.name}>
-                    {department.name} ({department.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="ui-form-label">Semester</label>
-                <select
-                  value={studentSectionForm.semester}
-                  onChange={(event) => {
-                    const nextSemester = event.target.value
-                    const nextSectionOptions = getSectionOptions(studentSectionForm.department, nextSemester)
-                    setStudentSectionForm((current) => ({
-                      ...current,
-                      semester: nextSemester,
-                      section: nextSectionOptions[0] || ''
-                    }))
-                  }}
-                  className="ui-form-input"
-                >
-                  {academicSemesterOptions.map((semesterOption) => (
-                    <option key={semesterOption} value={semesterOption}>
-                      Semester {semesterOption}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="ui-form-label">Section</label>
-                <select
-                  value={studentSectionForm.section}
-                  onChange={(event) => setStudentSectionForm((current) => ({ ...current, section: event.target.value }))}
-                  className="ui-form-input"
-                  disabled={getSectionOptions(studentSectionForm.department, studentSectionForm.semester).length === 0}
-                >
-                  {getSectionOptions(studentSectionForm.department, studentSectionForm.semester).length === 0 ? (
-                    <option value="">No configured sections</option>
-                  ) : (
-                    getSectionOptions(studentSectionForm.department, studentSectionForm.semester).map((sectionOption) => (
-                      <option key={sectionOption} value={sectionOption}>
-                        {sectionOption}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
-
-            {getSectionOptions(studentSectionForm.department, studentSectionForm.semester).length === 0 ? (
-              <p className="rounded-lg border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
-                No sections exist for this department and semester. Create one from Departments first.
-              </p>
-            ) : null}
-
-            <div className="ui-modal-footer">
-              <button
-                type="button"
-                onClick={() => setStudentToManageSection(null)}
-                className="flex-1 rounded-lg border border-[var(--color-card-border)] py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-                disabled={updatingStudentSection}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="ui-role-fill flex-1 rounded-lg py-2 text-sm font-medium disabled:opacity-60"
-                disabled={updatingStudentSection || getSectionOptions(studentSectionForm.department, studentSectionForm.semester).length === 0}
-              >
-                {updatingStudentSection ? 'Updating...' : 'Save Section'}
-              </button>
-            </div>
-          </form>
-        </Modal>
+        <EditUserModal
+          studentToManageSection={studentToManageSection}
+          updatingStudentSection={updatingStudentSection}
+          setStudentToManageSection={setStudentToManageSection}
+          setStudentSectionError={setStudentSectionError}
+          studentSectionError={studentSectionError}
+          handleUpdateStudentSection={handleUpdateStudentSection}
+          studentSectionForm={studentSectionForm}
+          setStudentSectionForm={setStudentSectionForm}
+          departments={departments}
+          academicSemesterOptions={academicSemesterOptions}
+          getSectionOptions={getSectionOptions}
+        />
       )}
 
       <ConfirmDialog

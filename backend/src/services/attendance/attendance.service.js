@@ -24,9 +24,9 @@ const sanitizeFilenamePart = (value) => String(value || 'attendance')
   .toLowerCase()
 
 /**
- * Handles mark attendance manual business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const markAttendanceManual = async (context, result = createServiceResponder()) => {
     const { subjectId, attendanceDate, attendanceList, semester, section } = context.body
@@ -68,9 +68,9 @@ const markAttendanceManual = async (context, result = createServiceResponder()) 
 }
 
 /**
- * Handles get attendance by subject business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getAttendanceBySubject = async (context, result = createServiceResponder()) => {
     const { subjectId } = context.params
@@ -107,9 +107,9 @@ const getAttendanceBySubject = async (context, result = createServiceResponder()
 }
 
 /**
- * Handles get bulk attendance summary business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getBulkAttendanceSummary = async (context, result = createServiceResponder()) => {
     const { subjectIds, date } = context.query
@@ -182,9 +182,9 @@ const getBulkAttendanceSummary = async (context, result = createServiceResponder
 }
 
 /**
- * Handles get my attendance business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getMyAttendance = async (context, result = createServiceResponder()) => {
     const { page, limit, skip } = getPagination(context.query)
@@ -249,9 +249,9 @@ const getMyAttendance = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles export my attendance pdf business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const exportMyAttendancePdf = async (context, result = createServiceResponder()) => {
     const student = context.student
@@ -367,9 +367,9 @@ const exportMyAttendancePdf = async (context, result = createServiceResponder())
 }
 
 /**
- * Handles get subject roster business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getSubjectRoster = async (context, result = createServiceResponder()) => {
     const { subjectId } = context.params
@@ -416,9 +416,9 @@ const getSubjectRoster = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles get coordinator department attendance report business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getCoordinatorDepartmentAttendanceReport = async (context, result = createServiceResponder()) => {
     const { month, semester, section } = context.query
@@ -428,9 +428,9 @@ const getCoordinatorDepartmentAttendanceReport = async (context, result = create
 }
 
 /**
- * Handles get monthly attendance report business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getMonthlyAttendanceReport = async (context, result = createServiceResponder()) => {
     const { subjectId } = context.params

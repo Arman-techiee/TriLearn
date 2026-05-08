@@ -418,6 +418,14 @@ The mobile app shares the same authorization model as the web client.
 It does not get a separate privileged API path.
 That keeps backend permissions consistent across devices and makes mobile behavior testable against the same endpoints.
 
+## API versioning
+
+- The API is versioned at the URL level: `/api/v1/...`
+- Breaking changes (removed fields, changed response shapes, auth changes) require a bump to `/api/v2`. Non-breaking additions do not.
+- The mobile app sends `X-Client-Version` and `X-App-Version` headers on every request. When a version is too old, the backend returns HTTP `426 Upgrade Required` and the mobile app clears the session and prompts the user to update.
+- v1 will be supported for a minimum of 12 months after v2 is released.
+- Internal-only changes (new endpoints, added optional fields) do not require a version bump.
+
 ## Project structure
 
 ```text

@@ -101,14 +101,14 @@ const SkeletonCard = () => (
 
 export default function StudentAttendanceScreen() {
   const { summary, isLoading, isError, error, refetch } = useAttendance();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       await refetch();
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, [refetch]);
 
@@ -119,9 +119,9 @@ export default function StudentAttendanceScreen() {
       refreshControl={
         <RefreshControl
           colors={[COLORS.primary]}
-          refreshing={isRefreshing}
+          refreshing={refreshing}
           tintColor={COLORS.primary}
-          onRefresh={handleRefresh}
+          onRefresh={onRefresh}
         />
       }
     >

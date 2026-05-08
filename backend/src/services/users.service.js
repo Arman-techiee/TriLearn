@@ -310,9 +310,9 @@ const coordinatorCanManageUser = (context, user) => {
 // GET ALL USERS
 // ================================
 /**
- * Handles get all users business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getAllUsers = async (context, result = createServiceResponder()) => {
     const { role, isActive, search, includeAssignable, semester, graduated } = context.query
@@ -479,9 +479,9 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
 // GET USER BY ID
 // ================================
 /**
- * Handles get user by id business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const getUserById = async (context, result = createServiceResponder()) => {
     const { id } = context.params
@@ -522,9 +522,9 @@ const getUserById = async (context, result = createServiceResponder()) => {
 // CREATE COORDINATOR
 // ================================
 /**
- * Handles create coordinator business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const createCoordinator = async (context, result = createServiceResponder()) => {
     const { name, email, password, phone, address, department } = context.body
@@ -592,9 +592,9 @@ const createCoordinator = async (context, result = createServiceResponder()) => 
 // CREATE GATEKEEPER
 // ================================
 /**
- * Handles create gatekeeper business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const createGatekeeper = async (context, result = createServiceResponder()) => {
     const { name, email, password, phone, address, department } = context.body
@@ -671,9 +671,9 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
 // CREATE INSTRUCTOR
 // ================================
 /**
- * Handles create instructor business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const createInstructor = async (context, result = createServiceResponder()) => {
     const { name, email, password, phone, address, department, departments } = context.body
@@ -759,9 +759,9 @@ const createInstructor = async (context, result = createServiceResponder()) => {
 // CREATE STUDENT
 // ================================
 /**
- * Handles create student business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const createStudent = async (context, result = createServiceResponder()) => {
     const { name, email, studentId, phone, address, semester, section, department } = context.body
@@ -864,9 +864,9 @@ const createStudent = async (context, result = createServiceResponder()) => {
 // UPDATE USER
 // ================================
 /**
- * Handles update user business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const updateUser = async (context, result = createServiceResponder()) => {
     const { id } = context.params
@@ -1061,9 +1061,9 @@ const updateUser = async (context, result = createServiceResponder()) => {
 // TOGGLE USER STATUS (enable/disable)
 // ================================
 /**
- * Handles toggle user status business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const toggleUserStatus = async (context, result = createServiceResponder()) => {
     const { id } = context.params
@@ -1157,9 +1157,9 @@ const toggleUserStatus = async (context, result = createServiceResponder()) => {
 // DELETE USER
 // ================================
 /**
- * Handles delete user business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const deleteUser = async (context, result = createServiceResponder()) => {
     const { id } = context.params
@@ -1232,9 +1232,9 @@ const deleteUser = async (context, result = createServiceResponder()) => {
 }
 
 /**
- * Handles bulk assign student section business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const bulkAssignStudentSection = async (context, result = createServiceResponder()) => {
     const { userIds, department, semester, section } = context.body
@@ -1346,9 +1346,9 @@ const bulkAssignStudentSection = async (context, result = createServiceResponder
 }
 
 /**
- * Handles promote student semester business logic.
- * @param {...any} args - Service arguments.
- * @returns {Promise<any>|any} Service result.
+ * @param {object} context - The request context passed by controllerAdapter
+ * @param {object} [result] - The serviceResult responder
+ * @returns {Promise<object>} Service result
  */
 const promoteStudentSemester = async (context, result = createServiceResponder()) => {
     const { id } = context.params

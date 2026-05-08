@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 
@@ -30,9 +31,11 @@ export default function InstructorMarksScreen() {
   const [marksByStudent, setMarksByStudent] = useState<Record<string, string>>({});
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [examPickerOpen, setExamPickerOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [validationError, setValidationError] = useState('');
   const toast = useToast();
+  const { isConnected } = useNetInfo();
+  const isOffline = isConnected === false;
 
   const subjectsQuery = useQuery({
     queryKey: ['subjects', 'instructor'],
@@ -151,12 +154,12 @@ export default function InstructorMarksScreen() {
     },
   });
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       await Promise.all([subjectsQuery.refetch(), studentsQuery.refetch(), marksQuery.refetch()]);
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, [marksQuery, studentsQuery, subjectsQuery]);
 
@@ -260,18 +263,23 @@ export default function InstructorMarksScreen() {
         refreshControl={
           <RefreshControl
             colors={[COLORS.primary]}
-            refreshing={isRefreshing}
+            refreshing={refreshing}
             tintColor={COLORS.primary}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
           />
         }
         renderItem={renderStudent}
       />
 
       <View className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4">
-        <Pressable className="rounded-xl bg-primary px-5 py-4" disabled={saveMutation.isPending} onPress={() => saveMutation.mutate()}>
+        <Pressable
+          className={`rounded-xl px-5 py-4 ${isOffline ? 'bg-slate-300' : 'bg-primary'}`}
+          disabled={saveMutation.isPending || isOffline}
+          onPress={() => saveMutation.mutate()}
+        >
           <Text className="text-center font-bold text-white">{saveMutation.isPending ? 'Saving...' : 'Save all'}</Text>
         </Pressable>
+        {isOffline ? <Text className="mt-2 text-center text-xs font-semibold text-amber-700">Unavailable while offline</Text> : null}
       </View>
 
       <Modal animationType="slide" transparent visible={subjectPickerOpen} onRequestClose={() => setSubjectPickerOpen(false)}>

@@ -1,15 +1,21 @@
-import { Component, type ReactNode } from 'react';
-import { Redirect, Stack, useSegments } from 'expo-router';
+import { Component, useEffect, type ReactNode } from 'react';
+import * as Notifications from 'expo-notifications';
+import { Redirect, Stack, router, useSegments, type Href } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast, { BaseToast, ErrorToast, type ToastConfig } from 'react-native-toast-message';
 
+import OfflineBanner from '@/src/components/OfflineBanner';
 import { COLORS } from '@/src/constants/colors';
 import { ROLE_GROUP_MAP, ROLE_HOME_MAP } from '@/src/constants/routes';
 import { useAuth } from '@/src/hooks/useAuth';
+import { useNotifications } from '@/src/hooks/useNotifications';
 import { queryClient } from '@/src/services/queryClient';
 import { useSocket } from '@/src/hooks/useSocket';
+import { useNotificationsStore } from '@/src/store/notifications.store';
+import type { NotificationItem } from '@/src/types/notification';
 import '../global.css';
 
 const toastConfig: ToastConfig = {
@@ -40,6 +46,34 @@ const toastConfig: ToastConfig = {
       text2Style={{ color: '#6B7280', fontSize: 13 }}
     />
   ),
+};
+
+const notificationRouteMap: Record<string, Href> = {
+  notice: '/(student)/notices',
+  NOTICE_POSTED: '/(student)/notices',
+  assignment: '/(student)/assignments',
+  ASSIGNMENT_DUE: '/(student)/assignments',
+  marks: '/(student)/marks',
+  MARKS_PUBLISHED: '/(student)/marks',
+  attendance: '/(student)/attendance',
+  ABSENCE_TICKET_REVIEWED: '/(student)/attendance',
+  routine: '/(student)/routine',
+  ROUTINE_UPDATED: '/(student)/routine',
+};
+
+const notificationFromExpo = (notification: Notifications.Notification): NotificationItem => {
+  const { content } = notification.request;
+  const data = content.data ?? {};
+
+  return {
+    id: String(data.notificationId || notification.request.identifier),
+    title: content.title || 'TriLearn',
+    message: content.body || '',
+    isRead: false,
+    createdAt: new Date().toISOString(),
+    type: String(data.type || 'GENERAL'),
+    link: typeof data.link === 'string' && data.link.length > 0 ? data.link : null,
+  };
 };
 
 type RootErrorBoundaryProps = {
@@ -91,9 +125,33 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
 export default function RootLayout() {
   const segments = useSegments();
   const { isHydrated, isAuthenticated, user } = useAuth();
+  const addNotification = useNotificationsStore((state) => state.addNotification);
   const activeGroup = segments[0];
 
   useSocket();
+  useNotifications();
+
+  useEffect(() => {
+    const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+      addNotification(notificationFromExpo(notification));
+    });
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const notification = notificationFromExpo(response.notification);
+      const route = notificationRouteMap[notification.type] || (notification.link as Href | null);
+
+      addNotification(notification);
+
+      if (route) {
+        router.push(route);
+      }
+    });
+
+    return () => {
+      receivedSubscription.remove();
+      responseSubscription.remove();
+    };
+  }, [addNotification]);
 
   if (!isHydrated) {
     return (
@@ -129,23 +187,28 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <RootErrorBoundary>
-          <Stack
-            screenOptions={{
-              headerTintColor: '#FFFFFF',
-              headerStyle: { backgroundColor: COLORS.primary },
-              contentStyle: { backgroundColor: COLORS.background },
-              headerTitleStyle: { fontWeight: '700' },
-            }}
-          >
-            <Stack.Screen name="(auth)/login" options={{ headerTitle: 'TriLearn Login' }} />
-            <Stack.Screen name="(student)" options={{ headerShown: false }} />
-            <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
-            <Stack.Screen name="(coordinator)" options={{ headerShown: false }} />
-            <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-            <Stack.Screen name="(gatekeeper)" options={{ headerShown: false }} />
-            <Stack.Screen name="(profile)/index" options={{ title: 'Profile', headerBackTitle: 'Back' }} />
-            <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
-          </Stack>
+          <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+            <OfflineBanner />
+            <View style={{ flex: 1 }}>
+              <Stack
+                screenOptions={{
+                  headerTintColor: '#FFFFFF',
+                  headerStyle: { backgroundColor: COLORS.primary },
+                  contentStyle: { backgroundColor: COLORS.background },
+                  headerTitleStyle: { fontWeight: '700' },
+                }}
+              >
+                <Stack.Screen name="(auth)/login" options={{ headerTitle: 'TriLearn Login' }} />
+                <Stack.Screen name="(student)" options={{ headerShown: false }} />
+                <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
+                <Stack.Screen name="(coordinator)" options={{ headerShown: false }} />
+                <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+                <Stack.Screen name="(gatekeeper)" options={{ headerShown: false }} />
+                <Stack.Screen name="(profile)/index" options={{ title: 'Profile', headerBackTitle: 'Back' }} />
+                <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
+              </Stack>
+            </View>
+          </SafeAreaView>
         </RootErrorBoundary>
         <Toast config={toastConfig} />
       </QueryClientProvider>

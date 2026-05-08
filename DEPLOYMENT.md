@@ -76,6 +76,22 @@ HEALTHCHECK_KEY=replace-with-a-random-token
 Then configure the probe to send that value as the `x-health-check-key`
 request header.
 
+## Mobile client version enforcement
+
+Mobile requests include client version headers. The backend validates mobile
+versions in [mobileClient.middleware.js](backend/src/middleware/mobileClient.middleware.js).
+
+Set the minimum supported app version with:
+
+```env
+MIN_MOBILE_VERSION=1.0.0
+```
+
+When `X-App-Version` is lower than `MIN_MOBILE_VERSION`, the backend returns
+HTTP `426 Upgrade Required` with the minimum version. The mobile app treats
+that response as a forced upgrade signal: it clears the current session and
+prompts the user to install an updated app before continuing.
+
 ## Database backups
 
 Schedule a daily pg_dump using cron or your platform's managed backup feature.

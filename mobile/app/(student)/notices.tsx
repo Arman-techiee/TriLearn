@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { COLORS } from '@/src/constants/colors';
+import EmptyState from '@/src/components/EmptyState';
 import { useAuth } from '@/src/hooks/useAuth';
 import { api } from '@/src/services/api';
 import type { Notice, NoticesResponse, NoticeType } from '@/src/types/notice';
@@ -30,7 +31,7 @@ const NoticeSkeleton = () => (
 
 export default function StudentNoticesScreen() {
   const { isAuthenticated } = useAuth();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
   const noticesQuery = useInfiniteQuery({
@@ -50,12 +51,12 @@ export default function StudentNoticesScreen() {
     [noticesQuery.data?.pages],
   );
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       await noticesQuery.refetch();
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, [noticesQuery]);
 
@@ -74,8 +75,7 @@ export default function StudentNoticesScreen() {
             </View>
           ) : (
             <View className="items-center rounded-2xl bg-white px-5 py-10">
-              <Text className="text-lg font-bold text-slate-900">No notices</Text>
-              <Text className="mt-2 text-center text-sm text-slate-500">Published notices will appear here.</Text>
+              <EmptyState title="No notices yet" subtitle="Published notices will appear here." />
             </View>
           )
         }
@@ -95,9 +95,9 @@ export default function StudentNoticesScreen() {
         refreshControl={
           <RefreshControl
             colors={[COLORS.primary]}
-            refreshing={isRefreshing}
+            refreshing={refreshing}
             tintColor={COLORS.primary}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
           />
         }
         renderItem={({ item }) => {

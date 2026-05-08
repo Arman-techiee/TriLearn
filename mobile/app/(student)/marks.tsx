@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { COLORS } from '@/src/constants/colors';
+import EmptyState from '@/src/components/EmptyState';
 import { useAuth } from '@/src/hooks/useAuth';
 import { api } from '@/src/services/api';
 import type { ExamType, MarksResponse, MarksSummaryResponse } from '@/src/types/marks';
@@ -25,7 +26,7 @@ const MarkSkeleton = () => (
 export default function StudentMarksScreen() {
   const { isAuthenticated } = useAuth();
   const [activeExamType, setActiveExamType] = useState<ExamType>('INTERNAL');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const marksQuery = useQuery({
     queryKey: ['marks', 'my', activeExamType],
@@ -57,12 +58,12 @@ export default function StudentMarksScreen() {
 
   const summary = summaryQuery.data?.resultSheet;
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       await Promise.all([marksQuery.refetch(), summaryQuery.refetch()]);
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, [marksQuery, summaryQuery]);
 
@@ -73,9 +74,9 @@ export default function StudentMarksScreen() {
       refreshControl={
         <RefreshControl
           colors={[COLORS.primary]}
-          refreshing={isRefreshing}
+          refreshing={refreshing}
           tintColor={COLORS.primary}
-          onRefresh={handleRefresh}
+          onRefresh={onRefresh}
         />
       }
     >
@@ -133,8 +134,7 @@ export default function StudentMarksScreen() {
           </>
         ) : publishedMarks.length === 0 ? (
           <View className="items-center rounded-2xl bg-white px-5 py-10">
-            <Text className="text-lg font-bold text-slate-900">No published marks</Text>
-            <Text className="mt-2 text-center text-sm text-slate-500">Published {activeExamType.toLowerCase()} marks will appear here.</Text>
+            <EmptyState title="No marks yet" subtitle={`Published ${activeExamType.toLowerCase()} marks will appear here.`} />
           </View>
         ) : (
           publishedMarks.map((mark) => (

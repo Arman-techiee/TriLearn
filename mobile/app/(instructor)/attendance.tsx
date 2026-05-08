@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 
@@ -49,8 +50,10 @@ export default function InstructorAttendanceScreen() {
   const [date, setDate] = useState(getTodayInputValue);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [changes, setChanges] = useState<Record<string, AttendanceStatus>>({});
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const toast = useToast();
+  const { isConnected } = useNetInfo();
+  const isOffline = isConnected === false;
 
   const subjectsQuery = useQuery({
     queryKey: ['subjects', 'instructor'],
@@ -123,12 +126,12 @@ export default function InstructorAttendanceScreen() {
     onError: (error) => toast.error(error, 'Could not save attendance.'),
   });
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
       await Promise.all([subjectsQuery.refetch(), studentsQuery.refetch(), attendanceQuery.refetch()]);
     } finally {
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, [attendanceQuery, studentsQuery, subjectsQuery]);
 
@@ -216,9 +219,9 @@ export default function InstructorAttendanceScreen() {
         refreshControl={
           <RefreshControl
             colors={[COLORS.primary]}
-            refreshing={isRefreshing}
+            refreshing={refreshing}
             tintColor={COLORS.primary}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
           />
         }
         renderItem={renderStudent}
@@ -226,14 +229,15 @@ export default function InstructorAttendanceScreen() {
 
       <View className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4">
         <Pressable
-          className={`rounded-xl px-5 py-4 ${Object.keys(changes).length ? 'bg-primary' : 'bg-slate-300'}`}
-          disabled={!Object.keys(changes).length || saveMutation.isPending}
+          className={`rounded-xl px-5 py-4 ${Object.keys(changes).length && !isOffline ? 'bg-primary' : 'bg-slate-300'}`}
+          disabled={!Object.keys(changes).length || saveMutation.isPending || isOffline}
           onPress={() => saveMutation.mutate()}
         >
           <Text className="text-center font-bold text-white">
             {saveMutation.isPending ? 'Saving...' : `Save changes (${Object.keys(changes).length})`}
           </Text>
         </Pressable>
+        {isOffline ? <Text className="mt-2 text-center text-xs font-semibold text-amber-700">Unavailable while offline</Text> : null}
         {saveMutation.isError ? <Text className="mt-2 text-center text-xs font-semibold text-red-600">Could not save attendance.</Text> : null}
       </View>
 

@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react'
 import { BookOpenText, GraduationCap, ShieldUser, Users } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts'
 import AdminLayout from '../../layouts/AdminLayout'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import PageHeader from '../../components/PageHeader'
@@ -23,12 +36,60 @@ const roleBadgeClasses = {
   STUDENT: 'ui-status-badge ui-status-success'
 }
 
+const DEEP_BLUE = '#1A3C6E'
+const SAFFRON = '#F4A623'
+
+// TODO: Replace with GET /api/v1/attendance/summary when an admin trend endpoint is available.
+const attendanceTrendFallback = [
+  { month: 'Nov', percentage: 82 },
+  { month: 'Dec', percentage: 84 },
+  { month: 'Jan', percentage: 79 },
+  { month: 'Feb', percentage: 86 },
+  { month: 'Mar', percentage: 88 },
+  { month: 'Apr', percentage: 91 }
+]
+
+// TODO: Replace with real grade distribution data when an admin marks summary endpoint is available.
+const marksDistributionFallback = [
+  { grade: 'A+', count: 18 },
+  { grade: 'A', count: 42 },
+  { grade: 'B+', count: 56 },
+  { grade: 'B', count: 49 },
+  { grade: 'C+', count: 31 },
+  { grade: 'C', count: 19 },
+  { grade: 'F', count: 8 }
+]
+
+const normalizeChartArray = (value) => (Array.isArray(value) ? value : [])
+
+const normalizeDepartmentBreakdown = (nextStats) => {
+  const source = normalizeChartArray(
+    nextStats.departmentBreakdown ||
+    nextStats.studentsByDepartment ||
+    nextStats.enrollmentByDepartment
+  )
+
+  if (source.length > 0) {
+    return source.map((item) => ({
+      name: item.name || item.department || item.label || 'Department',
+      value: item.value ?? item.count ?? item.students ?? 0
+    }))
+  }
+
+  return [{ name: 'Students', value: nextStats.totalStudents || 0 }]
+}
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalStudents: 0,
     totalInstructors: 0,
     totalSubjects: 0,
+  })
+  const [chartData, setChartData] = useState({
+    attendanceTrend: attendanceTrendFallback,
+    departmentBreakdown: [{ name: 'Students', value: 0 }],
+    marksDistribution: marksDistributionFallback
   })
   const [recentUsers, setRecentUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -55,6 +116,15 @@ const Dashboard = () => {
         totalStudents: nextStats.totalStudents || 0,
         totalInstructors: nextStats.totalInstructors || 0,
         totalSubjects: nextStats.totalSubjects || 0,
+      })
+      setChartData({
+        attendanceTrend: normalizeChartArray(nextStats.attendanceTrend || nextStats.monthlyAttendanceTrend).length > 0
+          ? normalizeChartArray(nextStats.attendanceTrend || nextStats.monthlyAttendanceTrend)
+          : attendanceTrendFallback,
+        departmentBreakdown: normalizeDepartmentBreakdown(nextStats),
+        marksDistribution: normalizeChartArray(nextStats.marksDistribution || nextStats.gradeDistribution).length > 0
+          ? normalizeChartArray(nextStats.marksDistribution || nextStats.gradeDistribution)
+          : marksDistributionFallback
       })
 
       setRecentUsers(users)
@@ -96,6 +166,62 @@ const Dashboard = () => {
           <StatCard title="Students" value={stats.totalStudents} icon={GraduationCap} iconClassName="from-emerald-500 to-green-600" trend={`${stats.totalStudents} total`} trendLabel="active enrollments" />
           <StatCard title="Instructors" value={stats.totalInstructors} icon={ShieldUser} iconClassName="from-teal-600 to-sky-600" trend={`${stats.totalInstructors} total`} trendLabel="teaching staff" />
           <StatCard title="Subjects" value={stats.totalSubjects} icon={BookOpenText} iconClassName="from-amber-500 to-orange-500" trend={`${stats.totalSubjects} total`} trendLabel="curriculum entries" />
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <div className="ui-card rounded-2xl p-6">
+            <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-[var(--color-text)]">Monthly attendance trend</h2>
+            <div className="h-[260px] max-w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.attendanceTrend}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" />
+                  <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                  <Tooltip formatter={(value) => [`${value}%`, 'Attendance']} />
+                  <Bar dataKey="percentage" fill={DEEP_BLUE} radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="ui-card rounded-2xl p-6">
+            <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-[var(--color-text)]">Subject enrollment breakdown</h2>
+            <div className="h-[260px] max-w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData.departmentBreakdown}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={54}
+                    outerRadius={88}
+                    paddingAngle={3}
+                  >
+                    {chartData.departmentBreakdown.map((entry, index) => (
+                      <Cell key={entry.name} fill={index % 2 === 0 ? DEEP_BLUE : SAFFRON} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="ui-card rounded-2xl p-6">
+            <h2 className="ui-heading-tight mb-4 text-lg font-semibold text-[var(--color-text)]">Marks distribution</h2>
+            <div className="h-[260px] max-w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.marksDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="grade" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip formatter={(value) => [value, 'Students']} />
+                  <Bar dataKey="count" fill={SAFFRON} radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         {/* Recent Users */}

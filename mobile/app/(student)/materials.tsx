@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 
 import { COLORS } from '@/src/constants/colors';
+import EmptyState from '@/src/components/EmptyState';
 import { useToast } from '@/src/hooks/useToast';
 import { api } from '@/src/services/api';
 import type { StudyMaterial, StudyMaterialsResponse } from '@/src/types/material';
@@ -121,7 +122,9 @@ export default function StudentMaterialsScreen() {
           ) : query.isError ? (
             <Text className="rounded-2xl bg-white p-5 text-center text-red-600">Could not load study materials. Pull down to retry.</Text>
           ) : (
-            <Text className="rounded-2xl bg-white p-5 text-center text-slate-500">No study materials found</Text>
+            <View className="rounded-2xl bg-white px-5 py-10">
+              <EmptyState title="No study materials yet" />
+            </View>
           )
         }
         refreshControl={<RefreshControl colors={[COLORS.primary]} refreshing={refreshing} tintColor={COLORS.primary} onRefresh={onRefresh} />}

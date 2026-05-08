@@ -76,7 +76,11 @@ const Toast = ({ toast, onDismiss }) => {
   }, [toast.duration, toast.id])
 
   return (
-    <div className={`pointer-events-auto relative overflow-hidden rounded-2xl border shadow-2xl dark:shadow-slate-900/50 shadow-slate-900/10 ${tone.card}`}>
+    <div
+      className={`pointer-events-auto relative overflow-hidden rounded-2xl border shadow-2xl dark:shadow-slate-900/50 shadow-slate-900/10 ${tone.card}`}
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+    >
       <div className="flex items-start gap-3 px-4 py-4">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.iconWrap}`}>
           <Icon className="h-5 w-5" />

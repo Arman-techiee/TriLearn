@@ -12,6 +12,7 @@
     "lint:staged": "eslint --fix",
     "test": "node --test test/*.test.js",
     "test:db": "node --test test/db.real.js",
+    "typecheck": "tsc --noEmit",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
@@ -57,6 +58,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.2",
     "dotenv": "^17.3.1",
     "eslint": "^9.39.4",
     "eslint-plugin-n": "^17.23.1",
@@ -64,6 +67,7 @@
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
     "supertest": "^7.1.4",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "typescript": "^5.9.2"
   }
 }
