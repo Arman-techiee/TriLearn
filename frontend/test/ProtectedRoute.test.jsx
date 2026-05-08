@@ -9,7 +9,7 @@ vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => useAuthMock()
 }))
 
-const renderProtectedRoute = (initialPath = '/protected', authValue = { user: null, loading: false }, allowedRoles) => {
+const renderProtectedRoute = (initialPath = '/protected', authValue = { user: null, token: null, loading: false }, allowedRoles) => {
   useAuthMock.mockReturnValue(authValue)
 
   render(
@@ -37,9 +37,20 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('Login page')).toBeInTheDocument()
   })
 
+  it('redirects cached users without a live access token to the login page', () => {
+    renderProtectedRoute('/protected', {
+      user: { role: 'ADMIN', mustChangePassword: false },
+      token: null,
+      loading: false
+    })
+
+    expect(screen.getByText('Login page')).toBeInTheDocument()
+  })
+
   it('redirects users who must change their password', () => {
     renderProtectedRoute('/protected', {
       user: { role: 'ADMIN', mustChangePassword: true },
+      token: 'token-1',
       loading: false
     })
 
@@ -49,6 +60,7 @@ describe('ProtectedRoute', () => {
   it('redirects incomplete students to their profile page', () => {
     renderProtectedRoute('/protected', {
       user: { role: 'STUDENT', profileCompleted: false, mustChangePassword: false },
+      token: 'token-1',
       loading: false
     })
 
@@ -58,6 +70,7 @@ describe('ProtectedRoute', () => {
   it('renders allowed content for authorized users', () => {
     renderProtectedRoute('/protected', {
       user: { role: 'ADMIN', mustChangePassword: false },
+      token: 'token-1',
       loading: false
     }, ['ADMIN'])
 
