@@ -108,6 +108,14 @@ const validateEnv = () => {
       console.warn(`Warning: Missing production env vars: ${missingProductionWarnings.join(', ')}. Mobile client CSRF exemption will remain disabled.`)
     }
 
+    if (!process.env.ATTENDANCE_TIMEZONE) {
+      logger.warn(
+        'Warning: ATTENDANCE_TIMEZONE is not set. Defaulting to UTC. ' +
+        'Attendance day boundaries will be wrong for Nepal (Asia/Kathmandu). ' +
+        'Set ATTENDANCE_TIMEZONE=Asia/Kathmandu in your production env.'
+      )
+    }
+
     const tp = String(process.env.TRUST_PROXY || '').trim()
     if (!tp) {
       logger.warn('TRUST_PROXY is not set. If running behind a cloud load balancer, req.ip will be the proxy IP, not the client IP, breaking rate limiting. Set TRUST_PROXY=1 for single-proxy deployments.')
