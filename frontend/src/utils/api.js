@@ -25,6 +25,7 @@ export const API_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '')
 const AUTH_USER_STORAGE_KEY = 'trilearn.auth.user'
 const REFRESH_COOLDOWN_STORAGE_KEY = 'trilearn.auth.refresh.cooldownUntil'
 const AUTH_USER_PERSISTED_FIELDS = ['name', 'role', 'mustChangePassword', 'profileCompleted']
+const ACCESS_TOKEN_REFRESH_SKEW_MS = 30_000
 
 const buildStoredUserSnapshot = (user) => {
   if (!user || typeof user !== 'object') {
@@ -187,6 +188,38 @@ const setRefreshCooldown = (cooldownUntil) => {
 
 const clearRefreshCooldown = () => {
   setRefreshCooldown(0)
+}
+
+const decodeJwtPayload = (token) => {
+  try {
+    const encodedPayload = String(token || '').split('.')[1]
+    if (!encodedPayload) {
+      return null
+    }
+
+    const base64 = encodedPayload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')
+    const decodedPayload = globalThis.atob(base64)
+
+    return JSON.parse(decodedPayload)
+  } catch {
+    return null
+  }
+}
+
+const getAccessTokenExpiresAt = (token) => {
+  const payload = decodeJwtPayload(token)
+  const expiresAtSeconds = Number(payload?.exp)
+
+  return Number.isFinite(expiresAtSeconds) ? expiresAtSeconds * 1000 : null
+}
+
+const isAccessTokenExpiring = (token) => {
+  const expiresAt = getAccessTokenExpiresAt(token)
+
+  return expiresAt !== null && expiresAt <= Date.now() + ACCESS_TOKEN_REFRESH_SKEW_MS
 }
 
 const buildRefreshRateLimitError = () => {
@@ -389,6 +422,21 @@ const shouldRetryUnauthorizedRequest = (error) => {
   )
 }
 
+const shouldRefreshUnauthorizedRequest = (error, {
+  hadSessionHintBeforeUnauthorized,
+  usedAccessTokenBeforeUnauthorized
+} = {}) => {
+  const originalRequest = error?.config
+
+  return Boolean(
+    error?.response?.status === 401 &&
+    originalRequest &&
+    !originalRequest._retry &&
+    (usedAccessTokenBeforeUnauthorized || hadSessionHintBeforeUnauthorized) &&
+    !isAuthRouteRequest(originalRequest)
+  )
+}
+
 const requestUsedAccessToken = (requestConfig) => {
   const authorizationHeader =
     requestConfig?.headers?.Authorization ||
@@ -410,6 +458,14 @@ const isAuthRouteRequest = (requestConfig) => {
 // Automatically add token to every request
 api.interceptors.request.use(async (config) => {
   if (!authState.token && authState.user && !isAuthRouteRequest(config)) {
+    try {
+      await refreshSession()
+    } catch (refreshError) {
+      return Promise.reject(refreshError)
+    }
+  }
+
+  if (authState.token && authState.user && isAccessTokenExpiring(authState.token) && !isAuthRouteRequest(config)) {
     try {
       await refreshSession()
     } catch (refreshError) {
@@ -458,19 +514,16 @@ api.interceptors.response.use(
     const originalRequest = error.config
     const hadSessionHintBeforeUnauthorized = hasSessionHint()
     const usedAccessTokenBeforeUnauthorized = requestUsedAccessToken(originalRequest)
+    const shouldRefresh = shouldRefreshUnauthorizedRequest(error, {
+      hadSessionHintBeforeUnauthorized,
+      usedAccessTokenBeforeUnauthorized
+    })
 
     const shouldSuppressExpectedUnauthorizedError = (
       error?.response?.status === 401 &&
-      !hadSessionHintBeforeUnauthorized &&
+      (!hadSessionHintBeforeUnauthorized || shouldRefresh) &&
       !isAuthRouteRequest(error?.config)
     )
-
-    if (
-      error?.response?.status === 401 &&
-      !isAuthRouteRequest(originalRequest)
-    ) {
-      clearAuthState()
-    }
 
     if (
       import.meta.env.DEV &&
@@ -493,18 +546,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (shouldRetryUnauthorizedRequest(error)) {
-      originalRequest._authRetryAttempted = true
-      await wait(200)
-      return api(originalRequest)
-    }
-
-    if (
-      error.response?.status === 401 &&
-      !originalRequest?._retry &&
-      (usedAccessTokenBeforeUnauthorized || hadSessionHintBeforeUnauthorized) &&
-      !isAuthRouteRequest(originalRequest)
-    ) {
+    if (shouldRefresh) {
       originalRequest._retry = true
 
       try {
@@ -518,6 +560,19 @@ api.interceptors.response.use(
         handleUnauthorizedRedirect()
         return Promise.reject(refreshError)
       }
+    }
+
+    if (shouldRetryUnauthorizedRequest(error)) {
+      originalRequest._authRetryAttempted = true
+      await wait(200)
+      return api(originalRequest)
+    }
+
+    if (
+      error?.response?.status === 401 &&
+      !isAuthRouteRequest(originalRequest)
+    ) {
+      clearAuthState()
     }
 
     if (
