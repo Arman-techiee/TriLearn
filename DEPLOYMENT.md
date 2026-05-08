@@ -41,6 +41,18 @@ You can also add connection parameters directly to `DATABASE_URL`, for example:
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/trilearn?connection_limit=10&pool_timeout=20
 ```
 
+## Notification worker
+
+The BullMQ notification worker runs inside the same process as the HTTP server.
+This is intentional for single-instance deployments (Railway, Render, single VPS).
+
+If you scale to multiple backend instances, each instance will run its own worker.
+To avoid duplicate job processing in a multi-instance setup, either:
+- Run a dedicated worker process: NODE_ROLE=worker node src/jobs/notificationWorker.js
+- Or use BullMQ's built-in job deduplication (jobId) on enqueue.
+
+For the initial college deployment, single-instance is recommended.
+
 ## Timezone configuration
 
 Set `ATTENDANCE_TIMEZONE` to your institution's IANA timezone, for example
@@ -63,6 +75,20 @@ HEALTHCHECK_KEY=replace-with-a-random-token
 
 Then configure the probe to send that value as the `x-health-check-key`
 request header.
+
+## Database backups
+
+Schedule a daily pg_dump using cron or your platform's managed backup feature.
+
+Example cron job (runs at 2am daily, keeps 7 days):
+
+```bash
+0 2 * * * pg_dump $DATABASE_URL | gzip > /backups/trilearn_$(date +\%Y\%m\%d).sql.gz
+find /backups -name "trilearn_*.sql.gz" -mtime +7 -delete
+```
+
+For Railway or Render: enable the platform's automated PostgreSQL backup feature
+from the database dashboard. No additional config needed.
 
 ## HTTPS reverse proxy
 

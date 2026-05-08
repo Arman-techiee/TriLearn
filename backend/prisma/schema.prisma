@@ -4,6 +4,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url is intentionally omitted here — it is read from DATABASE_URL at runtime.
+  // This is validated at startup by validateEnv.js. Never hardcode a connection string here.
 }
 
 // ================================
