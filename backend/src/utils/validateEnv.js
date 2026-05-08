@@ -65,20 +65,20 @@ const validateEnv = () => {
   const missing = required.filter((key) => !process.env[key])
 
   if (missing.length > 0) {
-    console.error(`Missing required env vars: ${missing.join(', ')}`)
+    logger.error(`Missing required env vars: ${missing.join(', ')}`)
     process.exit(1)
   }
 
   if (!process.env.RESEND_SMTP_PASS) {
-    console.warn('Warning: RESEND_SMTP_PASS not set - emails disabled')
+    logger.warn('Warning: RESEND_SMTP_PASS not set - emails disabled')
   }
 
   if (String(process.env.RESEND_SMTP_PORT || '').trim() === '465') {
-    console.warn('Warning: RESEND_SMTP_PORT=465 uses SSL instead of STARTTLS. Prefer port 587 with STARTTLS unless legacy SSL is required.')
+    logger.warn('Warning: RESEND_SMTP_PORT=465 uses SSL instead of STARTTLS. Prefer port 587 with STARTTLS unless legacy SSL is required.')
   }
 
   if (!validNodeEnvironments.has(process.env.NODE_ENV)) {
-    console.error(`Invalid NODE_ENV value: ${process.env.NODE_ENV}. Expected one of: development, test, production`)
+    logger.error(`Invalid NODE_ENV value: ${process.env.NODE_ENV}. Expected one of: development, test, production`)
     process.exit(1)
   }
 
@@ -90,7 +90,7 @@ const validateEnv = () => {
     }
 
     if (value.length < secretMinimumLengths[key]) {
-      console.error(`Invalid configuration: ${key} must be at least ${secretMinimumLengths[key]} characters long.`)
+      logger.error(`Invalid configuration: ${key} must be at least ${secretMinimumLengths[key]} characters long.`)
       process.exit(1)
     }
   }
@@ -99,13 +99,13 @@ const validateEnv = () => {
     const missingProductionMail = requiredProductionMail.filter((key) => !String(process.env[key] || '').trim())
 
     if (missingProductionMail.length > 0) {
-      console.error(`Missing required production mail env vars: ${missingProductionMail.join(', ')}`)
+      logger.error(`Missing required production mail env vars: ${missingProductionMail.join(', ')}`)
       process.exit(1)
     }
 
     const missingProductionWarnings = requiredProductionWarnings.filter((key) => !String(process.env[key] || '').trim())
     if (missingProductionWarnings.length > 0) {
-      console.warn(`Warning: Missing production env vars: ${missingProductionWarnings.join(', ')}. Mobile client CSRF exemption will remain disabled.`)
+      logger.warn(`Warning: Missing production env vars: ${missingProductionWarnings.join(', ')}. Mobile client CSRF exemption will remain disabled.`)
     }
 
     if (!process.env.ATTENDANCE_TIMEZONE) {
@@ -138,7 +138,7 @@ const validateEnv = () => {
   }
 
   if (process.env.NODE_ENV === 'production' && process.env.ENABLE_API_DOCS === 'true') {
-    console.warn('Warning: ENABLE_API_DOCS=true is ignored in production. API docs will not be mounted.')
+    logger.warn('Warning: ENABLE_API_DOCS=true is ignored in production. API docs will not be mounted.')
   }
 
   const enablePasswordResetFlag = process.env.ENABLE_PASSWORD_RESET
@@ -146,7 +146,7 @@ const validateEnv = () => {
     enablePasswordResetFlag !== undefined &&
     !validBooleanFlagValues.has(String(enablePasswordResetFlag).trim())
   ) {
-    console.error('Invalid configuration: ENABLE_PASSWORD_RESET must be set to "true" or "false" when provided.')
+    logger.error('Invalid configuration: ENABLE_PASSWORD_RESET must be set to "true" or "false" when provided.')
     process.exit(1)
   }
 
@@ -155,12 +155,12 @@ const validateEnv = () => {
     allowSocketNoOriginFlag !== undefined &&
     !validBooleanFlagValues.has(String(allowSocketNoOriginFlag).trim())
   ) {
-    console.error('Invalid configuration: ALLOW_SOCKET_NO_ORIGIN must be set to "true" or "false" when provided.')
+    logger.error('Invalid configuration: ALLOW_SOCKET_NO_ORIGIN must be set to "true" or "false" when provided.')
     process.exit(1)
   }
 
   if (process.env.NODE_ENV === 'production' && String(allowSocketNoOriginFlag || '').trim() === 'true') {
-    console.error('Invalid configuration: ALLOW_SOCKET_NO_ORIGIN=true is not allowed in production.')
+    logger.error('Invalid configuration: ALLOW_SOCKET_NO_ORIGIN=true is not allowed in production.')
     process.exit(1)
   }
 

@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
+const logger = require('../src/utils/logger')
 const validateEnv = require('../src/utils/validateEnv')
 
 const withPatchedExit = async (fn) => {
@@ -19,18 +20,18 @@ const withPatchedExit = async (fn) => {
   }
 }
 
-const withPatchedConsoleError = async (fn) => {
-  const originalError = console.error
+const withPatchedLoggerError = async (fn) => {
+  const originalError = logger.error
   const errorCalls = []
 
-  console.error = (...args) => {
+  logger.error = (...args) => {
     errorCalls.push(args.join(' '))
   }
 
   try {
     await fn(errorCalls)
   } finally {
-    console.error = originalError
+    logger.error = originalError
   }
 }
 
@@ -61,7 +62,7 @@ test('validateEnv rejects invalid NODE_ENV values', async () => {
   Object.assign(process.env, baseEnv, { NODE_ENV: 'staging' })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
+    await withPatchedLoggerError(async (errorCalls) => {
       await withPatchedExit(async (exitCalls) => {
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
@@ -84,7 +85,7 @@ test('validateEnv requires JWT_ACCESS_SECRET even when JWT_SECRET is set', async
   delete process.env.JWT_ACCESS_SECRET
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
+    await withPatchedLoggerError(async (errorCalls) => {
       await withPatchedExit(async (exitCalls) => {
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
@@ -167,7 +168,7 @@ test('validateEnv rejects invalid ENABLE_PASSWORD_RESET values', async () => {
   })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
+    await withPatchedLoggerError(async (errorCalls) => {
       await withPatchedExit(async (exitCalls) => {
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
@@ -199,7 +200,7 @@ test('validateEnv rejects invalid ALLOW_SOCKET_NO_ORIGIN values', async () => {
   })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
+    await withPatchedLoggerError(async (errorCalls) => {
       await withPatchedExit(async (exitCalls) => {
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
@@ -225,7 +226,7 @@ test('validateEnv rejects ALLOW_SOCKET_NO_ORIGIN=true in production', async () =
   })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
+    await withPatchedLoggerError(async (errorCalls) => {
       await withPatchedExit(async (exitCalls) => {
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
@@ -316,7 +317,7 @@ test('validateEnv rejects short secret values', async () => {
   })
 
   try {
-    await withPatchedConsoleError(async (errorCalls) => {
+    await withPatchedLoggerError(async (errorCalls) => {
       await withPatchedExit(async (exitCalls) => {
         assert.throws(() => validateEnv(), /process\.exit:1/)
         assert.deepEqual(exitCalls, [1])
