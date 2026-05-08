@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const ExcelJS = require('exceljs')
+const readXlsxFile = require('read-excel-file/node')
 const logger = require('../utils/logger')
 const { recordAuditLog } = require('../utils/audit')
 const { sendMail } = require('../utils/mailer')
@@ -60,6 +61,67 @@ const resolveStudentImportColumns = (headerValues = []) => {
   }, {})
 }
 
+const buildStudentImportRowsFromTable = (headerValues = [], dataRows = []) => {
+  const columns = resolveStudentImportColumns(headerValues)
+  const requiredColumns = ['name', 'email', 'studentId', 'department', 'semester', 'section']
+  const missingColumns = requiredColumns.filter((field) => !columns[field])
+
+  if (missingColumns.length > 0) {
+    throw new Error(`Missing required columns: ${missingColumns.join(', ')}`)
+  }
+
+  const getValue = (rowValues, field) => {
+    const columnIndex = columns[field]
+    return columnIndex ? rowValues[columnIndex - 1] : ''
+  }
+
+  return dataRows.reduce((rows, rowValues, rowIndex) => {
+    const entry = {
+      rowNumber: rowIndex + 2,
+      name: sanitizeImportedSpreadsheetText(getValue(rowValues, 'name')),
+      email: sanitizeImportedSpreadsheetText(getValue(rowValues, 'email')),
+      studentId: sanitizeImportedSpreadsheetText(getValue(rowValues, 'studentId')),
+      phone: sanitizeImportedSpreadsheetText(getValue(rowValues, 'phone')),
+      address: sanitizeImportedSpreadsheetText(getValue(rowValues, 'address')),
+      department: sanitizeImportedSpreadsheetText(getValue(rowValues, 'department')),
+      semester: sanitizeImportedSpreadsheetText(getValue(rowValues, 'semester')),
+      section: sanitizeImportedSpreadsheetText(getValue(rowValues, 'section'))
+    }
+
+    const hasData = Object.entries(entry).some(([key, value]) => (
+      key !== 'rowNumber' && value && String(value).trim() !== ''
+    ))
+    if (hasData) {
+      rows.push(entry)
+    }
+
+    return rows
+  }, [])
+}
+
+const buildStudentImportRowsFromExcelWorksheet = (worksheet) => {
+  const headerRow = worksheet.getRow(1)
+  const headerValues = Array.from({ length: headerRow.cellCount }, (_, index) => headerRow.getCell(index + 1).text)
+  const dataRows = []
+
+  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber)
+    dataRows.push(Array.from({ length: headerRow.cellCount }, (_, index) => row.getCell(index + 1).text))
+  }
+
+  return buildStudentImportRowsFromTable(headerValues, dataRows)
+}
+
+const loadStudentImportRowsWithFallbackXlsxReader = async (filePath) => {
+  const table = await readXlsxFile(filePath)
+
+  if (table.length === 0) {
+    throw new Error('The uploaded file does not contain any worksheet data')
+  }
+
+  return buildStudentImportRowsFromTable(table[0] || [], table.slice(1))
+}
+
 const loadStudentImportRows = async (filePath, originalName) => {
   const extension = path.extname(String(originalName || filePath)).toLowerCase()
   const workbook = new ExcelJS.Workbook()
@@ -78,7 +140,15 @@ const loadStudentImportRows = async (filePath, originalName) => {
           message: readFileError?.message,
           fileName: originalName
         })
-        throw new Error('Unable to read the XLSX file. Please save/export it as a real .xlsx workbook or use the CSV template from this import dialog.')
+        try {
+          return await loadStudentImportRowsWithFallbackXlsxReader(filePath)
+        } catch (fallbackError) {
+          logger.warn('Student import XLSX fallback parse failed', {
+            message: fallbackError?.message,
+            fileName: originalName
+          })
+          throw new Error('Unable to read the XLSX file. Please save/export it as a real .xlsx workbook or use the CSV template from this import dialog.')
+        }
       }
     }
   } else {
@@ -90,39 +160,7 @@ const loadStudentImportRows = async (filePath, originalName) => {
     throw new Error('The uploaded file does not contain any worksheet data')
   }
 
-  const headerRow = worksheet.getRow(1)
-  const headerValues = Array.from({ length: headerRow.cellCount }, (_, index) => headerRow.getCell(index + 1).text)
-  const columns = resolveStudentImportColumns(headerValues)
-  const requiredColumns = ['name', 'email', 'studentId', 'department', 'semester', 'section']
-  const missingColumns = requiredColumns.filter((field) => !columns[field])
-
-  if (missingColumns.length > 0) {
-    throw new Error(`Missing required columns: ${missingColumns.join(', ')}`)
-  }
-
-  const rows = []
-
-  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
-    const row = worksheet.getRow(rowNumber)
-    const entry = {
-      rowNumber,
-      name: columns.name ? sanitizeImportedSpreadsheetText(row.getCell(columns.name).text) : '',
-      email: columns.email ? sanitizeImportedSpreadsheetText(row.getCell(columns.email).text) : '',
-      studentId: columns.studentId ? sanitizeImportedSpreadsheetText(row.getCell(columns.studentId).text) : '',
-      phone: columns.phone ? sanitizeImportedSpreadsheetText(row.getCell(columns.phone).text) : '',
-      address: columns.address ? sanitizeImportedSpreadsheetText(row.getCell(columns.address).text) : '',
-      department: columns.department ? sanitizeImportedSpreadsheetText(row.getCell(columns.department).text) : '',
-      semester: columns.semester ? sanitizeImportedSpreadsheetText(row.getCell(columns.semester).text) : '',
-      section: columns.section ? sanitizeImportedSpreadsheetText(row.getCell(columns.section).text) : ''
-    }
-
-    const hasData = Object.values(entry).some((value) => value && String(value).trim() !== '')
-    if (hasData) {
-      rows.push(entry)
-    }
-  }
-
-  return rows
+  return buildStudentImportRowsFromExcelWorksheet(worksheet)
 }
 
 const buildDepartmentLookup = async () => {
