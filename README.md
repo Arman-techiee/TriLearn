@@ -1,18 +1,45 @@
 # TriLearn
 
-TriLearn — A self-hosted college management system for semester-based institutions.
+[![CI](https://github.com/armancore/TriLearn/actions/workflows/ci.yml/badge.svg)](https://github.com/armancore/TriLearn/actions/workflows/ci.yml)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)
+![Express 5](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111)
+![Expo SDK 55](https://img.shields.io/badge/Expo%20SDK-55-000020?logo=expo&logoColor=white)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Redis 7](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+
+TriLearn is a self-hosted college management system for semester-based institutions.
+It combines admissions, role-based academic operations, QR attendance, marks publishing, assignments, notices, real-time notifications, and a student-focused mobile app in one deployable platform.
 
 ## Overview
 
-| Area | Details |
+| Area | Highlights |
 | --- | --- |
-| Backend stack | Node.js, Express 5, PostgreSQL, Prisma ORM, Redis, BullMQ, Socket.IO |
-| Frontend stack | React 19, Vite, Tailwind CSS v4 |
-| Mobile stack | Expo SDK 55, React Native, Expo Router, NativeWind, Zustand, TanStack Query |
-| Auth | JWT access tokens, rotating refresh tokens, Redis JTI revocation |
+| Product scope | Admissions, enrollment, attendance, marks, assignments, study materials, notices, notifications, digital ID, and audit logs |
+| Interfaces | Express API, React admin/staff web app, Expo student mobile app |
+| Realtime | Socket.IO live updates, Redis adapter, BullMQ notification jobs, Firebase FCM push |
+| Security | JWT access tokens, rotating refresh tokens, Redis JTI revocation, Helmet, Zod validation, role-based authorization |
+| Storage | PostgreSQL records, local or S3/R2-compatible uploads, protected file serving |
 | API endpoints | 107 |
 | DB models | 23 |
 | Test lines | 9000+ |
+
+## Full stack inventory
+
+| Layer | Technology |
+| --- | --- |
+| Runtime and API | Node.js, Express 5, OpenAPI / Swagger |
+| Database and ORM | PostgreSQL 16, Prisma 7, Prisma pg adapter |
+| Realtime and jobs | Socket.IO 4, Socket.IO Redis adapter, Redis 7, BullMQ 5 |
+| Validation and security | Zod 4, Helmet 8, BCryptJS, jsonwebtoken |
+| Files and media | AWS SDK S3/R2, Sharp, PDFKit, pdf-lib, ExcelJS |
+| Email and push | Nodemailer, Resend SMTP, Firebase FCM |
+| Observability | Winston logging, health checks, audit records |
+| Web app | React 19, Vite 8, Tailwind CSS 4, React Router 7, Framer Motion 12 |
+| Mobile app | Expo SDK 55, Expo Router 4, NativeWind 4, Zustand 5, TanStack Query 5, expo-secure-store, expo-camera |
+| Deployment | Docker Compose, production migrations, Redis-backed scaling paths |
 
 ## What TriLearn does
 

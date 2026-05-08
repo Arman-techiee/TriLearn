@@ -78,14 +78,18 @@ request header.
 
 ## Mobile client version enforcement
 
-Mobile requests include client version headers. The backend validates mobile
-versions in [mobileClient.middleware.js](backend/src/middleware/mobileClient.middleware.js).
+Mobile requests include `X-Client-Version` and `X-App-Version` headers on
+every API request. The backend validates mobile versions in
+[mobileClient.middleware.js](backend/src/middleware/mobileClient.middleware.js).
 
 Set the minimum supported app version with:
 
 ```env
 MIN_MOBILE_VERSION=1.0.0
 ```
+
+`MINIMUM_CLIENT_VERSION` is not currently used by the backend. The enforced
+setting is `MIN_MOBILE_VERSION`, read by `mobileClient.middleware.js`.
 
 When `X-App-Version` is lower than `MIN_MOBILE_VERSION`, the backend returns
 HTTP `426 Upgrade Required` with the minimum version. The mobile app treats

@@ -1,15 +1,20 @@
 const base = (content) => `
-<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#ffffff">
-  <div style="background:#1A3C6E;padding:24px;color:#ffffff;font-size:22px;font-weight:bold">
-    TriLearn
-  </div>
-  <div style="padding:32px 24px;font-size:15px;line-height:1.6;color:#1f2937">
-    ${content}
-  </div>
-  <div style="background:#f9fafb;padding:16px 24px;font-size:12px;color:#6b7280">
-    TriLearn · Nepal
-  </div>
-</div>`
+<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f3f4f6">
+    <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#ffffff">
+      <div style="background:#1A3C6E;padding:24px;color:#ffffff;font-size:22px;font-weight:bold">
+        TriLearn
+      </div>
+      <div style="padding:32px 24px;font-size:15px;line-height:1.6;color:#1f2937">
+        ${content}
+      </div>
+      <div style="background:#f9fafb;padding:16px 24px;font-size:12px;color:#6b7280">
+        TriLearn · Nepal
+      </div>
+    </div>
+  </body>
+</html>`
 
 const btn = (url, label) => (
   `<a href="${url}"

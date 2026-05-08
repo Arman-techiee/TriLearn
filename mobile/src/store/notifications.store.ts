@@ -20,6 +20,10 @@ export const useNotificationsStore = create<NotificationsState>((set) => ({
   setNotifications: (items) => set({ items, unreadCount: countUnread(items) }),
   addNotification: (item) =>
     set((state) => {
+      if (state.items.some((existingItem) => existingItem.id === item.id)) {
+        return state;
+      }
+
       const items = [item, ...state.items];
       return { items, unreadCount: countUnread(items) };
     }),

@@ -50,16 +50,25 @@ const toastConfig: ToastConfig = {
 
 const notificationRouteMap: Record<string, Href> = {
   notice: '/(student)/notices',
+  notices: '/(student)/notices',
   NOTICE_POSTED: '/(student)/notices',
   assignment: '/(student)/assignments',
+  assignments: '/(student)/assignments',
   ASSIGNMENT_DUE: '/(student)/assignments',
+  material: '/(student)/materials',
+  materials: '/(student)/materials',
   marks: '/(student)/marks',
   MARKS_PUBLISHED: '/(student)/marks',
   attendance: '/(student)/attendance',
   ABSENCE_TICKET_REVIEWED: '/(student)/attendance',
   routine: '/(student)/routine',
   ROUTINE_UPDATED: '/(student)/routine',
+  ticket: '/(student)/tickets',
+  tickets: '/(student)/tickets',
 };
+
+const notificationRouteForType = (type: string): Href | undefined =>
+  notificationRouteMap[type] ?? notificationRouteMap[type.toLowerCase()];
 
 const notificationFromExpo = (notification: Notifications.Notification): NotificationItem => {
   const { content } = notification.request;
@@ -122,7 +131,7 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
   }
 }
 
-export default function RootLayout() {
+function AppLayout() {
   const segments = useSegments();
   const { isHydrated, isAuthenticated, user } = useAuth();
   const addNotification = useNotificationsStore((state) => state.addNotification);
@@ -138,7 +147,7 @@ export default function RootLayout() {
 
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const notification = notificationFromExpo(response.notification);
-      const route = notificationRouteMap[notification.type] || (notification.link as Href | null);
+      const route = notificationRouteForType(notification.type) || (notification.link as Href | null);
 
       addNotification(notification);
 
@@ -185,33 +194,39 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <RootErrorBoundary>
-          <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
-            <OfflineBanner />
-            <View style={{ flex: 1 }}>
-              <Stack
-                screenOptions={{
-                  headerTintColor: '#FFFFFF',
-                  headerStyle: { backgroundColor: COLORS.primary },
-                  contentStyle: { backgroundColor: COLORS.background },
-                  headerTitleStyle: { fontWeight: '700' },
-                }}
-              >
-                <Stack.Screen name="(auth)/login" options={{ headerTitle: 'TriLearn Login' }} />
-                <Stack.Screen name="(student)" options={{ headerShown: false }} />
-                <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
-                <Stack.Screen name="(coordinator)" options={{ headerShown: false }} />
-                <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-                <Stack.Screen name="(gatekeeper)" options={{ headerShown: false }} />
-                <Stack.Screen name="(profile)/index" options={{ title: 'Profile', headerBackTitle: 'Back' }} />
-                <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
-              </Stack>
-            </View>
-          </SafeAreaView>
-        </RootErrorBoundary>
-        <Toast config={toastConfig} />
-      </QueryClientProvider>
+      <RootErrorBoundary>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
+          <OfflineBanner />
+          <View style={{ flex: 1 }}>
+            <Stack
+              screenOptions={{
+                headerTintColor: '#FFFFFF',
+                headerStyle: { backgroundColor: COLORS.primary },
+                contentStyle: { backgroundColor: COLORS.background },
+                headerTitleStyle: { fontWeight: '700' },
+              }}
+            >
+              <Stack.Screen name="(auth)/login" options={{ headerTitle: 'TriLearn Login' }} />
+              <Stack.Screen name="(student)" options={{ headerShown: false }} />
+              <Stack.Screen name="(instructor)" options={{ headerShown: false }} />
+              <Stack.Screen name="(coordinator)" options={{ headerShown: false }} />
+              <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+              <Stack.Screen name="(gatekeeper)" options={{ headerShown: false }} />
+              <Stack.Screen name="(profile)/index" options={{ title: 'Profile', headerBackTitle: 'Back' }} />
+              <Stack.Screen name="+not-found" options={{ title: 'Not Found' }} />
+            </Stack>
+          </View>
+        </SafeAreaView>
+      </RootErrorBoundary>
+      <Toast config={toastConfig} />
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppLayout />
+    </QueryClientProvider>
   );
 }
