@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +9,8 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useAuthStore } from '@/src/store/auth.store';
 import { useNotificationsStore } from '@/src/store/notifications.store';
 import type { NotificationsResponse } from '@/src/types/notification';
+
+const isAndroidExpoGo = Constants.appOwnership === 'expo' && Platform.OS === 'android';
 
 export const useNotifications = () => {
   const { isAuthenticated } = useAuth();
@@ -36,13 +38,14 @@ export const useNotifications = () => {
   }, [query.data, setNotifications]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || isAndroidExpoGo) {
       return undefined;
     }
 
     let isMounted = true;
 
     const registerDeviceToken = async () => {
+      const Notifications = await import('expo-notifications');
       const existingPermissions = await Notifications.getPermissionsAsync();
       const finalPermissions = existingPermissions.granted
         ? existingPermissions

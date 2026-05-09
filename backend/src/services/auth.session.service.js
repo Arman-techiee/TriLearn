@@ -153,7 +153,9 @@ const login = async (context, result = createServiceResponder()) => {
     })
   }
 
-  const session = await issueAuthSession(user, result, context)
+  const session = await issueAuthSession(user, result, context, null, {
+    setRefreshCookie: !isMobileClient(context)
+  })
   const authUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: getProfileSelect()

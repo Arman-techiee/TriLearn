@@ -232,6 +232,7 @@ test('csrfProtection rejects spoofed mobile bearer requests when browser cookies
     .set('X-Client-Type', 'mobile')
     .set('X-App-Version', '1.2.3')
     .set('Origin', 'https://evil.example')
+    .set('Sec-Fetch-Site', 'cross-site')
     .set('Cookie', ['refreshToken=web-refresh-token'])
 
   assert.equal(response.status, 403)
@@ -248,6 +249,57 @@ test('csrfProtection allows native mobile bearer requests without browser contex
     .set('Authorization', 'Bearer access-token')
     .set('X-Client-Type', 'mobile')
     .set('X-App-Version', '1.2.3')
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.body, { ok: true })
+})
+
+test('csrfProtection allows native mobile login requests with Expo origin and no cookies', async () => {
+  const testApp = express()
+  testApp.use(csrfProtection)
+  testApp.post('/api/v1/auth/login', (_req, res) => res.json({ ok: true }))
+
+  const response = await request(testApp)
+    .post('/api/v1/auth/login')
+    .set('X-Client-Type', 'mobile')
+    .set('X-App-Version', '1.2.3')
+    .set('Origin', 'exp://192.168.1.81:8081')
+    .send({ email: 'student@example.com', password: 'Password123' })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.body, { ok: true })
+})
+
+test('csrfProtection allows native mobile login requests with stale Expo cookies', async () => {
+  const testApp = express()
+  testApp.use(csrfProtection)
+  testApp.post('/api/v1/auth/login', (_req, res) => res.json({ ok: true }))
+
+  const response = await request(testApp)
+    .post('/api/v1/auth/login')
+    .set('X-Client-Type', 'mobile')
+    .set('X-App-Version', '1.2.3')
+    .set('Origin', 'exp://192.168.1.81:8081')
+    .set('Cookie', ['refreshToken=stale-web-refresh-token'])
+    .send({ email: 'student@example.com', password: 'Password123' })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.body, { ok: true })
+})
+
+test('csrfProtection allows native mobile API requests with stale cookies when browser fetch metadata is absent', async () => {
+  const testApp = express()
+  testApp.use(csrfProtection)
+  testApp.post('/api/v1/attendance/scan-qr', (_req, res) => res.json({ ok: true }))
+
+  const response = await request(testApp)
+    .post('/api/v1/attendance/scan-qr')
+    .set('Authorization', 'Bearer access-token')
+    .set('X-Client-Type', 'mobile')
+    .set('X-App-Version', '1.2.3')
+    .set('Origin', 'exp://192.168.1.81:8081')
+    .set('Cookie', ['refreshToken=stale-web-refresh-token'])
+    .send({ qrData: 'qr-payload' })
 
   assert.equal(response.status, 200)
   assert.deepEqual(response.body, { ok: true })

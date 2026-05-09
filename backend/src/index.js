@@ -121,11 +121,11 @@ app.use((_req, res, next) => {
 })
 app.use(cors({
   origin: (origin, callback) => {
-    // Requests without an Origin header are rejected.
-    // Programmatic clients (curl, Postman, mobile apps with Bearer tokens) do not
-    // send cookies, so they are handled by the CSRF middleware's bearer-token exemption,
-    // not by CORS. Allowing null origin would permit sandboxed iframe attacks.
-    if (!origin) return callback(new Error('Not allowed by CORS'))
+    // Programmatic clients (curl, Postman, native mobile apps) may omit Origin.
+    // Browser sandboxed/opaque origins send the literal string "null", which must
+    // stay rejected to avoid allowing sandboxed iframe attacks.
+    if (!origin) return callback(null, true)
+    if (origin === 'null') return callback(new Error('Not allowed by CORS'))
     if (isTrustedOrigin(origin)) return callback(null, true)
     return callback(new Error('Not allowed by CORS'))
   },

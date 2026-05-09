@@ -27,6 +27,12 @@ const applySectionScope = (studentSection) => (
     : undefined
 )
 
+const applyDepartmentScope = (studentDepartment) => (
+  studentDepartment
+    ? [{ department: null }, { department: '' }, { department: studentDepartment }]
+    : [{ department: null }, { department: '' }]
+)
+
 const buildRoutineFilters = async (context) => {
   const { dayOfWeek, semester, department, section } = context.query
   const filters = {}
@@ -53,11 +59,18 @@ const buildRoutineFilters = async (context) => {
       return { id: '__no_routines__' }
     }
 
+    const studentFilters = { ...filters }
+    delete studentFilters.department
+    delete studentFilters.semester
+    delete studentFilters.section
+
     return {
-      ...filters,
-      department: student.department || filters.department,
-      semester: student.semester,
-      ...(applySectionScope(student.section) ? { OR: applySectionScope(student.section) } : {})
+      AND: [
+        studentFilters,
+        { semester: student.semester },
+        { OR: applyDepartmentScope(student.department) },
+        ...(applySectionScope(student.section) ? [{ OR: applySectionScope(student.section) }] : [])
+      ]
     }
   }
 

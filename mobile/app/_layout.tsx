@@ -1,9 +1,10 @@
 import { Component, useEffect, type ReactNode } from 'react';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import type { Notification } from 'expo-notifications';
 import { Redirect, Stack, router, useSegments, type Href } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast, { BaseToast, ErrorToast, type ToastConfig } from 'react-native-toast-message';
 
@@ -70,7 +71,9 @@ const notificationRouteMap: Record<string, Href> = {
 const notificationRouteForType = (type: string): Href | undefined =>
   notificationRouteMap[type] ?? notificationRouteMap[type.toLowerCase()];
 
-const notificationFromExpo = (notification: Notifications.Notification): NotificationItem => {
+const isAndroidExpoGo = Constants.appOwnership === 'expo' && Platform.OS === 'android';
+
+const notificationFromExpo = (notification: Notification): NotificationItem => {
   const { content } = notification.request;
   const data = content.data ?? {};
 
@@ -141,24 +144,39 @@ function AppLayout() {
   useNotifications();
 
   useEffect(() => {
-    const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
-      addNotification(notificationFromExpo(notification));
-    });
+    if (isAndroidExpoGo) {
+      return undefined;
+    }
 
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const notification = notificationFromExpo(response.notification);
-      const route = notificationRouteForType(notification.type) || (notification.link as Href | null);
+    let isMounted = true;
+    let receivedSubscription: { remove: () => void } | undefined;
+    let responseSubscription: { remove: () => void } | undefined;
 
-      addNotification(notification);
-
-      if (route) {
-        router.push(route);
+    void import('expo-notifications').then((Notifications) => {
+      if (!isMounted) {
+        return;
       }
+
+      receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+        addNotification(notificationFromExpo(notification));
+      });
+
+      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        const notification = notificationFromExpo(response.notification);
+        const route = notificationRouteForType(notification.type) || (notification.link as Href | null);
+
+        addNotification(notification);
+
+        if (route) {
+          router.push(route);
+        }
+      });
     });
 
     return () => {
-      receivedSubscription.remove();
-      responseSubscription.remove();
+      isMounted = false;
+      receivedSubscription?.remove();
+      responseSubscription?.remove();
     };
   }, [addNotification]);
 

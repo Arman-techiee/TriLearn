@@ -301,6 +301,12 @@ const normalizeSemesterList = (semesters = []) => (
   )].sort((left, right) => left - right)
 )
 
+const getDepartmentScope = (department) => (
+  department
+    ? [{ department: null }, { department: '' }, { department }]
+    : [{ department: null }, { department: '' }]
+)
+
 const hasPrismaDelegateMethod = (delegate, methodName) => (
   Boolean(delegate && typeof delegate[methodName] === 'function')
 )
@@ -436,10 +442,14 @@ const getStudentScheduledRoutinesForDay = async ({ studentId, dayOfWeek }) => {
     where: {
       dayOfWeek,
       semester: student.semester,
-      department: student.department || null,
-      OR: student.section
-        ? [{ section: null }, { section: student.section }]
-        : [{ section: null }, { section: '' }],
+      AND: [
+        { OR: getDepartmentScope(student.department) },
+        {
+          OR: student.section
+            ? [{ section: null }, { section: student.section }]
+            : [{ section: null }, { section: '' }]
+        }
+      ],
       subject: {
         enrollments: {
           some: {
@@ -755,7 +765,7 @@ const syncClosedRoutineAbsences = async (referenceDate = new Date()) => {
       routines: routines.filter((routine) => (
         routine.subject.enrollments.some((enrollment) => enrollment.studentId === student.id) &&
         routine.semester === student.semester &&
-        (routine.department || null) === (student.department || null) &&
+        (!routine.department || routine.department === student.department) &&
         (!routine.section || routine.section === student.section)
       )),
       baseDate: gateDay.dayRange.start,

@@ -492,7 +492,7 @@ const schemas = {
     },
     createGatekeeper: {
       body: userBaseSchema.extend({
-        department: z.string().trim().min(2).max(100)
+        department: optionalString(100)
       })
     },
     createInstructor: {

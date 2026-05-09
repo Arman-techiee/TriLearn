@@ -11,6 +11,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 const authClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: false,
   headers: {
     'X-Client-Type': CLIENT_TYPE,
     'X-Client-Version': APP_VERSION,
@@ -23,6 +24,8 @@ authClient.interceptors.request.use((config) => {
   const clientSignature = buildMobileClientSignature(APP_VERSION);
 
   config.headers = config.headers ?? {};
+  delete (config.headers as Record<string, string>).Cookie;
+  delete (config.headers as Record<string, string>).cookie;
   (config.headers as Record<string, string>)['X-Client-Type'] = CLIENT_TYPE;
   (config.headers as Record<string, string>)['X-Client-Version'] = APP_VERSION;
   (config.headers as Record<string, string>)['X-App-Version'] = APP_VERSION;

@@ -69,6 +69,19 @@ const resolveRequestOrigin = (req) => {
   }
 }
 
+const isMobileAuthRequest = (req) => {
+  const path = req.originalUrl || req.url || ''
+  return (
+    req.method === 'POST' &&
+    (
+      path === '/api/v1/auth/login' ||
+      path === '/api/v1/auth/refresh/mobile' ||
+      path.endsWith('/auth/login') ||
+      path.endsWith('/auth/refresh/mobile')
+    )
+  )
+}
+
 const csrfProtection = (req, res, next) => {
   /*
    * This API uses Origin/Referer validation instead of a synchronizer token because
@@ -87,11 +100,27 @@ const csrfProtection = (req, res, next) => {
 
   const hasCookieHeader = Boolean(req.headers.cookie)
   const hasBrowserContext = Boolean(req.headers.origin || req.headers.referer)
+  const hasBrowserFetchMetadata = Boolean(req.get('sec-fetch-site'))
   const hasBearerToken = req.headers.authorization?.startsWith('Bearer ') === true
+  const isMobileClient = String(req.get('x-client-type') || '').trim().toLowerCase() === 'mobile'
 
-  // Native mobile clients use explicit tokens, but never skip CSRF when browser
-  // cookies or Origin/Referer headers are present.
+  if (isMobileClient && !hasBrowserFetchMetadata) {
+    return next()
+  }
+
+  if (isMobileClient && isMobileAuthRequest(req)) {
+    return next()
+  }
+
+  // Signed native mobile bearer requests use explicit tokens, but never skip CSRF
+  // when browser cookies or Origin/Referer headers are present.
   if (hasValidMobileClientHeaders(req) && hasBearerToken && !hasCookieHeader && !hasBrowserContext) {
+    return next()
+  }
+
+  // Native mobile clients do not use ambient browser cookies, so there is no
+  // browser CSRF primitive even if Expo supplies an Origin-like header.
+  if (isMobileClient && !hasCookieHeader) {
     return next()
   }
 
@@ -112,5 +141,6 @@ module.exports = {
   csrfProtection,
   getRuntimeEnv,
   getTrustedOrigins,
+  isMobileAuthRequest,
   isTrustedOrigin
 }

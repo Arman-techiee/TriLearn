@@ -2285,14 +2285,7 @@ test('getAllUsers scopes coordinator queries to their department', async () => {
         }
       },
       {
-        role: 'GATEKEEPER',
-        gatekeeper: {
-          is: {
-            department: {
-              in: ['BCA']
-            }
-          }
-        }
+        role: 'GATEKEEPER'
       }
     ]
   })
@@ -2550,7 +2543,7 @@ test('createInstructor blocks coordinators from creating instructors outside the
   })
 })
 
-test('createGatekeeper blocks coordinators from creating gatekeepers outside their department', async () => {
+test('createGatekeeper allows coordinators to create global gatekeepers without department scope', async () => {
   const createCalls = []
   const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
     '../utils/prisma': {
@@ -2598,8 +2591,7 @@ test('createGatekeeper blocks coordinators from creating gatekeepers outside the
     body: {
       name: 'Gatekeeper One',
       email: 'gatekeeper@example.com',
-      password: SYNTHETIC_TEST_PASSWORD,
-      department: 'Civil'
+      password: SYNTHETIC_TEST_PASSWORD
     },
     user: { id: 'coordinator-user-1', role: 'COORDINATOR' },
     coordinator: { id: 'coord-1', department: 'Computer Science' }
@@ -2608,11 +2600,85 @@ test('createGatekeeper blocks coordinators from creating gatekeepers outside the
 
   await createGatekeeper(req, res)
 
-  assert.equal(res.statusCode, 403)
-  assert.deepEqual(res.body, {
-    message: 'Coordinators can only create gatekeepers in their own department'
+  assert.equal(res.statusCode, 201)
+  assert.equal(res.body.message, 'Gatekeeper created successfully!')
+  assert.equal(res.body.user.role, 'GATEKEEPER')
+  assert.equal(res.body.user.department, undefined)
+  assert.equal(createCalls.length, 1)
+  assert.deepEqual(createCalls[0].data.gatekeeper, { create: {} })
+})
+
+test('createGatekeeper releases a soft-deleted account email before creating the replacement', async () => {
+  const updateCalls = []
+  const createCalls = []
+  const deletedAt = new Date('2026-01-01T00:00:00.000Z')
+  const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findUnique: async () => ({
+          id: 'deleted-gatekeeper-user-1',
+          email: 'gatekeeper@example.com',
+          deletedAt
+        }),
+        update: async (payload) => {
+          updateCalls.push(payload)
+          return payload
+        },
+        create: async (payload) => {
+          createCalls.push(payload)
+          return {
+            id: 'gatekeeper-user-2',
+            name: payload.data.name,
+            email: payload.data.email,
+            role: payload.data.role
+          }
+        }
+      }
+    },
+    '../utils/adminHelpers': {
+      normalizeEmail: (value) => String(value || '').trim().toLowerCase(),
+      sanitizeOptionalPlainText: (value) => value || null,
+      deleteStaleDeletedStudentAccounts: async () => {}
+    },
+    '../utils/security': {
+      hashPassword: async () => 'hashed-password',
+      generateTemporaryPassword: () => 'TempPass123!'
+    },
+    '../utils/sanitize': {
+      sanitizePlainText: (value) => value
+    },
+    '../utils/instructorDepartments': {
+      getInstructorDepartments: () => [],
+      normalizeDepartmentList: (values) => values.filter(Boolean)
+    },
+    '../utils/statsCache': {
+      clearStatsCache: () => {}
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    }
   })
-  assert.equal(createCalls.length, 0)
+
+  const req = {
+    body: {
+      name: 'Gatekeeper Replacement',
+      email: 'gatekeeper@example.com',
+      password: SYNTHETIC_TEST_PASSWORD
+    },
+    user: { id: 'admin-user-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await createGatekeeper(req, res)
+
+  assert.equal(res.statusCode, 201)
+  assert.equal(updateCalls.length, 1)
+  assert.deepEqual(updateCalls[0], {
+    where: { id: 'deleted-gatekeeper-user-1' },
+    data: { email: `deleted:${deletedAt.getTime()}:deleted-gatekeeper-user-1:gatekeeper@example.com` }
+  })
+  assert.equal(createCalls.length, 1)
+  assert.equal(createCalls[0].data.email, 'gatekeeper@example.com')
 })
 
 test('deleteUser blocks deleting the last admin account', async () => {
@@ -2741,6 +2807,7 @@ test('deleteUser soft-deletes the user and revokes refresh and access tokens ins
   assert.equal(transactionCalls[0].type, 'user.update')
   assert.equal(transactionCalls[0].payload.where.id, 'student-2')
   assert.ok(transactionCalls[0].payload.data.deletedAt instanceof Date)
+  assert.match(transactionCalls[0].payload.data.email, /^deleted:\d+:student-2:student2@example\.com$/)
   assert.equal(transactionCalls[1].type, 'refreshToken.updateMany')
   assert.equal(transactionCalls[1].payload.where.userId, 'student-2')
   assert.equal(transactionCalls[1].payload.where.revokedAt, null)
@@ -4350,6 +4417,43 @@ test('getStudentByIdCardQr rejects student ID QR payloads after the semester cha
   })
 })
 
+test('getStudentScheduledRoutinesForDay includes general-department routines for department students', async () => {
+  const findManyCalls = []
+
+  const { getStudentScheduledRoutinesForDay } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
+    '../../utils/prisma': {
+      student: {
+        findUnique: async () => ({
+          id: 'student-1',
+          semester: 3,
+          department: 'BCA',
+          section: 'A'
+        })
+      },
+      routine: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        }
+      }
+    },
+    '../../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../../utils/security': {
+      getRequiredSecret: () => 'test-qr-secret'
+    }
+  })
+
+  await getStudentScheduledRoutinesForDay({ studentId: 'student-1', dayOfWeek: 'SUNDAY' })
+
+  assert.equal(findManyCalls.length, 1)
+  assert.deepEqual(findManyCalls[0].where.AND, [
+    { OR: [{ department: null }, { department: '' }, { department: 'BCA' }] },
+    { OR: [{ section: null }, { section: 'A' }] }
+  ])
+})
+
 test('getOwnedSubject blocks coordinators from managing attendance outside their department', async () => {
   const { getOwnedSubject } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
     '../../utils/prisma': {
@@ -5079,9 +5183,51 @@ test('getAllRoutines shows all section routines to students without an assigned 
 
   assert.equal(res.statusCode, 200)
   assert.equal(findManyCalls.length, 1)
-  assert.equal(findManyCalls[0].where.department, 'BCA')
-  assert.equal(findManyCalls[0].where.semester, 3)
-  assert.equal('OR' in findManyCalls[0].where, false)
+  assert.deepEqual(findManyCalls[0].where.AND, [
+    {},
+    { semester: 3 },
+    { OR: [{ department: null }, { department: '' }, { department: 'BCA' }] }
+  ])
+})
+
+test('getAllRoutines keeps general routines visible when student section query is present', async () => {
+  const findManyCalls = []
+
+  const { getAllRoutines } = loadWithMocks(resolveFromTest('src', 'controllers', 'routine.controller.js'), {
+    '../utils/prisma': {
+      student: {
+        findUnique: async () => ({
+          id: 'student-1',
+          semester: 3,
+          department: 'BCA',
+          section: 'A'
+        })
+      },
+      routine: {
+        findMany: async (payload) => {
+          findManyCalls.push(payload)
+          return []
+        }
+      }
+    }
+  })
+
+  const req = {
+    query: { department: 'BCA', semester: '3', section: 'A' },
+    user: { id: 'user-student-1', role: 'STUDENT' }
+  }
+  const res = createResponse()
+
+  await getAllRoutines(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(findManyCalls.length, 1)
+  assert.deepEqual(findManyCalls[0].where.AND, [
+    {},
+    { semester: 3 },
+    { OR: [{ department: null }, { department: '' }, { department: 'BCA' }] },
+    { OR: [{ section: null }, { section: 'A' }] }
+  ])
 })
 
 test('getAllSubjects scopes coordinator queries to their own department', async () => {

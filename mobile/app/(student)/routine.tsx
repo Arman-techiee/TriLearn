@@ -7,7 +7,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { api } from '@/src/services/api';
 import type { DayOfWeek, Routine, RoutinesResponse } from '@/src/types/routine';
 
-const days: Array<{ label: string; value: DayOfWeek }> = [
+const days: { label: string; value: DayOfWeek }[] = [
   { label: 'Sun', value: 'SUNDAY' },
   { label: 'Mon', value: 'MONDAY' },
   { label: 'Tue', value: 'TUESDAY' },
@@ -18,16 +18,6 @@ const days: Array<{ label: string; value: DayOfWeek }> = [
 ];
 
 const getToday = () => days[new Date().getDay()]?.value ?? 'SUNDAY';
-
-const buildRoutineQuery = (student?: { department?: string | null; semester: number; section?: string | null }) => {
-  const params = [
-    student?.department ? `department=${encodeURIComponent(student.department)}` : null,
-    student?.semester ? `semester=${encodeURIComponent(String(student.semester))}` : null,
-    student?.section ? `section=${encodeURIComponent(student.section)}` : null,
-  ].filter(Boolean);
-
-  return params.length ? `/routines?${params.join('&')}` : '/routines';
-};
 
 const RoutineSkeleton = () => (
   <View className="rounded-2xl bg-white p-5">
@@ -45,9 +35,9 @@ export default function StudentRoutineScreen() {
   const student = user?.student;
 
   const routineQuery = useQuery({
-    queryKey: ['routines', 'student', student?.department, student?.semester, student?.section],
+    queryKey: ['routines', 'student'],
     queryFn: async () => {
-      const response = await api.get<RoutinesResponse>(buildRoutineQuery(student));
+      const response = await api.get<RoutinesResponse>('/routines');
       return response.data;
     },
     enabled: isAuthenticated,
