@@ -14,6 +14,8 @@ type InstructorTabIconName =
   | 'qr-code'
   | 'ribbon-outline'
   | 'ribbon'
+  | 'calendar-outline'
+  | 'calendar'
   | 'time-outline'
   | 'time'
   | 'person-outline'
@@ -24,6 +26,7 @@ const getInstructorTabIcon = (routeName: string, focused: boolean): InstructorTa
   if (routeName === 'updates') return focused ? 'notifications' : 'notifications-outline';
   if (routeName === 'qr') return focused ? 'qr-code' : 'qr-code-outline';
   if (routeName === 'marks') return focused ? 'ribbon' : 'ribbon-outline';
+  if (routeName === 'attendance') return focused ? 'calendar' : 'calendar-outline';
   if (routeName === 'routine') return focused ? 'time' : 'time-outline';
   if (routeName === 'profile') return focused ? 'person' : 'person-outline';
 
@@ -50,7 +53,7 @@ export default function InstructorTabsLayout() {
       <Tabs.Screen name="qr" options={{ title: 'QR' }} />
       <Tabs.Screen name="routine" options={{ title: 'Routine' }} />
       <Tabs.Screen name="marks" options={{ title: 'Marks' }} />
-      <Tabs.Screen name="attendance" options={{ href: null }} />
+      <Tabs.Screen name="attendance" options={{ title: 'Attendance' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );

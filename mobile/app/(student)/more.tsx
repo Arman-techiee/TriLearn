@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { Href } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { COLORS } from '@/src/constants/colors';
+import { useAuth } from '@/src/hooks/useAuth';
 
 type MoreItem = {
   label: string;
@@ -22,6 +23,15 @@ const moreItems: MoreItem[] = [
 ];
 
 export default function StudentMoreScreen() {
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Sign out of this account?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: logout },
+    ]);
+  };
+
   return (
     <ScrollView
       className="flex-1 bg-slate-50"
@@ -43,6 +53,15 @@ export default function StudentMoreScreen() {
             <Text className="mt-4 text-base font-bold text-slate-900">{item.label}</Text>
           </Pressable>
         ))}
+        <Pressable
+          className="w-[47%] rounded-2xl border border-red-100 bg-white p-5 active:bg-red-50"
+          onPress={handleLogout}
+        >
+          <View className="h-12 w-12 items-center justify-center rounded-2xl bg-red-50">
+            <Ionicons color="#DC2626" name="log-out-outline" size={26} />
+          </View>
+          <Text className="mt-4 text-base font-bold text-red-600">Logout</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
