@@ -1919,7 +1919,7 @@ test('getAdminStats returns fresh server-side aggregate counts', async () => {
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2010,7 +2010,7 @@ test('updateUser does not wipe coordinator department when no department is prov
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2085,7 +2085,7 @@ test('updateUser does not wipe student department when no department is provided
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2160,7 +2160,7 @@ test('promoteStudentSemester increments the student semester and syncs enrollmen
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2219,7 +2219,7 @@ test('getAllUsers scopes coordinator queries to their department', async () => {
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2285,7 +2285,14 @@ test('getAllUsers scopes coordinator queries to their department', async () => {
         }
       },
       {
-        role: 'GATEKEEPER'
+        role: 'GATEKEEPER',
+        gatekeeper: {
+          is: {
+            department: {
+              in: ['BCA']
+            }
+          }
+        }
       }
     ]
   })
@@ -2312,7 +2319,7 @@ test('getAllUsers coerces semester query filters to numbers for Prisma', async (
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2375,7 +2382,7 @@ test('createStudentFromApplication blocks coordinators from converting another d
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2440,7 +2447,7 @@ test('createInstructor allows coordinators to create instructors in their own de
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2507,7 +2514,7 @@ test('createInstructor blocks coordinators from creating instructors outside the
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2543,23 +2550,25 @@ test('createInstructor blocks coordinators from creating instructors outside the
   })
 })
 
-test('createGatekeeper allows coordinators to create global gatekeepers without department scope', async () => {
+test('createGatekeeper scopes coordinator-created gatekeepers to their department', async () => {
   const createCalls = []
-  const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
-    '../utils/prisma': {
-      user: {
-        findUnique: async () => null,
-        create: async (payload) => {
-          createCalls.push(payload)
-          return {
-            id: 'gatekeeper-user-1',
-            name: payload.data.name,
-            email: payload.data.email,
-            role: payload.data.role
-          }
+  const prismaMock = {
+    user: {
+      findUnique: async () => null,
+      create: async (payload) => {
+        createCalls.push(payload)
+        return {
+          id: 'gatekeeper-user-1',
+          name: payload.data.name,
+          email: payload.data.email,
+          role: payload.data.role
         }
       }
     },
+    $transaction: async (callback) => callback(prismaMock)
+  }
+  const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
+    '../utils/prisma': prismaMock,
     '../utils/adminHelpers': {
       normalizeEmail: (value) => String(value || '').trim().toLowerCase(),
       sanitizeOptionalPlainText: (value) => value || null,
@@ -2572,15 +2581,28 @@ test('createGatekeeper allows coordinators to create global gatekeepers without 
     '../utils/sanitize': {
       sanitizePlainText: (value) => value
     },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/logger': {
+      error: () => {},
+      warn: () => {}
+    },
     '../utils/instructorDepartments': {
       getInstructorDepartments: () => [],
       normalizeDepartmentList: (values) => values.filter(Boolean)
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/statsCache': {
       clearStatsCache: () => {}
+    },
+    '../utils/accessTokenRevocation': {
+      revokeAllAccessTokensForUser: async () => {}
     },
     '../utils/audit': {
       recordAuditLog: async () => {}
@@ -2603,38 +2625,40 @@ test('createGatekeeper allows coordinators to create global gatekeepers without 
   assert.equal(res.statusCode, 201)
   assert.equal(res.body.message, 'Gatekeeper created successfully!')
   assert.equal(res.body.user.role, 'GATEKEEPER')
-  assert.equal(res.body.user.department, undefined)
+  assert.equal(res.body.user.department, 'Computer Science')
   assert.equal(createCalls.length, 1)
-  assert.deepEqual(createCalls[0].data.gatekeeper, { create: {} })
+  assert.deepEqual(createCalls[0].data.gatekeeper, { create: { department: 'Computer Science' } })
 })
 
 test('createGatekeeper releases a soft-deleted account email before creating the replacement', async () => {
   const updateCalls = []
   const createCalls = []
   const deletedAt = new Date('2026-01-01T00:00:00.000Z')
-  const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
-    '../utils/prisma': {
-      user: {
-        findUnique: async () => ({
-          id: 'deleted-gatekeeper-user-1',
-          email: 'gatekeeper@example.com',
-          deletedAt
-        }),
-        update: async (payload) => {
-          updateCalls.push(payload)
-          return payload
-        },
-        create: async (payload) => {
-          createCalls.push(payload)
-          return {
-            id: 'gatekeeper-user-2',
-            name: payload.data.name,
-            email: payload.data.email,
-            role: payload.data.role
-          }
+  const prismaMock = {
+    user: {
+      findUnique: async () => ({
+        id: 'deleted-gatekeeper-user-1',
+        email: 'gatekeeper@example.com',
+        deletedAt
+      }),
+      update: async (payload) => {
+        updateCalls.push(payload)
+        return payload
+      },
+      create: async (payload) => {
+        createCalls.push(payload)
+        return {
+          id: 'gatekeeper-user-2',
+          name: payload.data.name,
+          email: payload.data.email,
+          role: payload.data.role
         }
       }
     },
+    $transaction: async (callback) => callback(prismaMock)
+  }
+  const { createGatekeeper } = loadWithMocks(resolveFromTest('src', 'controllers', 'staff.controller.js'), {
+    '../utils/prisma': prismaMock,
     '../utils/adminHelpers': {
       normalizeEmail: (value) => String(value || '').trim().toLowerCase(),
       sanitizeOptionalPlainText: (value) => value || null,
@@ -2647,12 +2671,25 @@ test('createGatekeeper releases a soft-deleted account email before creating the
     '../utils/sanitize': {
       sanitizePlainText: (value) => value
     },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/logger': {
+      error: () => {},
+      warn: () => {}
+    },
     '../utils/instructorDepartments': {
       getInstructorDepartments: () => [],
       normalizeDepartmentList: (values) => values.filter(Boolean)
     },
     '../utils/statsCache': {
       clearStatsCache: () => {}
+    },
+    '../utils/accessTokenRevocation': {
+      revokeAllAccessTokensForUser: async () => {}
     },
     '../utils/audit': {
       recordAuditLog: async () => {}
@@ -2679,6 +2716,7 @@ test('createGatekeeper releases a soft-deleted account email before creating the
   })
   assert.equal(createCalls.length, 1)
   assert.equal(createCalls[0].data.email, 'gatekeeper@example.com')
+  assert.deepEqual(createCalls[0].data.gatekeeper, { create: { department: null } })
 })
 
 test('deleteUser blocks deleting the last admin account', async () => {
@@ -2711,7 +2749,7 @@ test('deleteUser blocks deleting the last admin account', async () => {
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2773,7 +2811,7 @@ test('deleteUser soft-deletes the user and revokes refresh and access tokens ins
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -2934,7 +2972,7 @@ test('soft-deleted user cannot refresh with the prior session token', async () =
       error: () => {},
       warn: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -3083,6 +3121,16 @@ test('getAllNotices hides student-only notices from instructors', async () => {
     '../utils/sanitize': {
       sanitizePlainText: (value) => value
     },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/logger': {
+      error: () => {},
+      warn: () => {}
+    },
     '../utils/notifications': {
       createNotifications: async () => {}
     }
@@ -3124,6 +3172,16 @@ test('createNotice scopes coordinator notices to their own department', async ()
     },
     '../utils/sanitize': {
       sanitizePlainText: (value) => value
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/logger': {
+      error: () => {},
+      warn: () => {}
     },
     '../utils/instructorDepartments': {
       getInstructorDepartments: () => [],
@@ -3173,6 +3231,16 @@ test('createNotice blocks coordinators from targeting another department', async
     },
     '../utils/sanitize': {
       sanitizePlainText: (value) => value
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/logger': {
+      error: () => {},
+      warn: () => {}
     },
     '../utils/instructorDepartments': {
       getInstructorDepartments: () => [],
@@ -3275,6 +3343,16 @@ test('createAssignment blocks instructors from creating assignments for subjects
     },
     '../utils/sanitize': {
       sanitizePlainText: (value) => value
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    },
+    '../utils/logger': {
+      error: () => {},
+      warn: () => {}
     },
     exceljs: {
       Workbook: class MockWorkbook {}
@@ -3605,7 +3683,7 @@ test('updateStudentApplicationStatus blocks manual conversion without account cr
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -3813,7 +3891,7 @@ test('toggleUserStatus returns 409 when another request already changed the stat
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {
@@ -5249,7 +5327,7 @@ test('getAllSubjects scopes coordinator queries to their own department', async 
     '../utils/pagination': {
       getPagination: () => ({ page: 1, limit: 20, skip: 0 })
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/enrollment': {
@@ -5300,7 +5378,7 @@ test('createSubject blocks coordinators from creating subjects outside their dep
         }
       }
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/enrollment': {
@@ -5618,7 +5696,7 @@ test('updateUser sanitizes plain-text profile fields before persisting', async (
     '../utils/logger': {
       error: () => {}
     },
-    './department.controller': {
+    '../services/department.service': {
       ensureDepartmentExists: async () => true
     },
     '../utils/audit': {

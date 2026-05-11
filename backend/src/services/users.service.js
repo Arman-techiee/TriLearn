@@ -37,6 +37,17 @@ const buildDeletedEmail = (user, deletedAt = new Date()) => (
   `deleted:${deletedAt.getTime()}:${user.id}:${user.email}`
 )
 
+const releaseDeletedUserEmail = async (tx, existingUser) => {
+  if (!existingUser?.deletedAt) {
+    return
+  }
+
+  await tx.user.update({
+    where: { id: existingUser.id },
+    data: { email: buildDeletedEmail(existingUser, existingUser.deletedAt) }
+  })
+}
+
 
 const createStudentAccountRecord = async ({
   name,
@@ -263,7 +274,7 @@ const getManagedUserDepartments = (user) => {
   }
 
   if (user.role === 'GATEKEEPER') {
-    return []
+    return normalizeDepartmentList([user.gatekeeper?.department])
   }
 
   if (user.role === 'COORDINATOR') {
@@ -289,10 +300,6 @@ const coordinatorCanManageUser = (context, user) => {
 
   if (!user || ['ADMIN', 'COORDINATOR'].includes(user.role)) {
     return false
-  }
-
-  if (user.role === 'GATEKEEPER') {
-    return true
   }
 
   const coordinatorDepartments = getCoordinatorDepartments(context)
@@ -393,7 +400,14 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
 
       if (!role || role === 'GATEKEEPER') {
         departmentScopedRoles.push({
-          role: 'GATEKEEPER'
+          role: 'GATEKEEPER',
+          gatekeeper: {
+            is: {
+              department: {
+                in: coordinatorDepartments
+              }
+            }
+          }
         })
       }
 
@@ -502,6 +516,7 @@ const getUserById = async (context, result = createServiceResponder()) => {
       createdAt: true,
       student: true,
       instructor: { include: instructorDepartmentMembershipInclude },
+      gatekeeper: true,
       admin: true,
       coordinator: true,
     }
@@ -540,13 +555,6 @@ const createCoordinator = async (context, result = createServiceResponder()) => 
     return result.withStatus(400, { message: 'Email already exists' })
   }
 
-  if (existingUser?.deletedAt) {
-    await prisma.user.update({
-      where: { id: existingUser.id },
-      data: { email: buildDeletedEmail(existingUser, existingUser.deletedAt) }
-    })
-  }
-
   if (normalizedDepartment) {
     const validDepartment = await ensureDepartmentExists(normalizedDepartment)
     if (!validDepartment) {
@@ -556,19 +564,23 @@ const createCoordinator = async (context, result = createServiceResponder()) => 
 
   const hashedPassword = await hashPassword(password)
 
-  const user = await prisma.user.create({
-    data: {
-      name: sanitizedName,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: 'COORDINATOR',
-      phone: sanitizedPhone,
-      address: sanitizedAddress,
-      coordinator: {
-        create: { department: normalizedDepartment }
-      }
-    },
-    include: { coordinator: true }
+  const user = await prisma.$transaction(async (tx) => {
+    await releaseDeletedUserEmail(tx, existingUser)
+
+    return tx.user.create({
+      data: {
+        name: sanitizedName,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'COORDINATOR',
+        phone: sanitizedPhone,
+        address: sanitizedAddress,
+        coordinator: {
+          create: { department: normalizedDepartment }
+        }
+      },
+      include: { coordinator: true }
+    })
   })
   clearStatsCache()
 
@@ -605,8 +617,9 @@ const createCoordinator = async (context, result = createServiceResponder()) => 
  * @returns {Promise<object>} Service result
  */
 const createGatekeeper = async (context, result = createServiceResponder()) => {
-    const { name, email, password, phone, address } = context.body
+    const { name, email, password, phone, address, department } = context.body
   const normalizedEmail = normalizeEmail(email)
+  const normalizedDepartment = department?.trim() || context.coordinator?.department || null
   const sanitizedName = sanitizePlainText(name)
   const sanitizedPhone = sanitizeOptionalPlainText(phone)
   const sanitizedAddress = sanitizeOptionalPlainText(address)
@@ -616,35 +629,43 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
     return result.withStatus(400, { message: 'Email already exists' })
   }
 
-  if (existingUser?.deletedAt) {
-    await prisma.user.update({
-      where: { id: existingUser.id },
-      data: { email: buildDeletedEmail(existingUser, existingUser.deletedAt) }
-    })
+  if (normalizedDepartment) {
+    const validDepartment = await ensureDepartmentExists(normalizedDepartment)
+    if (!validDepartment) {
+      return result.withStatus(400, { message: 'Please select a valid department' })
+    }
   }
 
   const candidateUser = {
     role: 'GATEKEEPER',
-    gatekeeper: {}
+    gatekeeper: {
+      department: normalizedDepartment
+    }
   }
   if (!coordinatorCanManageUser(context, candidateUser)) {
-    return result.withStatus(403, { message: 'You can only manage authorized users' })
+    return result.withStatus(403, { message: 'Coordinators can only create gatekeepers in their own department' })
   }
 
   const hashedPassword = await hashPassword(password)
 
-  const user = await prisma.user.create({
-    data: {
-      name: sanitizedName,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: 'GATEKEEPER',
-      phone: sanitizedPhone,
-      address: sanitizedAddress,
-      gatekeeper: {
-        create: {}
+  const user = await prisma.$transaction(async (tx) => {
+    await releaseDeletedUserEmail(tx, existingUser)
+
+    return tx.user.create({
+      data: {
+        name: sanitizedName,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'GATEKEEPER',
+        phone: sanitizedPhone,
+        address: sanitizedAddress,
+        gatekeeper: {
+          create: {
+            department: normalizedDepartment
+          }
+        }
       }
-    }
+    })
   })
   clearStatsCache()
 
@@ -654,7 +675,8 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      department: normalizedDepartment
     }
   })
 
@@ -665,7 +687,8 @@ const createGatekeeper = async (context, result = createServiceResponder()) => {
     entityType: 'User',
     entityId: user.id,
     metadata: {
-      role: user.role
+      role: user.role,
+      department: normalizedDepartment
     }
   })
 }
@@ -1174,7 +1197,8 @@ const deleteUser = async (context, result = createServiceResponder()) => {
       instructor: {
         include: instructorDepartmentMembershipInclude
       },
-      coordinator: true
+      coordinator: true,
+      gatekeeper: true
     }
   })
   if (!user) {
