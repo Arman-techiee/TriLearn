@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { useQuery } from '@tanstack/react-query';
@@ -8,9 +7,8 @@ import { api } from '@/src/services/api';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useAuthStore } from '@/src/store/auth.store';
 import { useNotificationsStore } from '@/src/store/notifications.store';
+import { isPushUnsupportedRuntime } from '@/src/services/pushNotifications';
 import type { NotificationsResponse } from '@/src/types/notification';
-
-const isAndroidExpoGo = Constants.appOwnership === 'expo' && Platform.OS === 'android';
 
 export const useNotifications = () => {
   const { isAuthenticated } = useAuth();
@@ -38,7 +36,7 @@ export const useNotifications = () => {
   }, [query.data, setNotifications]);
 
   useEffect(() => {
-    if (!isAuthenticated || isAndroidExpoGo) {
+    if (!isAuthenticated || isPushUnsupportedRuntime) {
       return undefined;
     }
 

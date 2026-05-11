@@ -1,7 +1,5 @@
 import { Component, useEffect, type ReactNode } from 'react';
-import Constants from 'expo-constants';
-import type { Notification } from 'expo-notifications';
-import { Redirect, Stack, router, useSegments, type Href } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
@@ -15,8 +13,11 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useNotifications } from '@/src/hooks/useNotifications';
 import { queryClient } from '@/src/services/queryClient';
 import { useSocket } from '@/src/hooks/useSocket';
-import { useNotificationsStore } from '@/src/store/notifications.store';
-import type { NotificationItem } from '@/src/types/notification';
+import {
+  handlePushNotificationResponse,
+  handleReceivedPushNotification,
+  isPushUnsupportedRuntime,
+} from '@/src/services/pushNotifications';
 import '../global.css';
 
 const toastConfig: ToastConfig = {
@@ -47,45 +48,6 @@ const toastConfig: ToastConfig = {
       text2Style={{ color: '#6B7280', fontSize: 13 }}
     />
   ),
-};
-
-const notificationRouteMap: Record<string, Href> = {
-  notice: '/(student)/notices',
-  notices: '/(student)/notices',
-  NOTICE_POSTED: '/(student)/notices',
-  assignment: '/(student)/assignments',
-  assignments: '/(student)/assignments',
-  ASSIGNMENT_DUE: '/(student)/assignments',
-  material: '/(student)/materials',
-  materials: '/(student)/materials',
-  marks: '/(student)/marks',
-  MARKS_PUBLISHED: '/(student)/marks',
-  attendance: '/(student)/attendance',
-  ABSENCE_TICKET_REVIEWED: '/(student)/attendance',
-  routine: '/(student)/routine',
-  ROUTINE_UPDATED: '/(student)/routine',
-  ticket: '/(student)/tickets',
-  tickets: '/(student)/tickets',
-};
-
-const notificationRouteForType = (type: string): Href | undefined =>
-  notificationRouteMap[type] ?? notificationRouteMap[type.toLowerCase()];
-
-const isAndroidExpoGo = Constants.appOwnership === 'expo' && Platform.OS === 'android';
-
-const notificationFromExpo = (notification: Notification): NotificationItem => {
-  const { content } = notification.request;
-  const data = content.data ?? {};
-
-  return {
-    id: String(data.notificationId || notification.request.identifier),
-    title: content.title || 'TriLearn',
-    message: content.body || '',
-    isRead: false,
-    createdAt: new Date().toISOString(),
-    type: String(data.type || 'GENERAL'),
-    link: typeof data.link === 'string' && data.link.length > 0 ? data.link : null,
-  };
 };
 
 type RootErrorBoundaryProps = {
@@ -137,14 +99,13 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
 function AppLayout() {
   const segments = useSegments();
   const { isHydrated, isAuthenticated, user } = useAuth();
-  const addNotification = useNotificationsStore((state) => state.addNotification);
   const activeGroup = segments[0];
 
   useSocket();
   useNotifications();
 
   useEffect(() => {
-    if (isAndroidExpoGo) {
+    if (isPushUnsupportedRuntime) {
       return undefined;
     }
 
@@ -157,18 +118,29 @@ function AppLayout() {
         return;
       }
 
-      receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
-        addNotification(notificationFromExpo(notification));
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
       });
 
-      responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-        const notification = notificationFromExpo(response.notification);
-        const route = notificationRouteForType(notification.type) || (notification.link as Href | null);
+      if (Platform.OS === 'android') {
+        void Notifications.setNotificationChannelAsync('default', {
+          name: 'TriLearn updates',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
 
-        addNotification(notification);
+      receivedSubscription = Notifications.addNotificationReceivedListener(handleReceivedPushNotification);
+      responseSubscription = Notifications.addNotificationResponseReceivedListener(handlePushNotificationResponse);
 
-        if (route) {
-          router.push(route);
+      void Notifications.getLastNotificationResponseAsync().then((response) => {
+        if (isMounted && response) {
+          handlePushNotificationResponse(response);
         }
       });
     });
@@ -178,7 +150,7 @@ function AppLayout() {
       receivedSubscription?.remove();
       responseSubscription?.remove();
     };
-  }, [addNotification]);
+  }, []);
 
   if (!isHydrated) {
     return (

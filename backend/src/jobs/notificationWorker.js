@@ -1,6 +1,7 @@
 const { Worker } = require('bullmq')
 const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
+const { captureException } = require('../utils/monitoring')
 const { sendMail } = require('../utils/mailer')
 const { sendPushNotification } = require('../utils/fcm')
 const { emitNotificationCreated } = require('../utils/realtime')
@@ -213,6 +214,7 @@ const deliverPushNotificationsSafely = async (notifications) => {
       message: error.message,
       stack: error.stack
     })
+    captureException(error, { tags: { job: 'deliverPushNotifications' } })
 
     return { attempted: 0, staleRemoved: 0, failed: true }
   }
@@ -319,6 +321,12 @@ const startNotificationWorker = () => {
       message: error.message,
       stack: error.stack
     })
+    captureException(error, {
+      tags: {
+        jobId: job?.id,
+        jobName: job?.name
+      }
+    })
   })
 
   notificationWorker.on('error', (error) => {
@@ -326,6 +334,7 @@ const startNotificationWorker = () => {
       message: error.message,
       stack: error.stack
     })
+    captureException(error, { tags: { worker: NOTIFICATION_QUEUE_NAME } })
   })
 
   return notificationWorker

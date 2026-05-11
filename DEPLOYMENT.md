@@ -7,6 +7,7 @@
 - Generate real backend secrets with [backend/scripts/gen-env.sh](backend/scripts/gen-env.sh), then replace any local connection strings with production values
 - Run `npm run prisma:migrate:deploy` before starting the app
 - Expose `GET /health` for container and platform health checks, and set `HEALTHCHECK_KEY` for public load balancers
+- Configure `SENTRY_DSN` or an equivalent external error alerting service
 - Configure `FRONTEND_URL` with the exact deployed frontend origin
 - Configure `TRUST_PROXY` for the deployment proxy chain
 - Set upload storage env vars explicitly if you keep local-disk uploads
@@ -75,6 +76,34 @@ HEALTHCHECK_KEY=replace-with-a-random-token
 
 Then configure the probe to send that value as the `x-health-check-key`
 request header.
+
+For external uptime monitoring, create two checks:
+
+```text
+GET https://api.example.com/ping
+GET https://api.example.com/health
+```
+
+If the monitor reaches the API from a public IP, add the
+`x-health-check-key: <HEALTHCHECK_KEY>` header to both checks. `/ping` confirms
+the process is reachable; `/health` is the readiness endpoint to use for
+deployment and database-backed availability alerts.
+
+## Error alerting
+
+The backend captures request errors, startup failures, notification worker
+failures, unhandled rejections, and uncaught exceptions with Sentry when
+`SENTRY_DSN` is set:
+
+```env
+SENTRY_DSN=https://public-key@o0.ingest.sentry.io/project-id
+SENTRY_ENVIRONMENT=production
+SENTRY_RELEASE=trilearn-api@1.0.0
+SENTRY_TRACES_SAMPLE_RATE=0
+```
+
+Leave `SENTRY_TRACES_SAMPLE_RATE=0` unless tracing has been deliberately enabled
+for the project. Error events are still sent when tracing is off.
 
 ## Mobile client version enforcement
 

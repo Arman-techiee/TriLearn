@@ -11,6 +11,7 @@ if (process.env.NODE_ENV !== 'production') {
 // In production, environment variables are injected by the platform (Railway, Render, Docker --env-file, etc.)
 
 const logger = require('./utils/logger')
+const { initMonitoring, captureException, captureRequestException, flushMonitoring } = require('./utils/monitoring')
 const validateEnv = require('./utils/validateEnv')
 const { apiLimiter } = require('./middleware/rateLimit.middleware')
 const { protect } = require('./middleware/auth.middleware')
@@ -28,6 +29,7 @@ const { startNotificationWorker, closeNotificationWorker } = require('./jobs/not
 const { notificationQueue } = require('./jobs/notificationQueue')
 
 validateEnv()
+initMonitoring()
 
 const app = express()
 const allowedOrigins = getTrustedOrigins()
@@ -143,6 +145,7 @@ app.use((req, res, next) => {
   res.internalError = (error, fallbackMessage = 'Something went wrong') => {
     const errorMessage = error instanceof Error ? error.message : String(error)
     req.logger.error(errorMessage, { stack: error?.stack })
+    captureRequestException(error, req)
     return res.status(500).json({
       message: getErrorMessage(error, fallbackMessage)
     })
@@ -203,6 +206,7 @@ app.use((req, res) => {
 app.use((error, req, res, _next) => {
   const errorMessage = error instanceof Error ? error.message : String(error)
   ;(req.logger || logger).error(errorMessage, { stack: error?.stack })
+  captureRequestException(error, req)
   res.status(500).json({
     message: getErrorMessage(error, 'Something went wrong')
   })
@@ -253,9 +257,12 @@ const shutdown = async (signal) => {
       await notificationQueue.close()
       await closeRealtime()
       await prisma.$disconnect()
+      await flushMonitoring()
       process.exit(0)
     } catch (error) {
       logger.error(error.message, { stack: error.stack })
+      captureException(error, { tags: { phase: 'shutdown' } })
+      await flushMonitoring()
       process.exit(1)
     }
   })
@@ -272,9 +279,22 @@ process.on('SIGINT', () => {
 if (require.main === module) {
   startServer().catch((error) => {
     logger.error(error.message, { stack: error.stack })
+    captureException(error, { tags: { phase: 'startup' } })
     process.exit(1)
   })
 }
+
+process.on('uncaughtException', (error) => {
+  logger.error(error.message, { stack: error.stack })
+  captureException(error, { tags: { phase: 'uncaughtException' } })
+  void flushMonitoring().finally(() => process.exit(1))
+})
+
+process.on('unhandledRejection', (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason))
+  logger.error(error.message, { stack: error.stack })
+  captureException(error, { tags: { phase: 'unhandledRejection' } })
+})
 
 module.exports = {
   app,
