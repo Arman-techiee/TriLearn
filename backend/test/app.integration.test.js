@@ -19,6 +19,11 @@ const { app } = require('../src/index')
 const { enforceHttps } = require('../src/middleware/enforceHttps.middleware')
 const { csrfProtection } = require('../src/middleware/csrf.middleware')
 const { validateMobileClient } = require('../src/middleware/mobileClient.middleware')
+const {
+  apiLimiter,
+  loginLimiter,
+  studentQrScanLimiter
+} = require('../src/middleware/rateLimit.middleware')
 
 const resolveFromTest = (...segments) => path.resolve(__dirname, '..', ...segments)
 
@@ -240,7 +245,7 @@ test('validateMobileClient records valid mobile app versions on the request logg
 test('csrfProtection rejects spoofed mobile bearer requests when browser cookies are present', async () => {
   const testApp = express()
   testApp.use(csrfProtection)
-  testApp.post('/api/v1/subjects', (_req, res) => res.json({ ok: true }))
+  testApp.post('/api/v1/subjects', apiLimiter, (_req, res) => res.json({ ok: true }))
 
   const signature = signMobileTestRequest()
   const response = await request(testApp)
@@ -262,7 +267,7 @@ test('csrfProtection rejects spoofed mobile bearer requests when browser cookies
 test('csrfProtection allows native mobile bearer requests without browser context', async () => {
   const testApp = express()
   testApp.use(csrfProtection)
-  testApp.post('/api/v1/subjects', (_req, res) => res.json({ ok: true }))
+  testApp.post('/api/v1/subjects', apiLimiter, (_req, res) => res.json({ ok: true }))
 
   const signature = signMobileTestRequest()
   const response = await request(testApp)
@@ -281,7 +286,7 @@ test('csrfProtection allows native mobile bearer requests without browser contex
 test('csrfProtection allows native mobile login requests with Expo origin and no cookies', async () => {
   const testApp = express()
   testApp.use(csrfProtection)
-  testApp.post('/api/v1/auth/login', (_req, res) => res.json({ ok: true }))
+  testApp.post('/api/v1/auth/login', loginLimiter, (_req, res) => res.json({ ok: true }))
 
   const signature = signMobileTestRequest()
   const response = await request(testApp)
@@ -301,7 +306,7 @@ test('csrfProtection allows native mobile login requests with Expo origin and no
 test('csrfProtection allows native mobile login requests with stale Expo cookies', async () => {
   const testApp = express()
   testApp.use(csrfProtection)
-  testApp.post('/api/v1/auth/login', (_req, res) => res.json({ ok: true }))
+  testApp.post('/api/v1/auth/login', loginLimiter, (_req, res) => res.json({ ok: true }))
 
   const signature = signMobileTestRequest()
   const response = await request(testApp)
@@ -322,7 +327,7 @@ test('csrfProtection allows native mobile login requests with stale Expo cookies
 test('csrfProtection allows native mobile API requests with stale cookies when browser fetch metadata is absent', async () => {
   const testApp = express()
   testApp.use(csrfProtection)
-  testApp.post('/api/v1/attendance/scan-qr', (_req, res) => res.json({ ok: true }))
+  testApp.post('/api/v1/attendance/scan-qr', studentQrScanLimiter, (_req, res) => res.json({ ok: true }))
 
   const signature = signMobileTestRequest()
   const response = await request(testApp)
@@ -344,7 +349,7 @@ test('csrfProtection allows native mobile API requests with stale cookies when b
 test('csrfProtection rejects unsigned mobile API requests with stale cookies', async () => {
   const testApp = express()
   testApp.use(csrfProtection)
-  testApp.post('/api/v1/attendance/scan-qr', (_req, res) => res.json({ ok: true }))
+  testApp.post('/api/v1/attendance/scan-qr', studentQrScanLimiter, (_req, res) => res.json({ ok: true }))
 
   const response = await request(testApp)
     .post('/api/v1/attendance/scan-qr')
