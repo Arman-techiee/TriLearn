@@ -83,7 +83,7 @@ const HomePage = () => (
             </div>
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--color-heading)] px-5 py-2.5 text-sm font-semibold text-white transition hover:translate-y-[-1px] hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:translate-y-[-1px] hover:bg-primary-700"
             >
               <span>Sign In</span>
               <ArrowRight className="h-4 w-4" />

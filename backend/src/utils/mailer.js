@@ -5,6 +5,10 @@ const createTransport = () => nodemailer.createTransport({
   host: process.env.RESEND_SMTP_HOST,
   port: Number(process.env.RESEND_SMTP_PORT) || 587,
   secure: process.env.RESEND_SMTP_PORT === '465',
+  // Fail fast on SMTP connectivity issues so API handlers don't hang for long.
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 15_000,
   auth: {
     user: process.env.RESEND_SMTP_USER,
     pass: process.env.RESEND_SMTP_PASS
