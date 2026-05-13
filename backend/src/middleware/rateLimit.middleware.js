@@ -4,7 +4,6 @@ const { hashToken, verifyRefreshToken } = require('../utils/token')
 const { isRedisConfigured, getRedisClient } = require('../utils/redis')
 const logger = require('../utils/logger')
 
-let redisStore
 let memoryStoreWarningShown = false
 let rateLimitDisabledWarningShown = false
 const parsePositiveInteger = (value, fallback) => {
@@ -23,7 +22,7 @@ const areRateLimitsDisabled = () => {
   return true
 }
 
-const getRedisStore = () => {
+const getRedisStore = (prefixSuffix = 'global') => {
   if (!isRedisConfigured()) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('FATAL: REDIS_URL is required in production. Rate limiting and session scaling depend on Redis.')
@@ -42,17 +41,13 @@ const getRedisStore = () => {
     return undefined
   }
 
-  if (!redisStore) {
-    redisStore = new RedisStore({
-      sendCommand: (...args) => redisClient.sendCommand(args),
-      prefix: 'trilearn-rate-limit:'
-    })
-  }
-
-  return redisStore
+  return new RedisStore({
+    sendCommand: (...args) => redisClient.sendCommand(args),
+    prefix: `trilearn-rate-limit:${prefixSuffix}:`
+  })
 }
 
-const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator }) => {
+const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator, prefixSuffix }) => {
   if (areRateLimitsDisabled()) {
     if (!rateLimitDisabledWarningShown) {
       rateLimitDisabledWarningShown = true
@@ -69,7 +64,7 @@ const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator }
     legacyHeaders: false,
     message: { message },
     keyGenerator,
-    store: getRedisStore()
+    store: getRedisStore(prefixSuffix)
   })
 }
 
@@ -115,27 +110,32 @@ const refreshRateLimitKey = (req) => {
 }
 
 const apiLimiter = createLimiter({
+  prefixSuffix: 'api',
   max: 300,
   message: 'Too many requests, please try again later'
 })
 
 const authLimiter = createLimiter({
+  prefixSuffix: 'auth',
   max: 20,
   message: 'Too many attempts, please try again later'
 })
 
 const authRouterLimiter = createLimiter({
+  prefixSuffix: 'auth-router',
   max: 120,
   message: 'Too many authentication requests, please try again later'
 })
 
 const forgotPasswordLimiter = createLimiter({
+  prefixSuffix: 'forgot-password',
   max: 5,
   message: 'Too many password reset attempts, please try again later',
   keyGenerator: forgotPasswordRateLimitKey
 })
 
 const resendVerificationLimiter = createLimiter({
+  prefixSuffix: 'resend-verification',
   windowMs: 60 * 60 * 1000,
   max: 3,
   message: 'Too many verification email requests, please try again later',
@@ -143,6 +143,7 @@ const resendVerificationLimiter = createLimiter({
 })
 
 const loginLimiter = createLimiter({
+  prefixSuffix: 'login',
   windowMs: LOGIN_LIMIT_WINDOW_MS,
   max: LOGIN_LIMIT_MAX,
   message: 'Too many login attempts, please try again later',
@@ -150,6 +151,7 @@ const loginLimiter = createLimiter({
 })
 
 const refreshLimiter = createLimiter({
+  prefixSuffix: 'refresh',
   windowMs: 5 * 60 * 1000,
   max: 60,
   message: 'Too many session refresh attempts, please try again shortly',
@@ -157,6 +159,7 @@ const refreshLimiter = createLimiter({
 })
 
 const logoutLimiter = createLimiter({
+  prefixSuffix: 'logout',
   windowMs: 5 * 60 * 1000,
   max: 30,
   message: 'Too many logout attempts, please try again shortly',
@@ -164,21 +167,25 @@ const logoutLimiter = createLimiter({
 })
 
 const uploadLimiter = createLimiter({
+  prefixSuffix: 'upload',
   max: 40,
   message: 'Too many upload attempts, please try again later'
 })
 
 const studentUploadLimiter = createLimiter({
+  prefixSuffix: 'student-upload',
   max: 15,
   message: 'Too many student upload attempts, please try again later'
 })
 
 const staffUploadLimiter = createLimiter({
+  prefixSuffix: 'staff-upload',
   max: 25,
   message: 'Too many staff upload attempts, please try again later'
 })
 
 const studentQrScanLimiter = createLimiter({
+  prefixSuffix: 'student-qr-scan',
   windowMs: 5 * 60 * 1000,
   max: 12,
   message: 'Too many attendance QR scan attempts, please wait a moment and try again',
@@ -186,6 +193,7 @@ const studentQrScanLimiter = createLimiter({
 })
 
 const dailyQrScanLimiter = createLimiter({
+  prefixSuffix: 'daily-qr-scan',
   windowMs: 5 * 60 * 1000,
   max: 12,
   message: 'Too many daily attendance scan attempts, please wait a moment and try again',
@@ -193,6 +201,7 @@ const dailyQrScanLimiter = createLimiter({
 })
 
 const staffStudentIdScanLimiter = createLimiter({
+  prefixSuffix: 'staff-student-id-scan',
   windowMs: 5 * 60 * 1000,
   max: 30,
   message: 'Too many student ID scan attempts, please wait a moment and try again',
