@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer')
+const https = require('https')
 const logger = require('./logger')
 
 const createTransport = () => nodemailer.createTransport({
@@ -15,9 +16,62 @@ const createTransport = () => nodemailer.createTransport({
   }
 })
 
+const sendViaResendApi = async ({ to, subject, html, text }) => {
+  const apiKey = String(process.env.RESEND_API_KEY || '').trim()
+  if (!apiKey) {
+    return false
+  }
+
+  const from = process.env.MAIL_FROM || 'TriLearn <no-reply@trilearn.app>'
+  const recipients = Array.isArray(to) ? to : [to]
+  const payload = JSON.stringify({
+    from,
+    to: recipients,
+    subject,
+    html,
+    text
+  })
+
+  return new Promise((resolve, reject) => {
+    const request = https.request('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      },
+      timeout: 15000
+    }, (response) => {
+      let responseBody = ''
+      response.on('data', (chunk) => {
+        responseBody += chunk
+      })
+      response.on('end', () => {
+        if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+          resolve(true)
+          return
+        }
+
+        reject(new Error(`Resend API responded ${response.statusCode}${responseBody ? `: ${responseBody}` : ''}`))
+      })
+    })
+
+    request.on('timeout', () => {
+      request.destroy(new Error('Resend API request timed out'))
+    })
+    request.on('error', (error) => reject(error))
+    request.write(payload)
+    request.end()
+  })
+}
+
 const sendMail = async ({ to, subject, html, text }) => {
+  if (await sendViaResendApi({ to, subject, html, text })) {
+    return
+  }
+
   if (!process.env.RESEND_SMTP_PASS) {
-    logger.warn('Email not sent - RESEND_SMTP_PASS not configured')
+    logger.warn('Email not sent - RESEND_API_KEY and RESEND_SMTP_PASS not configured')
     return
   }
 
