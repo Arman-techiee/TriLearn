@@ -57,10 +57,6 @@ const createNoticeNotifications = async ({
   event = 'NOTICE_POSTED',
   excludeUserId = notice.postedBy
 }) => {
-  if (!prisma.user?.findMany) {
-    return { count: 0, results: [] }
-  }
-
   const users = await prisma.user.findMany({
     where: {
       ...getNoticeRecipientWhere(notice),

@@ -7,7 +7,7 @@ const {
   legacyUploadPaths,
   uploadPublicPath,
   uploadPublicPaths,
-  getPresignedDownloadUrl
+  getFileBuffer
 } = require('../utils/fileStorage')
 const { getTrustedOrigins } = require('../middleware/csrf.middleware')
 const { recordAuditLog } = require('../utils/audit')
@@ -73,18 +73,17 @@ const sendUploadFile = async (result, fileName) => {
   const absolutePath = resolveExistingUploadFilePath(fileName)
   // Force download - prevents inline rendering of PDFs with embedded JavaScript.
   const safeFilename = getSafeDownloadFileName(absolutePath)
-  const presignedUrl = typeof getPresignedDownloadUrl === 'function'
-    ? await getPresignedDownloadUrl(fileName, {
-        downloadName: safeFilename,
-        contentType
-      })
+  const fileBuffer = typeof getFileBuffer === 'function'
+    ? await getFileBuffer(fileName)
     : null
 
-  if (presignedUrl) {
+  if (fileBuffer) {
     setUploadSecurityHeaders(result)
+    result.header('Content-Type', contentType)
     result.header('Content-Disposition', `attachment; filename="${safeFilename}"`)
     result.header('Cache-Control', 'private, no-store')
-    return result.redirect(presignedUrl, 302)
+    result.end(fileBuffer)
+    return result.toServiceResult()
   }
 
   setUploadSecurityHeaders(result)

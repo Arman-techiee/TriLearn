@@ -185,6 +185,41 @@ const getPresignedDownloadUrl = async (fileName, options = {}) => {
   })
 }
 
+const streamToBuffer = async (stream) => {
+  const chunks = []
+
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  }
+
+  return Buffer.concat(chunks)
+}
+
+const getFileBuffer = async (fileName) => {
+  const s3Config = getS3Config()
+  const s3 = getS3Client()
+
+  if (!s3Config || !s3) {
+    return null
+  }
+
+  const { GetObjectCommand } = require('@aws-sdk/client-s3')
+  const response = await s3.send(new GetObjectCommand({
+    Bucket: s3Config.bucket,
+    Key: decodeURIComponent(fileName)
+  }))
+
+  if (!response.Body) {
+    return null
+  }
+
+  if (typeof response.Body.transformToByteArray === 'function') {
+    return Buffer.from(await response.Body.transformToByteArray())
+  }
+
+  return streamToBuffer(response.Body)
+}
+
 module.exports = {
   uploadPath,
   legacyUploadPaths,
@@ -193,6 +228,7 @@ module.exports = {
   buildUploadedFileUrl,
   isS3Configured,
   uploadFile,
+  getFileBuffer,
   getPresignedDownloadUrl,
   deleteFile
 }

@@ -3153,6 +3153,9 @@ test('createNotice scopes coordinator notices to their own department', async ()
 
   const { createNotice } = loadWithMocks(resolveFromTest('src', 'controllers', 'notice.controller.js'), {
     '../utils/prisma': {
+      user: {
+        findMany: async () => []
+      },
       notice: {
         create: async (payload) => {
           createCalls.push(payload)

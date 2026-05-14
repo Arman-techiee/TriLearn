@@ -73,6 +73,26 @@ const createResponse = () => {
       this.headers[name] = value
       return this
     },
+    on() {
+      return this
+    },
+    once() {
+      return this
+    },
+    emit() {
+      return true
+    },
+    write(chunk) {
+      const nextChunk = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      this.body = this.body ? Buffer.concat([this.body, nextChunk]) : nextChunk
+      return true
+    },
+    end(chunk) {
+      if (chunk) {
+        this.write(chunk)
+      }
+      return this
+    },
     sendFile(filePath, options) {
       this.sentFile = { filePath, options }
       return this
@@ -1147,6 +1167,48 @@ test('serveUploadedFile serves assignment PDFs with hardened headers', async () 
   assert.match(res.headers['Content-Security-Policy'], /sandbox allow-scripts allow-downloads/)
   assert.equal(res.sentFile.options.headers['Content-Type'], 'application/pdf')
   assert.match(res.sentFile.options.headers['Content-Disposition'], /^attachment; filename="assignment\.pdf"$/i)
+})
+
+test('serveUploadedFile proxies S3-backed uploads instead of redirecting to storage', async () => {
+  const { serveUploadedFile } = loadWithMocks(resolveFromTest('src', 'controllers', 'upload.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({ id: 'avatar-owner-1' })
+      },
+      assignment: {
+        findFirst: async () => null
+      },
+      submission: {
+        findFirst: async () => null
+      },
+      studyMaterial: {
+        findFirst: async () => null
+      }
+    },
+    '../utils/fileStorage': {
+      uploadPath: 'C:\\uploads',
+      uploadPublicPath: '/api/v1/uploads',
+      getFileBuffer: async () => Buffer.from('image-bytes')
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../middleware/csrf.middleware': {
+      getTrustedOrigins: () => ['https://trilearn-arman.vercel.app']
+    }
+  })
+
+  const req = {
+    params: { filename: 'avatar.jpeg' },
+    user: { id: 'avatar-owner-1', role: 'STUDENT' }
+  }
+  const res = createResponse()
+
+  await serveUploadedFile(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers.Location, undefined)
+  assert.equal(res.headers['Content-Type'], 'image/jpeg')
 })
 
 test('createStudent does not return plaintext temporary passwords', async () => {
