@@ -221,7 +221,7 @@ const getSubjectStudents = async (subject, filters = {}) => {
 
   const students = await prisma.student.findMany({
     where: {
-      user: { isActive: true },
+      user: { isActive: true, deletedAt: null },
       ...(normalizedSemester ? { semester: normalizedSemester } : {}),
       ...(normalizedSection ? { section: normalizedSection } : {}),
       subjectEnrollments: {
@@ -699,7 +699,7 @@ const syncClosedRoutineAbsences = async (referenceDate = new Date()) => {
 
   const students = await prisma.student.findMany({
     where: {
-      user: { isActive: true }
+      user: { isActive: true, deletedAt: null }
     },
     select: {
       id: true,
@@ -897,7 +897,7 @@ const getCoordinatorDepartmentReportPayload = async ({ coordinator, month, semes
   const studentFilters = {
     department: coordinator.department,
     semester: normalizedSemester,
-    user: { isActive: true }
+    user: { isActive: true, deletedAt: null }
   }
 
   if (section) {

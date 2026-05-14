@@ -633,7 +633,13 @@ const addMarksBulk = async (context, result = createServiceResponder()) => {
       prisma.subjectEnrollment.findMany({
         where: {
           subjectId,
-          studentId: { in: uniqueStudentIds }
+          studentId: { in: uniqueStudentIds },
+          student: {
+            user: {
+              isActive: true,
+              deletedAt: null
+            }
+          }
         },
         select: { studentId: true }
       }),
@@ -894,7 +900,8 @@ const getEnrolledStudentsBySubject = async (context, result = createServiceRespo
               id: true,
               name: true,
               email: true,
-              isActive: true
+              isActive: true,
+              deletedAt: true
             }
           }
         }
@@ -906,7 +913,7 @@ const getEnrolledStudentsBySubject = async (context, result = createServiceRespo
   })
 
   const students = enrolledStudents
-    .filter(({ student }) => student?.user?.isActive)
+    .filter(({ student }) => student?.user?.isActive && !student.user.deletedAt)
     .map(({ student }) => ({
       id: student.id,
       userId: student.user.id,

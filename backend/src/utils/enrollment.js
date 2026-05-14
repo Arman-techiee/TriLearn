@@ -85,7 +85,7 @@ const syncStudentEnrollmentForSemester = async ({ studentId, semester, departmen
 
 const getMatchingStudentFilter = (semester, department) => ({
   semester,
-  user: { isActive: true },
+  user: { isActive: true, deletedAt: null },
   ...(department ? { department } : {})
 })
 

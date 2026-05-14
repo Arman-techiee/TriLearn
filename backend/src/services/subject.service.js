@@ -7,6 +7,19 @@ const {
   syncMatchingStudentsForSubject
 } = require('../utils/enrollment')
 
+const activeStudentEnrollmentWhere = {
+  student: {
+    user: {
+      isActive: true,
+      deletedAt: null
+    }
+  }
+}
+
+const activeEnrollmentCountSelect = {
+  where: activeStudentEnrollmentWhere
+}
+
 const ensureCoordinatorDepartmentScope = async (context, result, departmentValue, message = 'You can only manage subjects in your own department') => {
   if (context.user.role !== 'COORDINATOR') {
     return null
@@ -108,7 +121,7 @@ const subjectListInclude = {
       assignments: true,
       materials: true,
       attendances: true,
-      enrollments: true
+      enrollments: activeEnrollmentCountSelect
     }
   }
 }
@@ -120,7 +133,7 @@ const buildContainsSearch = (search) => ({
 
 const getEnrollmentTargetStudents = async (subject) => prisma.student.findMany({
   where: {
-    user: { isActive: true },
+    user: { isActive: true, deletedAt: null },
     semester: subject.semester,
     ...(subject.department ? { department: subject.department } : {})
   },
@@ -264,6 +277,7 @@ const getSubjectById = async (context, result = createServiceResponder()) => {
         }
       },
       enrollments: {
+        where: activeStudentEnrollmentWhere,
         include: {
           student: {
             include: {
@@ -286,7 +300,7 @@ const getSubjectById = async (context, result = createServiceResponder()) => {
           materials: true,
           attendances: true,
           marks: true,
-          enrollments: true
+          enrollments: activeEnrollmentCountSelect
         }
       }
     }
@@ -506,6 +520,7 @@ const getSubjectEnrollments = async (context, result = createServiceResponder())
         }
       },
       enrollments: {
+        where: activeStudentEnrollmentWhere,
         include: {
           student: {
             include: {
@@ -601,7 +616,8 @@ const updateSubjectEnrollments = async (context, result = createServiceResponder
 
   const students = await prisma.student.findMany({
     where: {
-      id: { in: studentIds }
+      id: { in: studentIds },
+      user: { isActive: true, deletedAt: null }
     },
     select: { id: true }
   })
@@ -624,7 +640,10 @@ const updateSubjectEnrollments = async (context, result = createServiceResponder
   ])
 
   const enrollmentCount = await prisma.subjectEnrollment.count({
-    where: { subjectId: id }
+    where: {
+      subjectId: id,
+      ...activeStudentEnrollmentWhere
+    }
   })
 
   result.ok({

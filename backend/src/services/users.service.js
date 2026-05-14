@@ -1234,6 +1234,12 @@ const deleteUser = async (context, result = createServiceResponder()) => {
       }
     })
 
+    if (user.student && tx.subjectEnrollment) {
+      await tx.subjectEnrollment.deleteMany({
+        where: { studentId: user.student.id }
+      })
+    }
+
     // Revoke all active sessions for the deleted user
     await tx.refreshToken.updateMany({
       where: { userId: user.id, revokedAt: null },
