@@ -56,6 +56,7 @@ PGPOOL_MAX=5
 PGPOOL_MIN=0
 PGPOOL_IDLE_TIMEOUT_MS=10000
 PGPOOL_CONNECTION_TIMEOUT_MS=10000
+PGSSL_REJECT_UNAUTHORIZED=false
 ```
 
 Use Supabase's **Session pooler** URL for a persistent Render web service when

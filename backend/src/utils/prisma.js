@@ -12,8 +12,43 @@ const parseInteger = (value, fallback) => {
   return Number.isNaN(parsed) ? fallback : parsed
 }
 
+const parseBoolean = (value, fallback) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback
+  }
+
+  return String(value).trim().toLowerCase() === 'true'
+}
+
+const buildConnectionOptions = (connectionString) => {
+  const options = {
+    connectionString
+  }
+
+  try {
+    const parsedUrl = new URL(connectionString)
+    const sslMode = String(parsedUrl.searchParams.get('sslmode') || '').toLowerCase()
+
+    if (sslMode === 'require' || sslMode === 'no-verify') {
+      parsedUrl.searchParams.delete('sslmode')
+      options.connectionString = parsedUrl.toString()
+      options.ssl = {
+        rejectUnauthorized: parseBoolean(process.env.PGSSL_REJECT_UNAUTHORIZED, false)
+      }
+    }
+  } catch {
+    if (process.env.PGSSL_REJECT_UNAUTHORIZED !== undefined) {
+      options.ssl = {
+        rejectUnauthorized: parseBoolean(process.env.PGSSL_REJECT_UNAUTHORIZED, false)
+      }
+    }
+  }
+
+  return options
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  ...buildConnectionOptions(process.env.DATABASE_URL),
   max: parseInteger(process.env.PGPOOL_MAX, 10),
   min: parseInteger(process.env.PGPOOL_MIN, 0),
   idleTimeoutMillis: parseInteger(process.env.PGPOOL_IDLE_TIMEOUT_MS, 10000),

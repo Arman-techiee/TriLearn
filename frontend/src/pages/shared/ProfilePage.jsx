@@ -336,7 +336,7 @@ const ProfilePage = () => {
           {profile?.role === ROLES.STUDENT ? (
             <div>
               <label className="mb-1 block text-sm font-medium text-[--color-text-muted] dark:text-slate-400">Section</label>
-              <input value={form.section} onChange={(e) => setForm((current) => ({ ...current, section: e.target.value.toUpperCase() }))} className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 px-4 py-2" />
+              <input value={form.section} disabled className="w-full rounded-lg border border-[--color-border] dark:border-slate-700 bg-[--color-bg] dark:bg-slate-900 px-4 py-2 text-[--color-text-muted] dark:text-slate-400" />
             </div>
           ) : null}
           {profile?.role === ROLES.STUDENT ? (
