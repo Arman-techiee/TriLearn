@@ -101,12 +101,24 @@ const uploadFile = async (fileBuffer, fileName, mimeType) => {
 
   if (s3Config && s3) {
     const { PutObjectCommand } = require('@aws-sdk/client-s3')
-    await s3.send(new PutObjectCommand({
-      Bucket: s3Config.bucket,
-      Key: fileName,
-      Body: fileBuffer,
-      ContentType: mimeType
-    }))
+    try {
+      await s3.send(new PutObjectCommand({
+        Bucket: s3Config.bucket,
+        Key: fileName,
+        Body: fileBuffer,
+        ContentType: mimeType
+      }))
+    } catch (error) {
+      logger.error('S3 upload failed', {
+        message: error.message,
+        stack: error.stack,
+        bucket: s3Config.bucket,
+        region: s3Config.region,
+        endpoint: s3Config.endpoint || null,
+        forcePathStyle: s3Config.forcePathStyle
+      })
+      throw error
+    }
 
     return {
       url: buildUploadedFileUrl({ filename: fileName })

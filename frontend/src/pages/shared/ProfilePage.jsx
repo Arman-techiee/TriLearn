@@ -163,7 +163,10 @@ const ProfilePage = () => {
       setSaving(true)
       setError('')
       const endpoint = profile?.role === ROLES.STUDENT && !profile?.profileCompleted ? '/auth/complete-profile' : '/auth/profile'
-      const res = await api.patch(endpoint, form)
+      const payload = profile?.role === ROLES.STUDENT && profile?.profileCompleted
+        ? Object.fromEntries(Object.entries(form).filter(([key]) => key !== 'section'))
+        : form
+      const res = await api.patch(endpoint, payload)
       const nextUser = res.data.user
       const nextForm = buildFormState(nextUser)
       setProfile(nextUser)

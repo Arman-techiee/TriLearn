@@ -2,10 +2,18 @@ const nodemailer = require('nodemailer')
 const https = require('https')
 const logger = require('./logger')
 
+const parseBoolean = (value, fallback) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback
+  }
+
+  return String(value).trim().toLowerCase() === 'true'
+}
+
 const createTransport = () => nodemailer.createTransport({
   host: process.env.RESEND_SMTP_HOST,
   port: Number(process.env.RESEND_SMTP_PORT) || 587,
-  secure: process.env.RESEND_SMTP_PORT === '465',
+  secure: parseBoolean(process.env.RESEND_SMTP_SECURE, process.env.RESEND_SMTP_PORT === '465'),
   // Fail fast on SMTP connectivity issues so API handlers don't hang for long.
   connectionTimeout: 10_000,
   greetingTimeout: 10_000,
