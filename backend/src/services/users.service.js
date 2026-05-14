@@ -376,13 +376,13 @@ const coordinatorCanManageUser = (context, user) => {
  * @returns {Promise<object>} Service result
  */
 const getAllUsers = async (context, result = createServiceResponder()) => {
-    const { role, isActive, search, includeAssignable, semester, section, graduated } = context.query
+    const { role, excludeRole, isActive, search, includeAssignable, semester, section, graduated } = context.query
   const { page, limit, skip } = getPagination(context.query)
 
   const filters = { deletedAt: null }
   const andFilters = []
   if (context.user?.role === 'COORDINATOR') {
-    const allowedRoles = ['STUDENT', 'INSTRUCTOR', 'GATEKEEPER']
+    const allowedRoles = ['STUDENT', 'INSTRUCTOR', 'GATEKEEPER'].filter((allowedRole) => allowedRole !== excludeRole)
     const canSearchAssignableInstructors = includeAssignable === 'true' && role === 'INSTRUCTOR'
     const coordinatorDepartments = getCoordinatorDepartments(context)
 
@@ -401,7 +401,7 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
     if (coordinatorDepartments.length > 0) {
       const departmentScopedRoles = []
 
-      if (!role || role === 'STUDENT') {
+      if ((!role || role === 'STUDENT') && allowedRoles.includes('STUDENT')) {
         departmentScopedRoles.push({
           role: 'STUDENT',
           student: {
@@ -414,7 +414,7 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
         })
       }
 
-      if (!role || role === 'INSTRUCTOR') {
+      if ((!role || role === 'INSTRUCTOR') && allowedRoles.includes('INSTRUCTOR')) {
         departmentScopedRoles.push({
           role: 'INSTRUCTOR',
           instructor: {
@@ -444,7 +444,7 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
         })
       }
 
-      if (!role || role === 'GATEKEEPER') {
+      if ((!role || role === 'GATEKEEPER') && allowedRoles.includes('GATEKEEPER')) {
         departmentScopedRoles.push({
           role: 'GATEKEEPER',
           gatekeeper: {
@@ -463,6 +463,8 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
     }
   } else if (role) {
     filters.role = role
+  } else if (excludeRole) {
+    filters.role = { not: excludeRole }
   }
 
   if (isActive !== undefined) filters.isActive = isActive === 'true'

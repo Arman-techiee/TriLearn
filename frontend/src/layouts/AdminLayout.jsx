@@ -39,7 +39,8 @@ const AdminLayout = ({ children }) => {
   }
 
   const topItems = [
-    { path: `${basePath}/routine`, label: 'Routine', icon: CalendarDays },
+    { path: `${basePath}/routine`, label: 'Routine Setup', icon: CalendarDays },
+    { path: `${basePath}/routine/view`, label: 'Routine View', icon: FileText },
     { path: `${basePath}/notices`, label: 'Notices', icon: Bell },
     { path: `${basePath}/applications`, label: 'Admissions', icon: FileText },
     { path: `${basePath}/student-qr`, label: 'QR Slots', icon: Percent }

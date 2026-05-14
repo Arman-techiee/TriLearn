@@ -32,8 +32,8 @@ const initialUserValues = {
   section: ''
 }
 
-const allVisibleRoles = ['', ROLES.ADMIN, ROLES.COORDINATOR, ROLES.GATEKEEPER, ROLES.INSTRUCTOR, ROLES.STUDENT]
-const coordinatorVisibleRoles = ['', ROLES.GATEKEEPER, ROLES.INSTRUCTOR, ROLES.STUDENT]
+const allVisibleRoles = ['', ROLES.ADMIN, ROLES.COORDINATOR, ROLES.GATEKEEPER, ROLES.INSTRUCTOR]
+const coordinatorVisibleRoles = ['', ROLES.GATEKEEPER, ROLES.INSTRUCTOR]
 const semesterFilterOptions = [
   { value: '', label: 'All semesters' },
   ...Array.from({ length: 8 }, (_, index) => ({
@@ -272,6 +272,8 @@ const Users = () => {
 
       if (filterRole) {
         params.set('role', filterRole)
+      } else {
+        params.set('excludeRole', ROLES.STUDENT)
       }
       if (semesterFilter === 'graduate') {
         params.set('graduated', 'true')
@@ -799,7 +801,7 @@ const Users = () => {
 
         <PageHeader
           title="Users"
-          subtitle={isCoordinator ? 'Manage instructors, gate staff, and students in your department with clean operational controls.' : 'Manage all users in TriLearn'}
+          subtitle={isCoordinator ? 'Manage instructors and gate staff in your department with clean operational controls.' : 'Manage coordinators, admins, instructors, and gate staff.'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Users']}
           actions={[
             ...(isCoordinator
@@ -811,8 +813,7 @@ const Users = () => {
                   { label: 'Add Coordinator', icon: UserPlus, variant: 'primary', onClick: () => openModal('coordinator') },
                   { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') },
                   { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') }
-                ]),
-            { label: 'Add Student', icon: UserPlus, variant: 'primary', onClick: () => openModal('student') }
+                ])
           ]}
         />
 

@@ -65,11 +65,11 @@ const UserTable = ({
               action={(
                 <button
                   type="button"
-                  onClick={() => openModal(filterRole === ROLES.INSTRUCTOR ? 'instructor' : 'student')}
+                  onClick={() => openModal(filterRole === ROLES.STUDENT ? 'student' : filterRole === ROLES.GATEKEEPER ? 'gatekeeper' : filterRole === ROLES.COORDINATOR ? 'coordinator' : 'instructor')}
                   className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-role-accent)] px-4 py-2 text-sm font-medium text-white"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>{filterRole === ROLES.INSTRUCTOR ? 'Add Instructor' : 'Add Student'}</span>
+                  <span>{filterRole === ROLES.STUDENT ? 'Add Student' : filterRole === ROLES.GATEKEEPER ? 'Add Gate Account' : filterRole === ROLES.COORDINATOR ? 'Add Coordinator' : 'Add Instructor'}</span>
                 </button>
               )}
             />

@@ -46,6 +46,36 @@ const normalizeSectionValue = (value) => {
   const sanitizedSection = sanitizeOptionalPlainText(value)
   return sanitizedSection ? sanitizedSection.toUpperCase() : null
 }
+const buildStudentIdPrefix = (department, date = new Date()) => {
+  const code = String(department?.code || department?.name || 'STU')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '')
+    .slice(0, 10) || 'STU'
+
+  return `${code}-${date.getFullYear()}`
+}
+
+const generateStudentId = async (department) => {
+  const prefix = buildStudentIdPrefix(department)
+  const existingStudents = await prisma.student.findMany({
+    where: {
+      rollNumber: {
+        startsWith: `${prefix}-`
+      }
+    },
+    select: { rollNumber: true }
+  })
+
+  const highestSequence = existingStudents.reduce((highest, student) => {
+    const match = new RegExp(`^${prefix}-(\\d+)$`).exec(student.rollNumber)
+    if (!match) return highest
+    return Math.max(highest, Number.parseInt(match[1], 10) || 0)
+  }, 0)
+
+  return `${prefix}-${String(highestSequence + 1).padStart(3, '0')}`
+}
+
 const getDepartmentSectionDelegate = () => (
   prisma?.departmentSection &&
   typeof prisma.departmentSection.findFirst === 'function' &&
@@ -201,8 +231,7 @@ const updateStudentApplicationStatus = async (context, result = createServiceRes
  */
 const createStudentFromApplication = async (context, result = createServiceResponder()) => {
     const { id } = context.params
-  const { studentId, department, semester, section } = context.body
-  const normalizedStudentId = studentId.trim().toUpperCase()
+  const { department, semester, section } = context.body
   const normalizedDepartment = department.trim()
   const normalizedSection = normalizeSectionValue(section || '')
 
@@ -246,21 +275,13 @@ const createStudentFromApplication = async (context, result = createServiceRespo
   const normalizedApplicationEmail = normalizeEmail(application.email)
 
   await deleteStaleDeletedStudentAccounts(prisma, {
-    emails: [normalizedApplicationEmail],
-    studentIds: [normalizedStudentId]
+    emails: [normalizedApplicationEmail]
   })
 
-  const [existingUser, existingStudent] = await Promise.all([
-    prisma.user.findUnique({ where: { email: normalizedApplicationEmail } }),
-    prisma.student.findUnique({ where: { rollNumber: normalizedStudentId } })
-  ])
+  const existingUser = await prisma.user.findUnique({ where: { email: normalizedApplicationEmail } })
 
   if (existingUser) {
     return result.withStatus(400, { message: 'An account already exists with the application email address' })
-  }
-
-  if (existingStudent) {
-    return result.withStatus(400, { message: 'Student ID already exists' })
   }
 
   const sectionToAssign = normalizedSection || normalizeSectionValue(application.preferredSection)
@@ -281,6 +302,7 @@ const createStudentFromApplication = async (context, result = createServiceRespo
   const temporaryPassword = generateTemporaryPassword()
   const hashedPassword = await hashPassword(temporaryPassword)
   const emailVerification = createEmailVerificationToken()
+  const normalizedStudentId = await generateStudentId(validDepartment)
 
   const user = await prisma.user.create({
     data: {

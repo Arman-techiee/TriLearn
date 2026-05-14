@@ -14,8 +14,8 @@ const inferRoutineLink = (role) => (
     : role === 'INSTRUCTOR'
       ? '/instructor/routine'
       : role === 'COORDINATOR'
-        ? '/coordinator/routine'
-        : '/admin/routine'
+        ? '/coordinator/routine/view'
+        : '/admin/routine/view'
 )
 
 module.exports = {

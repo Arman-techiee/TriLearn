@@ -56,7 +56,7 @@ const UserFilters = ({
         className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
       />
     </div>
-    {(filterRole === '' || filterRole === ROLES.STUDENT) && (
+    {showStudentTools && (filterRole === '' || filterRole === ROLES.STUDENT) && (
       <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
@@ -135,6 +135,7 @@ const UserFilters = ({
         </button>
       ))}
     </div>
+    {showStudentTools ? (
     <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
       <div className="flex flex-col gap-3">
         <div>
@@ -226,6 +227,7 @@ const UserFilters = ({
         </div>
       </div>
     </div>
+    ) : null}
   </div>
 )
 

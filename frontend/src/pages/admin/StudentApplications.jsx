@@ -33,7 +33,6 @@ const StudentApplications = () => {
   const { departments, loadDepartments } = useReferenceData()
   const [applicationToDelete, setApplicationToDelete] = useState(null)
   const [accountForm, setAccountForm] = useState({
-    studentId: '',
     department: '',
     semester: '1',
     section: ''
@@ -78,7 +77,6 @@ const StudentApplications = () => {
 
     setSelectedApplication(application)
     setAccountForm({
-      studentId: '',
       department: matchingDepartment?.name || '',
       semester: '1',
       section: ''
@@ -98,10 +96,6 @@ const StudentApplications = () => {
 
   const createAccount = async () => {
     if (!selectedApplication) return
-    if (!accountForm.studentId.trim()) {
-      setError('Please enter the institution student ID before creating the account.')
-      return
-    }
     if (!accountForm.department.trim()) {
       setError('Please select a valid department before creating the account.')
       return
@@ -110,15 +104,14 @@ const StudentApplications = () => {
       setCreatingAccount(true)
       setError('')
       const res = await api.post(`/admin/student-applications/${selectedApplication.id}/create-account`, {
-        studentId: accountForm.studentId,
         department: accountForm.department,
         semester: parseInt(accountForm.semester, 10),
         section: accountForm.section
       })
       setSuccess(
         res.data.welcomeEmailSent
-          ? `Student account created. Login email: ${res.data.user.email}. Temporary login instructions were sent by email.`
-          : `Student account created. Login email: ${res.data.user.email}. The welcome email could not be delivered.`
+          ? `Student account created with ID ${res.data.user.rollNumber}. Login email: ${res.data.user.email}. Temporary login instructions were sent by email.`
+          : `Student account created with ID ${res.data.user.rollNumber}. Login email: ${res.data.user.email}. The welcome email could not be delivered.`
       )
       setSelectedApplication(null)
       fetchApplications()
@@ -272,7 +265,10 @@ const StudentApplications = () => {
               <div className="space-y-3 rounded-xl border border-[var(--color-card-border)] p-4">
                 <h3 className="font-semibold text-[var(--color-heading)]">Create Student Account</h3>
                 {error ? <Alert type="error" message={error} /> : null}
-                <input value={accountForm.studentId} onChange={(e) => setAccountForm((current) => ({ ...current, studentId: e.target.value }))} placeholder="Institution Student ID" className="ui-form-input" />
+                <div className="rounded-lg border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2">
+                  <p className="text-xs font-medium text-[var(--color-text-muted)]">Student ID</p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--color-heading)]">Generated automatically when the account is created</p>
+                </div>
                 <select value={accountForm.department} onChange={(e) => setAccountForm((current) => ({ ...current, department: e.target.value }))} className="ui-form-input">
                   <option value="">Select Department</option>
                   {departments.map((department) => (

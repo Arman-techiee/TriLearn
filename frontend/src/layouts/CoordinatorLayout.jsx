@@ -39,7 +39,8 @@ const CoordinatorLayout = ({ children }) => {
   ]), [])
 
   const topItems = [
-    { path: `${basePath}/routine`, label: 'Routine', icon: CalendarDays },
+    { path: `${basePath}/routine`, label: 'Routine Setup', icon: CalendarDays },
+    { path: `${basePath}/routine/view`, label: 'Routine View', icon: FileText },
     { path: `${basePath}/notices`, label: 'Notices', icon: Bell },
     { path: `${basePath}/requests`, label: 'Requests', icon: ClipboardList },
     { path: `${basePath}/applications`, label: 'Admissions', icon: FileText },

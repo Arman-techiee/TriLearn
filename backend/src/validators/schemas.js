@@ -478,6 +478,7 @@ const schemas = {
       query: z.object({
         ...paginationQuery,
         role: roleEnum.optional(),
+        excludeRole: roleEnum.optional(),
         isActive: z.enum(['true', 'false']).optional(),
         search: searchQuery,
         semester: z.preprocess(emptyToUndefined, studentSemesterSchema.optional()),
@@ -557,7 +558,6 @@ const schemas = {
     createStudentFromApplication: {
       params: uuidParam,
       body: z.object({
-        studentId: z.string().trim().min(1).max(50),
         department: z.string().trim().min(2).max(100),
         semester: studentSemesterSchema,
         section: optionalString(20)

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, DoorOpen, Layers, Plus, Save, UserCheck } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
 import Alert from '../../components/Alert'
-import ConfirmDialog from '../../components/ConfirmDialog'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import Modal from '../../components/Modal'
 import PageHeader from '../../components/PageHeader'
@@ -21,18 +20,7 @@ const getInstructorDepartments = (instructor) => (
     : [instructor?.instructor?.department].filter(Boolean)
 )
 
-const COLORS = [
-  'routine-tone-1',
-  'routine-tone-2',
-  'routine-tone-3',
-  'routine-tone-4',
-  'routine-tone-5',
-  'routine-tone-6',
-  'routine-tone-7',
-]
-
 const SEMESTER_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1))
-const ALL_SECTION_FILTER_KEY = '__ALL_SECTIONS__'
 const generateCombinedGroupId = () => {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
     return globalThis.crypto.randomUUID()
@@ -49,6 +37,30 @@ const generateCombinedGroupId = () => {
 
   return null
 }
+
+const minutesFromTime = (value) => {
+  const [hours, minutes] = String(value || '').split(':').map((part) => Number.parseInt(part, 10))
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return null
+  }
+
+  return (hours * 60) + minutes
+}
+
+const timeRangesOverlap = (leftStart, leftEnd, rightStart, rightEnd) => {
+  const leftStartMinutes = minutesFromTime(leftStart)
+  const leftEndMinutes = minutesFromTime(leftEnd)
+  const rightStartMinutes = minutesFromTime(rightStart)
+  const rightEndMinutes = minutesFromTime(rightEnd)
+
+  if ([leftStartMinutes, leftEndMinutes, rightStartMinutes, rightEndMinutes].some((value) => value === null)) {
+    return false
+  }
+
+  return leftStartMinutes < rightEndMinutes && rightStartMinutes < leftEndMinutes
+}
+
+const formatSectionLabel = (section) => section || 'All sections'
 
 const defaultForm = {
   subjectId: '',
@@ -73,16 +85,9 @@ const AdminRoutine = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editRoutine, setEditRoutine] = useState(null)
-  const [routineToDelete, setRoutineToDelete] = useState(null)
-  const [deletingRoutine, setDeletingRoutine] = useState(false)
   const [form, setForm] = useState(defaultForm)
-  const [createSectionScope, setCreateSectionScope] = useState('UNSET')
+  const [createSectionScope, setCreateSectionScope] = useState('ONE')
   const [createSectionsInput, setCreateSectionsInput] = useState('')
-  const [viewFilters, setViewFilters] = useState({
-    department: 'ALL',
-    semester: 'ALL',
-    sections: []
-  })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
@@ -148,6 +153,16 @@ const AdminRoutine = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (hasInvalidTimeRange) {
+      setError('End time must be after start time.')
+      return
+    }
+
+    if (scheduleConflicts.length > 0) {
+      setError('Resolve the highlighted room, instructor, or section conflict before saving this routine.')
+      return
+    }
+
     try {
       const basePayload = {
         ...form,
@@ -197,48 +212,13 @@ const AdminRoutine = () => {
       setShowModal(false)
       setEditRoutine(null)
       setForm(defaultForm)
-      setCreateSectionScope('UNSET')
+      setCreateSectionScope('ONE')
       setCreateSectionsInput('')
       fetchRoutines()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     }
-  }
-
-  const handleDelete = async () => {
-    if (!routineToDelete) return
-    try {
-      setDeletingRoutine(true)
-      await api.delete(`/routines/${routineToDelete.id}`)
-      setRoutineToDelete(null)
-      setSuccess('Deleted!')
-      fetchRoutines()
-      setTimeout(() => setSuccess(''), 3000)
-    } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong')
-    } finally {
-      setDeletingRoutine(false)
-    }
-  }
-
-  const openEdit = (r) => {
-    setEditRoutine(r)
-    setForm({
-      subjectId: r.subjectId,
-      instructorId: r.instructorId,
-      department: r.department || '',
-      semester: String(r.semester),
-      section: r.section || '',
-      dayOfWeek: r.dayOfWeek,
-      startTime: r.startTime,
-      endTime: r.endTime,
-      room: r.room || ''
-    })
-    setCreateSectionScope(r.section ? 'ONE' : 'ALL')
-    setCreateSectionsInput(r.section || '')
-    setError('')
-    setShowModal(true)
   }
 
   const normalizeValue = useCallback((value) => String(value || '').trim().toLowerCase(), [])
@@ -338,12 +318,12 @@ const AdminRoutine = () => {
   }
 
   const isCreateMode = !editRoutine
-  const parsedCreateSections = [...new Set(
+  const parsedCreateSections = useMemo(() => ([...new Set(
     createSectionsInput
       .split(',')
       .map((value) => value.trim().toUpperCase())
       .filter(Boolean)
-  )]
+  )]), [createSectionsInput])
   const createScopeReady = !isCreateMode
     || (
       Boolean(form.department.trim())
@@ -354,6 +334,112 @@ const AdminRoutine = () => {
         || (createSectionScope === 'MULTIPLE' && parsedCreateSections.length > 0)
       )
     )
+
+  const selectedSubject = subjects.find((subject) => subject.id === form.subjectId)
+  const selectedInstructor = instructors.find((instructor) => instructor.instructor?.id === form.instructorId)
+  const selectedCreateSections = useMemo(() => (
+    createSectionScope === 'MULTIPLE'
+      ? parsedCreateSections
+      : [createSectionScope === 'ONE' ? form.section.trim().toUpperCase() : '']
+  ), [createSectionScope, form.section, parsedCreateSections])
+  const canCheckConflicts = Boolean(
+    form.dayOfWeek &&
+    form.startTime &&
+    form.endTime &&
+    form.department &&
+    form.semester
+  )
+  const hasInvalidTimeRange = (
+    form.startTime &&
+    form.endTime &&
+    minutesFromTime(form.startTime) !== null &&
+    minutesFromTime(form.endTime) !== null &&
+    minutesFromTime(form.startTime) >= minutesFromTime(form.endTime)
+  )
+
+  const scheduleConflicts = useMemo(() => {
+    if (!canCheckConflicts || hasInvalidTimeRange) {
+      return []
+    }
+
+    const sectionTargets = selectedCreateSections.length > 0 ? selectedCreateSections : ['']
+
+    return routines.flatMap((routine) => {
+      if (editRoutine?.id === routine.id) {
+        return []
+      }
+
+      if (routine.dayOfWeek !== form.dayOfWeek || !timeRangesOverlap(form.startTime, form.endTime, routine.startTime, routine.endTime)) {
+        return []
+      }
+
+      const conflicts = []
+      const routineDepartmentMatches = normalizeDepartmentKey(routine.department) === normalizeDepartmentKey(form.department)
+      const routineSemesterMatches = String(routine.semester) === String(form.semester)
+      const routineSection = routine.section?.trim().toUpperCase() || ''
+      const sectionMatches = sectionTargets.some((section) => (
+        routineDepartmentMatches &&
+        routineSemesterMatches &&
+        (section === routineSection || section === '' || routineSection === '')
+      ))
+      const roomMatches = form.room.trim() && routine.room?.trim().toLowerCase() === form.room.trim().toLowerCase()
+      const instructorMatches = form.instructorId && routine.instructorId === form.instructorId
+
+      if (roomMatches) {
+        conflicts.push({
+          key: `${routine.id}-room`,
+          type: 'Room',
+          title: `${routine.room} is already booked`,
+          detail: `${routine.subject?.code || 'Class'} uses this room on ${DAY_SHORT[routine.dayOfWeek]} ${routine.startTime}-${routine.endTime}.`
+        })
+      }
+
+      if (instructorMatches) {
+        conflicts.push({
+          key: `${routine.id}-instructor`,
+          type: 'Instructor',
+          title: `${routine.instructor?.user?.name || 'Instructor'} is already assigned`,
+          detail: `${routine.subject?.code || 'Class'} runs on ${DAY_SHORT[routine.dayOfWeek]} ${routine.startTime}-${routine.endTime}.`
+        })
+      }
+
+      if (sectionMatches) {
+        conflicts.push({
+          key: `${routine.id}-section`,
+          type: 'Section',
+          title: `${routine.department || 'General'} semester ${routine.semester} ${formatSectionLabel(routine.section)} has a class`,
+          detail: `${routine.subject?.code || 'Class'} already occupies ${routine.startTime}-${routine.endTime}.`
+        })
+      }
+
+      return conflicts
+    })
+  }, [
+    canCheckConflicts,
+    editRoutine?.id,
+    form.dayOfWeek,
+    form.department,
+    form.endTime,
+    form.instructorId,
+    form.room,
+    form.semester,
+    form.startTime,
+    hasInvalidTimeRange,
+    normalizeDepartmentKey,
+    routines,
+    selectedCreateSections
+  ])
+
+  const hasBlockingConflict = scheduleConflicts.length > 0 || hasInvalidTimeRange
+  const selectedScopeLabel = form.department && form.semester
+    ? `${form.department} / Semester ${form.semester} / ${
+        createSectionScope === 'MULTIPLE'
+          ? (parsedCreateSections.join(', ') || 'Multiple sections')
+          : createSectionScope === 'ONE'
+            ? (form.section || 'Select section')
+            : 'All sections'
+      }`
+    : 'Choose department, semester, and section'
 
   useEffect(() => {
     if (!isCreateMode || createSectionScope !== 'ONE') {
@@ -374,92 +460,24 @@ const AdminRoutine = () => {
     }
   }, [configuredSectionOptions, createSectionScope, form.department, form.section, form.semester, isCreateMode])
 
-  const availableDepartmentFilters = useMemo(() => (
-    [...new Set(
-      [
-        ...departments.map((department) => department.name),
-        ...routines.map((routine) => routine.department).filter(Boolean)
-      ].map((department) => department.trim())
-    )].sort((left, right) => left.localeCompare(right))
-  ), [departments, routines])
-
-  const availableSemesterFilters = SEMESTER_OPTIONS
-
-  const availableSectionFilters = useMemo(() => (
-    [...new Set(
-      routines
-        .filter((routine) => (
-          (viewFilters.department === 'ALL' || normalizeDepartmentKey(routine.department) === normalizeDepartmentKey(viewFilters.department))
-          && (viewFilters.semester === 'ALL' || String(routine.semester) === String(viewFilters.semester))
-        ))
-        .map((routine) => routine.section?.trim().toUpperCase() || ALL_SECTION_FILTER_KEY)
-    )].sort((left, right) => left.localeCompare(right))
-  ), [normalizeDepartmentKey, routines, viewFilters.department, viewFilters.semester])
-
-  const displayedRoutines = useMemo(() => (
-    routines.filter((routine) => {
-      const departmentMatches = viewFilters.department === 'ALL'
-        || normalizeDepartmentKey(routine.department) === normalizeDepartmentKey(viewFilters.department)
-
-      const semesterMatches = viewFilters.semester === 'ALL'
-        || String(routine.semester) === String(viewFilters.semester)
-
-      const sectionKey = routine.section?.trim().toUpperCase() || ALL_SECTION_FILTER_KEY
-      const sectionMatches = viewFilters.sections.length === 0
-        || viewFilters.sections.includes(sectionKey)
-
-      return departmentMatches && semesterMatches && sectionMatches
-    })
-  ), [normalizeDepartmentKey, routines, viewFilters.department, viewFilters.sections, viewFilters.semester])
-
-  const byDay = DAYS.reduce((acc, day) => {
-    acc[day] = displayedRoutines.filter(r => r.dayOfWeek === day).sort((a, b) => a.startTime.localeCompare(b.startTime))
-    return acc
-  }, {})
-
-  const subjectColorMap = {}
-  displayedRoutines.forEach((r) => {
-    if (!subjectColorMap[r.subjectId]) {
-      subjectColorMap[r.subjectId] = COLORS[Object.keys(subjectColorMap).length % COLORS.length]
-    }
-  })
-
-  const selectedSectionLabels = viewFilters.sections.map((section) => (
-    section === ALL_SECTION_FILTER_KEY ? 'All Sections Entries' : section
-  ))
-
-  const handleToggleSectionFilter = (section) => {
-    setViewFilters((current) => {
-      const selected = current.sections.includes(section)
-      return {
-        ...current,
-        sections: selected
-          ? current.sections.filter((item) => item !== section)
-          : [...current.sections, section]
-      }
-    })
-  }
-
   return (
     <Layout>
       <div className={pageClassName}>
 
         <PageHeader
           title="Class Routine"
-          subtitle={isCoordinator ? 'Coordinate weekly department timetable by semester, section, instructor, and room.' : 'Manage weekly timetable'}
+          subtitle={isCoordinator ? 'Build department schedules by semester and section with live room and instructor checks.' : 'Build schedules by department, semester, section, instructor, and room.'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Routine']}
           actions={[{
-            label: 'Add Class',
-            icon: Plus,
-            variant: 'primary',
+            label: 'Reset Builder',
+            icon: Layers,
+            variant: 'secondary',
             onClick: () => {
               setEditRoutine(null)
-              setForm({
-                ...defaultForm
-              })
-              setCreateSectionScope('UNSET')
+              setForm(defaultForm)
+              setCreateSectionScope('ONE')
+              setCreateSectionsInput('')
               setError('')
-              setShowModal(true)
             }
           }]}
         />
@@ -471,233 +489,300 @@ const AdminRoutine = () => {
           <LoadingSkeleton rows={4} itemClassName="h-40" />
         ) : (
           <>
-            <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="ui-card rounded-2xl p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Visible Classes</p>
-                <p className="mt-2 text-2xl font-black text-[var(--color-heading)]">{displayedRoutines.length}</p>
-              </div>
-              <div className="ui-card rounded-2xl p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Filtered Department</p>
-                <p className="mt-2 text-sm font-semibold text-[var(--color-heading)]">{viewFilters.department === 'ALL' ? 'All Departments' : viewFilters.department}</p>
-              </div>
-              <div className="ui-card rounded-2xl p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Filtered Semester</p>
-                <p className="mt-2 text-sm font-semibold text-[var(--color-heading)]">{viewFilters.semester === 'ALL' ? 'All Semesters' : `Semester ${viewFilters.semester}`}</p>
-              </div>
-              <div className="ui-card rounded-2xl p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Selected Sections</p>
-                <p className="mt-2 text-sm font-semibold text-[var(--color-heading)]">{selectedSectionLabels.length || 'All'}</p>
-              </div>
-            </div>
-
-            <div className="ui-card mb-6 rounded-2xl p-4 md:p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold text-[var(--color-heading)]">Routine Filters</h2>
-                <button
-                  type="button"
-                  onClick={() => setViewFilters({ department: 'ALL', semester: 'ALL', sections: [] })}
-                  className="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-heading)]"
-                >
-                  Reset All
-                </button>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <label className="ui-form-label">Department</label>
-                  <select
-                    className="ui-form-input"
-                    value={viewFilters.department}
-                    onChange={(e) => setViewFilters((current) => ({ ...current, department: e.target.value, sections: [] }))}
-                  >
-                    <option value="ALL">All Departments</option>
-                    {availableDepartmentFilters.map((department) => (
-                      <option key={department} value={department}>{department}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="ui-form-label">Semester</label>
-                  <select
-                    className="ui-form-input"
-                    value={viewFilters.semester}
-                    onChange={(e) => setViewFilters((current) => ({ ...current, semester: e.target.value, sections: [] }))}
-                  >
-                    <option value="ALL">All Semesters</option>
-                    {availableSemesterFilters.map((semester) => (
-                      <option key={semester} value={semester}>Semester {semester}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="ui-form-label mb-0">Sections (Multi-select)</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setViewFilters((current) => ({ ...current, sections: [...availableSectionFilters] }))}
-                      className="rounded-lg border border-[var(--color-card-border)] px-2.5 py-1 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-                    >
-                      Select All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewFilters((current) => ({ ...current, sections: [] }))}
-                      className="rounded-lg border border-[var(--color-card-border)] px-2.5 py-1 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-3">
-                  {availableSectionFilters.length === 0 ? (
-                    <p className="text-sm text-[var(--color-text-soft)]">No sections available for the current department-semester filter.</p>
-                  ) : (
-                    <div className="grid max-h-40 gap-2 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-                      {availableSectionFilters.map((section) => {
-                        const selected = viewFilters.sections.includes(section)
-                        const label = section === ALL_SECTION_FILTER_KEY ? 'All Sections Entries' : section
-                        return (
-                          <label
-                            key={section}
-                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-xs transition ${
-                              selected
-                                ? 'border-transparent ui-role-fill text-white'
-                                : 'border-[var(--color-card-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => handleToggleSectionFilter(section)}
-                              className="h-3.5 w-3.5 accent-[var(--color-role-accent)]"
-                            />
-                            <span className="truncate">{label}</span>
-                          </label>
-                        )
-                      })}
+            <form onSubmit={handleSubmit} className="mb-6 overflow-hidden rounded-[1.5rem] border border-[var(--color-card-border)] bg-[var(--color-card-surface)] shadow-sm dark:shadow-slate-900/40">
+              <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+                <section className="border-b border-[var(--color-card-border)] p-4 md:p-5 xl:border-b-0 xl:border-r">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-[var(--color-text-soft)]">Routine Builder</p>
+                      <h2 className="mt-1 text-lg font-black text-[var(--color-heading)]">Select scope first</h2>
+                      <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-muted)]">Department, semester, and section drive the available subjects, instructors, and conflict checks.</p>
                     </div>
-                  )}
-                </div>
-                {selectedSectionLabels.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedSectionLabels.map((label) => (
-                      <span key={label} className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs text-[var(--color-text-muted)]">
-                        {label}
-                      </span>
-                    ))}
+                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--color-heading)]">
+                      {selectedScopeLabel}
+                    </div>
                   </div>
-                ) : (
-                  <p className="mt-2 text-xs text-[var(--color-text-soft)]">No specific section selected. Showing all sections.</p>
-                )}
-              </div>
-            </div>
 
-            {/* Weekly Grid */}
-            <div className="mb-8 overflow-x-auto rounded-2xl">
-            <div className="grid min-w-[1040px] grid-cols-7 gap-3">
-              {DAYS.map(day => (
-                <div key={day} className="min-h-[200px]">
-                  {/* Day header */}
-                  <div className="ui-role-fill text-center py-2 rounded-t-xl text-sm font-semibold mb-2">
-                    {DAY_SHORT[day]}
-                  </div>
-                  {/* Classes */}
-                  <div className="space-y-2">
-                    {byDay[day].map(r => (
-                      <div
-                        key={r.id}
-                        className={`border rounded-xl p-2 cursor-pointer hover:shadow-md dark:shadow-slate-900/50 transition ${subjectColorMap[r.subjectId]}`}
-                        onClick={() => openEdit(r)}
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    <div>
+                      <label className="ui-form-label">Department</label>
+                      <select
+                        required
+                        value={form.department}
+                        onChange={(e) => {
+                          setForm({ ...form, department: e.target.value, subjectId: '', instructorId: '', section: '' })
+                          setCreateSectionsInput('')
+                        }}
+                        className="ui-form-input"
                       >
-                        <p className="text-xs font-bold truncate">{r.subject?.code}</p>
-                        <p className="mt-1 text-[11px] opacity-80">Sem {r.semester}{r.section ? ` • Sec ${r.section}` : ''}</p>
-                        <p className="text-xs truncate">{r.startTime}–{r.endTime}</p>
-                        {r.room && <p className="text-xs opacity-75">Room: {r.room}</p>}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setRoutineToDelete(r) }}
-                          className="status-absent mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs"
-                          aria-label="Delete entry"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    ))}
-                    {byDay[day].length === 0 && (
-                      <div className="text-center text-[var(--color-text-soft)] text-xs py-4">—</div>
-                    )}
+                        <option value="">Select department</option>
+                        {departments.map((department) => (
+                          <option key={department.id} value={department.name}>
+                            {department.name}{department.code ? ` (${department.code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="ui-form-label">Semester</label>
+                      <select
+                        required
+                        value={form.semester}
+                        onChange={(e) => {
+                          setForm({ ...form, semester: e.target.value, subjectId: '', section: '' })
+                          setCreateSectionsInput('')
+                        }}
+                        className="ui-form-input"
+                      >
+                        <option value="">Select semester</option>
+                        {SEMESTER_OPTIONS.map((semester) => (
+                          <option key={semester} value={semester}>Semester {semester}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="ui-form-label">Section Mode</label>
+                      <select
+                        value={createSectionScope}
+                        onChange={(e) => {
+                          setCreateSectionScope(e.target.value)
+                          setForm((current) => ({ ...current, section: '' }))
+                          setCreateSectionsInput('')
+                        }}
+                        className="ui-form-input"
+                      >
+                        <option value="ONE">One section</option>
+                        <option value="MULTIPLE">Combined sections</option>
+                        <option value="ALL">All sections entry</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            </div>
 
-            {/* List view */}
-            <div className="ui-card rounded-2xl overflow-hidden">
-              <div className="border-b border-[var(--color-card-border)] p-4">
-                <h2 className="font-semibold text-[var(--color-heading)]">All Entries</h2>
-              </div>
-              <table className="w-full">
-                <thead className="bg-[var(--color-surface-muted)]">
-                  <tr className="text-left text-sm text-[var(--color-text-muted)]">
-                    <th className="px-6 py-3">Day</th>
-                    <th className="px-6 py-3">Subject</th>
-                    <th className="px-6 py-3">Academic</th>
-                    <th className="px-6 py-3">Instructor</th>
-                    <th className="px-6 py-3">Time</th>
-                    <th className="px-6 py-3">Room</th>
-                    <th className="px-6 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...displayedRoutines]
-                    .sort((left, right) => {
-                      const dayDiff = DAYS.indexOf(left.dayOfWeek) - DAYS.indexOf(right.dayOfWeek)
-                      return dayDiff !== 0 ? dayDiff : left.startTime.localeCompare(right.startTime)
-                    })
-                    .map(r => (
-                    <tr key={r.id} className="border-t border-[var(--color-card-border)] hover:bg-[var(--color-surface-muted)]/70">
-                      <td className="px-6 py-3 text-sm font-medium text-[var(--color-heading)]">{DAY_SHORT[r.dayOfWeek]}</td>
-                      <td className="px-6 py-3">
-                        <p className="text-sm font-medium text-[var(--color-heading)]">{r.subject?.name}</p>
-                        <p className="text-xs text-[var(--color-text-soft)]">{r.subject?.code}</p>
-                      </td>
-                      <td className="px-6 py-3">
-                        <p className="text-sm font-medium text-[var(--color-heading)]">{r.department || 'General'}</p>
-                        <p className="text-xs text-[var(--color-text-soft)]">Semester {r.semester}{r.section ? ` • Section ${r.section}` : ' • All sections'}</p>
-                      </td>
-                      <td className="px-6 py-3 text-sm text-[var(--color-text-muted)]">{r.instructor?.user?.name}</td>
-                      <td className="px-6 py-3 text-sm text-[var(--color-text-muted)]">{r.startTime} – {r.endTime}</td>
-                      <td className="px-6 py-3 text-sm text-[var(--color-text-muted)]">{r.room || '—'}</td>
-                      <td className="px-6 py-3">
-                        <div className="flex gap-2">
-                          <button onClick={() => openEdit(r)}
-                            className="grade-merit rounded-lg px-3 py-1 text-xs border">
-                            Edit
-                          </button>
-                          <button onClick={() => setRoutineToDelete(r)}
-                            className="status-absent rounded-lg px-3 py-1 text-xs border">
-                            Delete
-                          </button>
+                  <div className="mt-4">
+                    <label className="ui-form-label">Section</label>
+                    {createSectionScope === 'ONE' ? (
+                      configuredSectionOptions.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {configuredSectionOptions.map((section) => {
+                            const selected = form.section === section
+                            return (
+                              <button
+                                key={section}
+                                type="button"
+                                onClick={() => setForm((current) => ({ ...current, section }))}
+                                className={`inline-flex min-h-10 items-center rounded-xl border px-4 text-sm font-semibold transition ${
+                                  selected
+                                    ? 'ui-role-fill border-transparent text-white'
+                                    : 'border-[var(--color-card-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
+                                }`}
+                              >
+                                {section}
+                              </button>
+                            )
+                          })}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {displayedRoutines.length === 0 && (
-                    <tr><td colSpan={7} className="px-6 py-8 text-center text-[var(--color-text-soft)]">No routines yet</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      ) : (
+                        <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
+                          {form.department && form.semester ? 'No sections configured for this department and semester.' : 'Select department and semester to load sections.'}
+                        </div>
+                      )
+                    ) : null}
+
+                    {createSectionScope === 'MULTIPLE' ? (
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={createSectionsInput}
+                          onChange={(e) => setCreateSectionsInput(e.target.value)}
+                          className="ui-form-input"
+                          placeholder="A, B, C"
+                        />
+                        {sectionOptionsForCreate.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {sectionOptionsForCreate.map((section) => {
+                              const selected = parsedCreateSections.includes(section)
+                              return (
+                                <button
+                                  key={section}
+                                  type="button"
+                                  onClick={() => {
+                                    setCreateSectionsInput((current) => {
+                                      const currentTokens = current.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean)
+                                      const nextTokens = currentTokens.includes(section)
+                                        ? currentTokens.filter((item) => item !== section)
+                                        : [...currentTokens, section]
+                                      return [...new Set(nextTokens)].join(', ')
+                                    })
+                                  }}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                                    selected
+                                      ? 'ui-role-fill border-transparent text-white'
+                                      : 'border-[var(--color-card-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
+                                  }`}
+                                >
+                                  {section}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {createSectionScope === 'ALL' ? (
+                      <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
+                        This creates one entry visible to every section in the selected semester.
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="ui-form-label">Subject</label>
+                      <select required value={form.subjectId} onChange={(e) => handleSubjectChange(e.target.value)} className="ui-form-input" disabled={!createScopeReady}>
+                        <option value="">Select subject</option>
+                        {filteredSubjects.map((subject) => (
+                          <option key={subject.id} value={subject.id}>
+                            {subject.name} - {subject.code}
+                          </option>
+                        ))}
+                      </select>
+                      {form.department && form.semester && filteredSubjects.length === 0 ? (
+                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No matching subjects for this department and semester.</p>
+                      ) : null}
+                    </div>
+                    <div>
+                      <label className="ui-form-label">Instructor</label>
+                      <select required value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })} className="ui-form-input" disabled={!createScopeReady}>
+                        <option value="">Select instructor</option>
+                        {filteredInstructors.map((instructor) => (
+                          <option key={instructor.instructor.id} value={instructor.instructor.id}>
+                            {instructor.name}{getInstructorDepartments(instructor).length > 0 ? ` - ${getInstructorDepartments(instructor).join(', ')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {form.department && filteredInstructors.length === 0 ? (
+                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No instructors are assigned to this department.</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.2fr]">
+                    <div>
+                      <label className="ui-form-label">Day</label>
+                      <select value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: e.target.value })} className="ui-form-input">
+                        {DAYS.map((day) => <option key={day} value={day}>{day}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="ui-form-label">Start</label>
+                      <input type="time" required value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="ui-form-input" />
+                    </div>
+                    <div>
+                      <label className="ui-form-label">End</label>
+                      <input type="time" required value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="ui-form-input" />
+                    </div>
+                    <div>
+                      <label className="ui-form-label">Room</label>
+                      <input type="text" value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} className="ui-form-input" placeholder="Room 201" />
+                    </div>
+                  </div>
+                </section>
+
+                <aside className="p-4 md:p-5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]"><Layers className="h-4 w-4" /> Scope</div>
+                      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{selectedScopeLabel}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]"><UserCheck className="h-4 w-4" /> Teacher</div>
+                      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{selectedInstructor?.name || 'Not selected'}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]"><Clock className="h-4 w-4" /> Slot</div>
+                      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{DAY_SHORT[form.dayOfWeek]} {form.startTime}-{form.endTime}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]"><DoorOpen className="h-4 w-4" /> Room</div>
+                      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{form.room || 'Not assigned'}</p>
+                    </div>
+                  </div>
+
+                  <div className={`mt-4 rounded-xl border p-4 ${
+                    hasBlockingConflict
+                      ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-200'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      {hasBlockingConflict ? <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /> : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-sm font-black">{hasBlockingConflict ? 'Conflict found' : 'No conflict detected'}</p>
+                        <p className="mt-1 text-xs leading-5 opacity-85">
+                          {hasInvalidTimeRange ? 'End time must be after start time.' : scheduleConflicts.length > 0 ? 'Review the affected room, teacher, or section before saving.' : 'The selected slot is available in the loaded routine data.'}
+                        </p>
+                      </div>
+                    </div>
+                    {scheduleConflicts.length > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        {scheduleConflicts.slice(0, 4).map((conflict) => (
+                          <div key={conflict.key} className="rounded-lg bg-white/70 px-3 py-2 text-xs text-red-800 ring-1 ring-red-100 dark:bg-red-950/30 dark:text-red-100 dark:ring-red-900/50">
+                            <p className="font-bold">{conflict.type}: {conflict.title}</p>
+                            <p className="mt-0.5 opacity-80">{conflict.detail}</p>
+                          </div>
+                        ))}
+                        {scheduleConflicts.length > 4 ? (
+                          <p className="text-xs font-semibold opacity-80">+{scheduleConflicts.length - 4} more conflicts</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4">
+                    <p className="text-sm font-semibold text-[var(--color-heading)]">{selectedSubject?.name || 'Subject not selected'}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">{selectedSubject?.code || 'Choose a subject after selecting department and semester.'}</p>
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="submit"
+                        disabled={!createScopeReady || !form.subjectId || !form.instructorId || hasBlockingConflict}
+                        className="ui-role-fill inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>{createSectionScope === 'MULTIPLE' ? `Create ${parsedCreateSections.length || 0} Entries` : 'Create Entry'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm(defaultForm)
+                          setCreateSectionScope('ONE')
+                          setCreateSectionsInput('')
+                        }}
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--color-card-border)] px-4 text-sm font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </form>
+
           </>
         )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <Modal title={editRoutine ? 'Edit Class' : 'Add Class'} onClose={() => setShowModal(false)}>
+        <Modal
+          title={editRoutine ? 'Edit Class' : 'Add Class'}
+          onClose={() => {
+            setShowModal(false)
+            setEditRoutine(null)
+            setForm(defaultForm)
+            setCreateSectionScope('ONE')
+            setCreateSectionsInput('')
+          }}
+        >
             <Alert type="error" message={error} />
             <form onSubmit={handleSubmit} className="space-y-4">
               {isCreateMode ? (
@@ -947,26 +1032,24 @@ const AdminRoutine = () => {
               )}
 
               <div className="ui-modal-footer">
-                <button type="button" onClick={() => setShowModal(false)}
+                <button type="button" onClick={() => {
+                  setShowModal(false)
+                  setEditRoutine(null)
+                  setForm(defaultForm)
+                  setCreateSectionScope('ONE')
+                  setCreateSectionsInput('')
+                }}
                   className="flex-1 rounded-lg border border-[var(--color-card-border)] py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">Cancel</button>
                 <button type="submit"
-                  disabled={!createScopeReady}
-                  className="ui-role-fill flex-1 rounded-lg py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">
-                  {editRoutine ? 'Update' : createSectionScope === 'MULTIPLE' ? `Add Classes (${parsedCreateSections.length || 0})` : 'Add Class'}
+                  disabled={!createScopeReady || hasBlockingConflict}
+                  className="ui-role-fill flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60">
+                  <Save className="h-4 w-4" />
+                  <span>{editRoutine ? 'Update' : createSectionScope === 'MULTIPLE' ? `Add Classes (${parsedCreateSections.length || 0})` : 'Add Class'}</span>
                 </button>
               </div>
             </form>
         </Modal>
       )}
-      <ConfirmDialog
-        open={!!routineToDelete}
-        title="Delete Routine Entry"
-        message={routineToDelete ? `Delete the ${routineToDelete.dayOfWeek} ${routineToDelete.startTime} class entry?` : ''}
-        confirmText="Delete Entry"
-        busy={deletingRoutine}
-        onClose={() => setRoutineToDelete(null)}
-        onConfirm={handleDelete}
-      />
     </Layout>
   )
 }

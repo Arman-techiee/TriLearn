@@ -20,6 +20,7 @@ import Departments from './pages/admin/Departments'
 import Subjects from './pages/admin/Subjects'
 import Notices from './pages/admin/Notices'
 import AdminRoutine from './pages/admin/Routine'
+import RoutineViewer from './pages/admin/RoutineViewer'
 import StudentQrSettings from './pages/admin/StudentQrSettings'
 import GateDashboard from './pages/gate/Dashboard'
 
@@ -90,6 +91,7 @@ const AppRoutes = () => {
       <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Subjects /></ProtectedRoute>} />
       <Route path="/admin/notices" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Notices /></ProtectedRoute>} />
       <Route path="/admin/routine" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><AdminRoutine /></ProtectedRoute>} />
+      <Route path="/admin/routine/view" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><RoutineViewer /></ProtectedRoute>} />
       <Route path="/admin/student-qr" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><StudentQrSettings /></ProtectedRoute>} />
 
       {/* Coordinator Routes */}
@@ -101,6 +103,7 @@ const AppRoutes = () => {
       <Route path="/coordinator/subjects" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Subjects /></ProtectedRoute>} />
       <Route path="/coordinator/notices" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Notices /></ProtectedRoute>} />
       <Route path="/coordinator/routine" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><AdminRoutine /></ProtectedRoute>} />
+      <Route path="/coordinator/routine/view" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><RoutineViewer /></ProtectedRoute>} />
       <Route path="/coordinator/student-qr" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><StudentQrSettings /></ProtectedRoute>} />
       <Route path="/coordinator/attendance" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Attendance /></ProtectedRoute>} />
       <Route path="/coordinator/assignments" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Assignments /></ProtectedRoute>} />
