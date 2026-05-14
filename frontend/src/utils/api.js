@@ -47,7 +47,7 @@ const readStoredUser = () => {
   }
 
   try {
-    const serializedUser = window.sessionStorage.getItem(AUTH_USER_STORAGE_KEY)
+    const serializedUser = window.localStorage.getItem(AUTH_USER_STORAGE_KEY)
     return serializedUser ? buildStoredUserSnapshot(JSON.parse(serializedUser)) : null
   } catch {
     return null
@@ -64,12 +64,12 @@ const writeStoredUser = (user) => {
       const storedUserSnapshot = buildStoredUserSnapshot(user)
 
       if (storedUserSnapshot && Object.keys(storedUserSnapshot).length > 0) {
-        window.sessionStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(storedUserSnapshot))
+        window.localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(storedUserSnapshot))
       } else {
-        window.sessionStorage.removeItem(AUTH_USER_STORAGE_KEY)
+        window.localStorage.removeItem(AUTH_USER_STORAGE_KEY)
       }
     } else {
-      window.sessionStorage.removeItem(AUTH_USER_STORAGE_KEY)
+      window.localStorage.removeItem(AUTH_USER_STORAGE_KEY)
     }
   } catch {
     // Ignore storage failures so auth remains functional in restricted environments.
@@ -82,7 +82,7 @@ const readStoredRefreshCooldownUntil = () => {
   }
 
   try {
-    const rawValue = window.sessionStorage.getItem(REFRESH_COOLDOWN_STORAGE_KEY)
+    const rawValue = window.localStorage.getItem(REFRESH_COOLDOWN_STORAGE_KEY)
     const parsedValue = Number.parseInt(rawValue || '', 10)
     return Number.isFinite(parsedValue) ? parsedValue : 0
   } catch {
@@ -97,9 +97,9 @@ const writeStoredRefreshCooldownUntil = (value) => {
 
   try {
     if (value > Date.now()) {
-      window.sessionStorage.setItem(REFRESH_COOLDOWN_STORAGE_KEY, String(value))
+      window.localStorage.setItem(REFRESH_COOLDOWN_STORAGE_KEY, String(value))
     } else {
-      window.sessionStorage.removeItem(REFRESH_COOLDOWN_STORAGE_KEY)
+      window.localStorage.removeItem(REFRESH_COOLDOWN_STORAGE_KEY)
     }
   } catch {
     // Ignore storage failures so auth remains functional in restricted environments.
@@ -109,7 +109,7 @@ const writeStoredRefreshCooldownUntil = (value) => {
 /**
  * Security note — access token storage:
  * The access token is held in this module-level variable (JS memory) and a minimal
- * user snapshot is cached in sessionStorage to survive page reloads.
+ * user snapshot is cached in localStorage to survive browser/tab restarts.
  * Trade-off: an XSS attack could exfiltrate the access token from memory.
  * Mitigation: the token is short-lived (15m), the refresh token is in an httpOnly
  * cookie and never accessible to JS, and the CSP blocks inline scripts and unknown origins.
