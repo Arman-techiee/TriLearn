@@ -12,13 +12,6 @@ const { ZodError } = require('zod')
 const { buildAuthUser } = require('./session.service')
 const { getProfileSelect } = require('./auth.shared.service')
 
-const STUDENT_ID_QR_VALIDITY_HOURS = 8
-
-const getStudentIdQrExpiry = () => {
-  const expiresAt = new Date()
-  expiresAt.setHours(expiresAt.getHours() + STUDENT_ID_QR_VALIDITY_HOURS)
-  return expiresAt
-}
 // ================================
 // GET CURRENT USER
 // ================================
@@ -55,18 +48,13 @@ const getStudentIdQr = async (context, result = createServiceResponder()) => {
     return result.withStatus(404, { message: 'Student profile not found' })
   }
 
-  const expiresAt = getStudentIdQrExpiry()
   const qrPayload = signQrPayload({
-    type: 'STUDENT_ID_CARD',
-    studentId: user.student.id,
+    type: 'Student',
     rollNumber: user.student.rollNumber,
     name: user.name,
-    email: user.email,
-    phone: user.phone || '',
     department: user.student.department || '',
     semester: user.student.semester,
-    section: user.student.section || '',
-    expiresAt: expiresAt.toISOString()
+    section: user.student.section || ''
   })
 
   const qrCode = await QRCode.toDataURL(qrPayload, {
@@ -77,8 +65,13 @@ const getStudentIdQr = async (context, result = createServiceResponder()) => {
   result.ok({
     qrCode,
     qrData: qrPayload,
+    type: 'STUDENT_ID_CARD',
+    name: user.name,
     rollNumber: user.student.rollNumber,
-    expiresAt
+    department: user.student.department || '',
+    semester: user.student.semester,
+    section: user.student.section || '',
+    validity: 'Valid until semester or section changes'
   })
 }
 

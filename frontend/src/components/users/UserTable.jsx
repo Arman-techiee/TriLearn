@@ -144,7 +144,7 @@ const UserTable = ({
                         type="button"
                         onClick={() => openStudentSectionModal(user)}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                        aria-label={`Update ${user.name} section`}
+                        aria-label={`Update ${user.name} student details`}
                       >
                         <PencilLine className="h-4 w-4" />
                       </button>

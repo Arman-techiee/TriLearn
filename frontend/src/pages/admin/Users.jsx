@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, Upload, UserPlus } from 'lucide-react'
+import { Download, UserPlus } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
@@ -101,18 +101,23 @@ const Users = () => {
   const [userToDelete, setUserToDelete] = useState(null)
   const [deletingUser, setDeletingUser] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showIdUpdateModal, setShowIdUpdateModal] = useState(false)
   const [importingStudents, setImportingStudents] = useState(false)
+  const [updatingStudentIds, setUpdatingStudentIds] = useState(false)
   const [promotingStudent, setPromotingStudent] = useState(false)
   const [importFile, setImportFile] = useState(null)
+  const [idUpdateFile, setIdUpdateFile] = useState(null)
   const [importResult, setImportResult] = useState(null)
+  const [idUpdateResult, setIdUpdateResult] = useState(null)
   const [studentToPromote, setStudentToPromote] = useState(null)
   const [studentToManageSection, setStudentToManageSection] = useState(null)
-  const [studentSectionForm, setStudentSectionForm] = useState({ department: '', semester: '1', section: '' })
+  const [studentSectionForm, setStudentSectionForm] = useState({ studentId: '', department: '', semester: '1', section: '' })
   const [updatingStudentSection, setUpdatingStudentSection] = useState(false)
   const [studentSectionError, setStudentSectionError] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
   const [bulkSectionForm, setBulkSectionForm] = useState({ department: '', semester: '1', section: '' })
   const [bulkAssigningSection, setBulkAssigningSection] = useState(false)
+  const [exportingStudents, setExportingStudents] = useState(false)
   const [error, setError] = useState('')
   const { showToast } = useToast()
   const [filterRole, setFilterRole] = useState('')
@@ -439,6 +444,7 @@ const Users = () => {
     const currentSection = String(studentUser?.student?.section || '').toUpperCase()
 
     setStudentSectionForm({
+      studentId: studentUser?.student?.rollNumber || '',
       department: currentDepartment,
       semester: currentSemester,
       section: sectionOptions.includes(currentSection) ? currentSection : sectionOptions[0] || ''
@@ -464,10 +470,16 @@ const Users = () => {
       return
     }
 
+    if (!studentSectionForm.studentId.trim()) {
+      setStudentSectionError('Student ID is required.')
+      return
+    }
+
     try {
       setUpdatingStudentSection(true)
       setStudentSectionError('')
       await api.put(`/admin/users/${studentToManageSection.id}`, {
+        studentId: studentSectionForm.studentId,
         department: studentSectionForm.department,
         semester: Number(studentSectionForm.semester),
         section: studentSectionForm.section
@@ -479,6 +491,7 @@ const Users = () => {
               ...entry,
               student: {
                 ...entry.student,
+                rollNumber: studentSectionForm.studentId.trim().toUpperCase(),
                 department: studentSectionForm.department,
                 semester: Number(studentSectionForm.semester),
                 section: studentSectionForm.section
@@ -488,7 +501,7 @@ const Users = () => {
       )))
 
       showToast({
-        title: 'Student section updated.',
+        title: 'Student details updated.',
         description: `${studentToManageSection.name} is now in semester ${studentSectionForm.semester}, section ${studentSectionForm.section}.`
       })
       setStudentToManageSection(null)
@@ -675,6 +688,111 @@ const Users = () => {
     }
   }
 
+  const handleExportStudents = async () => {
+    try {
+      setExportingStudents(true)
+      setError('')
+      const params = {}
+
+      if (semesterFilter === 'graduate') {
+        params.graduated = 'true'
+      } else if (semesterFilter) {
+        params.semester = semesterFilter
+        params.graduated = 'false'
+      }
+
+      const response = await api.get('/admin/users/students/export', {
+        params,
+        responseType: 'blob'
+      })
+      const contentDisposition = response.headers['content-disposition'] || ''
+      const matchedName = contentDisposition.match(/filename="?(.*?)"?$/i)
+      const fileName = matchedName?.[1] || `students-${semesterFilter || 'all-semesters'}.xlsx`
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (requestError) {
+      setError(getFriendlyErrorMessage(requestError, 'Unable to export students right now.'))
+    } finally {
+      setExportingStudents(false)
+    }
+  }
+
+  const getStudentExportParams = () => {
+    const params = {}
+
+    if (semesterFilter === 'graduate') {
+      params.graduated = 'true'
+    } else if (semesterFilter) {
+      params.semester = semesterFilter
+      params.graduated = 'false'
+    }
+
+    return params
+  }
+
+  const handleDownloadIdUpdateTemplate = async () => {
+    try {
+      setError('')
+      const response = await api.get('/admin/users/students/id-template', {
+        params: getStudentExportParams(),
+        responseType: 'blob'
+      })
+      const contentDisposition = response.headers['content-disposition'] || ''
+      const matchedName = contentDisposition.match(/filename="?(.*?)"?$/i)
+      const fileName = matchedName?.[1] || `student-id-update-template-${semesterFilter || 'all-semesters'}.xlsx`
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (requestError) {
+      setError(getFriendlyErrorMessage(requestError, 'Unable to download Student ID update template right now.'))
+    }
+  }
+
+  const openIdUpdateModal = () => {
+    setError('')
+    setIdUpdateFile(null)
+    setIdUpdateResult(null)
+    setShowIdUpdateModal(true)
+  }
+
+  const handleUploadStudentIdUpdates = async () => {
+    if (!idUpdateFile) {
+      setError('Please choose a CSV or XLSX file with Student ID updates.')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', idUpdateFile)
+
+    try {
+      setUpdatingStudentIds(true)
+      setError('')
+      const response = await api.post('/admin/users/students/update-ids', formData)
+      setIdUpdateResult(response.data)
+      await fetchUsers()
+      showToast({
+        title: 'Student IDs updated.',
+        description: response.data?.message || 'Student ID update completed.'
+      })
+    } catch (requestError) {
+      setIdUpdateResult(requestError?.response?.data || null)
+      setError(getFriendlyErrorMessage(requestError, 'Unable to update Student IDs right now.'))
+    } finally {
+      setUpdatingStudentIds(false)
+    }
+  }
+
   return (
     <Layout>
       <div className={pageClassName}>
@@ -687,14 +805,12 @@ const Users = () => {
             ...(isCoordinator
               ? [
                   { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') },
-                  { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') },
-                  { label: 'Import Students', icon: Upload, variant: 'secondary', onClick: openImportModal }
+                  { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') }
                 ]
               : [
                   { label: 'Add Coordinator', icon: UserPlus, variant: 'primary', onClick: () => openModal('coordinator') },
                   { label: 'Add Instructor', icon: UserPlus, variant: 'primary', onClick: () => openModal('instructor') },
-                  { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') },
-                  { label: 'Import Students', icon: Upload, variant: 'secondary', onClick: openImportModal }
+                  { label: 'Add Gate Account', icon: UserPlus, variant: 'primary', onClick: () => openModal('gatekeeper') }
                 ]),
             { label: 'Add Student', icon: UserPlus, variant: 'primary', onClick: () => openModal('student') }
           ]}
@@ -722,6 +838,11 @@ const Users = () => {
           bulkAssigningSection={bulkAssigningSection}
           handleBulkAssignStudentSection={handleBulkAssignStudentSection}
           openImportModal={openImportModal}
+          exportingStudents={exportingStudents}
+          handleExportStudents={handleExportStudents}
+          handleDownloadIdUpdateTemplate={handleDownloadIdUpdateTemplate}
+          openIdUpdateModal={openIdUpdateModal}
+          showStudentTools={false}
         />
 
         <UserTable
@@ -883,6 +1004,104 @@ const Users = () => {
                 className="flex-1 bg-primary text-white py-2 rounded-lg text-sm hover:bg-primary font-medium disabled:opacity-60"
               >
                 {importingStudents ? 'Importing...' : 'Import Students'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showIdUpdateModal && (
+        <Modal
+          title="Bulk Update Student IDs"
+          onClose={() => {
+            if (!updatingStudentIds) {
+              setShowIdUpdateModal(false)
+            }
+          }}
+        >
+          <Alert type="error" message={error} />
+
+          <div className="space-y-4">
+            <div className="rounded-xl bg-[var(--color-surface-muted)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
+              Download the template for the selected semester, fill only `newStudentId`, then upload it here. If any row has an error, no Student IDs are changed.
+              <button
+                type="button"
+                onClick={() => {
+                  void handleDownloadIdUpdateTemplate()
+                }}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-heading)] transition hover:bg-[var(--color-surface-subtle)]"
+              >
+                <Download className="h-4 w-4" />
+                Download ID template
+              </button>
+            </div>
+
+            <label className="ui-form-file">
+              <input
+                type="file"
+                accept=".csv,.xlsx"
+                className="ui-form-file-input"
+                onChange={(event) => {
+                  const nextFile = event.target.files?.[0] || null
+                  setIdUpdateFile(nextFile)
+                  setIdUpdateResult(null)
+                }}
+              />
+              <span>{idUpdateFile ? `${idUpdateFile.name} selected` : 'Choose completed CSV or XLSX file'}</span>
+            </label>
+
+            {idUpdateResult?.summary ? (
+              <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-[var(--color-surface-muted)] px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-soft)]">Processed</p>
+                    <p className="mt-2 text-2xl font-black text-[var(--color-heading)]">{idUpdateResult.summary.processed || 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-primary-50 px-4 py-3 dark:bg-primary-950/20">
+                    <p className="text-xs uppercase tracking-[0.2em] text-primary">Updated</p>
+                    <p className="mt-2 text-2xl font-black text-primary">{idUpdateResult.summary.updated || 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-accent-50 px-4 py-3 dark:bg-accent-950/20">
+                    <p className="text-xs uppercase tracking-[0.2em] text-accent-700 dark:text-accent-300">Failed</p>
+                    <p className="mt-2 text-2xl font-black text-accent-700 dark:text-accent-300">{idUpdateResult.summary.failed || 0}</p>
+                  </div>
+                </div>
+
+                {Array.isArray(idUpdateResult.failures) && idUpdateResult.failures.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-sm font-semibold text-[var(--color-heading)]">Failed rows</p>
+                    <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-xl bg-[var(--color-surface-muted)] p-3">
+                      {idUpdateResult.failures.map((failure) => (
+                        <div key={`${failure.rowNumber}-${failure.currentStudentId}-${failure.newStudentId}`} className="rounded-lg bg-[var(--color-card-surface)] px-3 py-3 text-sm">
+                          <p className="font-semibold text-[var(--color-heading)]">Row {failure.rowNumber}</p>
+                          <p className="mt-1 text-[var(--color-text-muted)]">{failure.currentStudentId || '-'} to {failure.newStudentId || '-'}</p>
+                          <p className="mt-1 text-[var(--color-text-muted)]">{failure.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="ui-modal-footer">
+              <button
+                type="button"
+                onClick={() => setShowIdUpdateModal(false)}
+                disabled={updatingStudentIds}
+                className="flex-1 rounded-lg border border-[var(--color-card-border)] py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] disabled:opacity-60"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleUploadStudentIdUpdates()
+                }}
+                disabled={!idUpdateFile || updatingStudentIds}
+                className="ui-role-fill flex-1 rounded-lg py-2 text-sm font-medium disabled:opacity-60"
+              >
+                {updatingStudentIds ? 'Updating...' : 'Update Student IDs'}
               </button>
             </div>
           </div>

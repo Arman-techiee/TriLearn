@@ -80,6 +80,35 @@ const getAssignmentTone = (dueDate, now) => {
   }
 }
 
+const getAttendanceTone = (percentage) => {
+  const value = Number.parseFloat(percentage) || 0
+
+  if (value >= 80) {
+    return {
+      bar: 'bg-emerald-400',
+      text: 'text-emerald-600 dark:text-emerald-300',
+      icon: 'bg-emerald-100 text-emerald-700',
+      label: 'Green'
+    }
+  }
+
+  if (value >= 75) {
+    return {
+      bar: 'bg-amber-400',
+      text: 'text-amber-600 dark:text-amber-300',
+      icon: 'bg-amber-100 text-amber-700',
+      label: 'Yellow'
+    }
+  }
+
+  return {
+    bar: 'bg-rose-400',
+    text: 'text-rose-600 dark:text-rose-300',
+    icon: 'bg-rose-100 text-rose-700',
+    label: 'Red'
+  }
+}
+
 const CoordinatorDashboard = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -249,6 +278,7 @@ const CoordinatorDashboard = () => {
   const selectedAttendanceReport = attendanceReports[0] || null
   const monthlyAverage = selectedAttendanceReport?.monthlyAverage || 0
   const attendanceSummary = selectedAttendanceReport?.summary || { present: 0, absent: 0, late: 0 }
+  const attendanceTone = getAttendanceTone(monthlyAverage)
 
   const semesterSubjectMap = useMemo(() => (
     availableSemesters.map((semester) => {
@@ -411,16 +441,17 @@ const CoordinatorDashboard = () => {
                 <div className="flex items-end justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-[var(--color-heading)]">Attendance health</p>
-                    <p className="mt-2 text-4xl font-black">{attendanceLoading ? '--' : `${monthlyAverage}%`}</p>
+                    <p className={`mt-2 text-4xl font-black ${attendanceTone.text}`}>{attendanceLoading ? '--' : `${monthlyAverage}%`}</p>
                   </div>
                   <div className="text-right text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">
                     <p>{selectedAttendanceReport?.totalStudents || 0} students</p>
                     <p className="mt-1">{selectedSemester ? `Sem ${selectedSemester}` : 'No selection'}</p>
+                    <p className={`mt-1 font-bold ${attendanceTone.text}`}>{attendanceTone.label}</p>
                   </div>
                 </div>
                 <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
                   <div
-                    className={`h-full rounded-full ${monthlyAverage >= 80 ? 'bg-emerald-400' : monthlyAverage >= 65 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                    className={`h-full rounded-full ${attendanceTone.bar}`}
                     style={{ width: `${Math.min(monthlyAverage, 100)}%` }}
                   />
                 </div>
@@ -509,7 +540,7 @@ const CoordinatorDashboard = () => {
                       </div>
                       <div className="flex items-center justify-between rounded-2xl bg-[var(--color-card-surface)] px-4 py-3">
                         <span className="text-sm text-[var(--color-text-muted)]">Attendance average</span>
-                        <span className="font-semibold text-[var(--color-heading)]">{monthlyAverage}%</span>
+                        <span className={`font-semibold ${attendanceTone.text}`}>{monthlyAverage}%</span>
                       </div>
                     </div>
                   </div>
@@ -666,7 +697,7 @@ const CoordinatorDashboard = () => {
                 <div className="rounded-[1.4rem] border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700">
+                      <div className={`rounded-2xl p-3 ${attendanceTone.icon}`}>
                         <Percent className="h-5 w-5" />
                       </div>
                       <div>
@@ -674,7 +705,7 @@ const CoordinatorDashboard = () => {
                         <p className="text-xs text-[var(--color-text-soft)]">Current semester monthly view</p>
                       </div>
                     </div>
-                    <span className="text-lg font-black text-[var(--color-heading)]">{monthlyAverage}%</span>
+                    <span className={`text-lg font-black ${attendanceTone.text}`}>{monthlyAverage}%</span>
                   </div>
                 </div>
 

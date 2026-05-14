@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Camera, UserRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Camera, KeyRound, UserRound } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import InstructorLayout from '../../layouts/InstructorLayout'
@@ -257,12 +258,21 @@ const ProfilePage = () => {
         title="My Profile"
         subtitle="Keep your contact details current while identity fields remain locked for authenticity."
         breadcrumbs={[getRoleLabel(user?.role), 'Profile']}
+        actions={[
+          { label: 'Change Password', icon: KeyRound, variant: 'secondary', to: '/change-password' }
+        ]}
       />
 
       <Alert type="success" message={success} />
       <Alert type="error" message={error} />
 
       <form onSubmit={saveProfile} className="rounded-3xl bg-[--color-bg-card] p-6 shadow-sm dark:shadow-slate-900/50 md:p-8">
+        <div className="mb-6 rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
+          Want to update your login password? Use the secure password page with your old password and new password.
+          <Link to="/change-password" className="ml-2 font-semibold text-[var(--color-role-accent)] hover:underline">
+            Change password
+          </Link>
+        </div>
         <div className="mb-8 flex flex-col gap-5 rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)]">

@@ -315,6 +315,9 @@ test('journey: admin views dashboard stats and creates a student account', async
     },
     '../controllers/users.controller': {
       getAllUsers: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      exportStudents: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      exportStudentIdUpdateTemplate: async (_req, res) => res.status(501).json({ message: 'unused' }),
+      bulkUpdateStudentIds: async (_req, res) => res.status(501).json({ message: 'unused' }),
       getUserById: async (_req, res) => res.status(501).json({ message: 'unused' })
     },
     '../controllers/studentApplications.controller': {

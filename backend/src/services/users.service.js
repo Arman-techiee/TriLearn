@@ -1,4 +1,7 @@
 const { createServiceResponder } = require('../utils/serviceResult')
+const ExcelJS = require('exceljs')
+const fs = require('fs')
+const path = require('path')
 const prisma = require('../utils/prisma')
 const { enrollStudentInMatchingSubjects, syncStudentEnrollmentForSemester } = require('../utils/enrollment')
 const { getPagination } = require('../utils/pagination')
@@ -12,7 +15,7 @@ const {
   createEmailVerificationToken
 } = require('../utils/emailVerification')
 const { hashPassword, generateTemporaryPassword } = require('../utils/security')
-const { sanitizePlainText } = require('../utils/sanitize')
+const { sanitizePlainText, sanitizeXlsxCell } = require('../utils/sanitize')
 const { revokeAllAccessTokensForUser } = require('../utils/accessTokenRevocation')
 const { clearStatsCache } = require('../utils/statsCache')
 const {
@@ -32,6 +35,49 @@ const buildContainsSearch = (search) => ({
   mode: 'insensitive'
 })
 const getGraduationYear = (date = new Date()) => date.getFullYear()
+
+const sanitizeFilenamePart = (value) => String(value || 'students')
+  .replace(/[^a-z0-9-_]+/gi, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-|-$/g, '')
+  .toLowerCase()
+
+const normalizeSpreadsheetHeader = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, '')
+
+const normalizeStudentIdValue = (value) => String(value || '').trim().toUpperCase()
+
+const studentExportFiltersFromQuery = (context) => {
+  const { semester, section, graduated } = context.query
+  const filters = {
+    role: 'STUDENT',
+    deletedAt: null,
+    student: {
+      is: {}
+    }
+  }
+  const coordinatorDepartments = getCoordinatorDepartments(context)
+
+  if (coordinatorDepartments.length > 0) {
+    filters.student.is.department = { in: coordinatorDepartments }
+  }
+
+  if (semester !== undefined) {
+    filters.student.is.semester = Number(semester)
+  }
+
+  if (section) {
+    filters.student.is.section = section.trim().toUpperCase()
+  }
+
+  if (graduated !== undefined) {
+    filters.student.is.isGraduated = graduated === 'true'
+  }
+
+  return filters
+}
 
 const buildDeletedEmail = (user, deletedAt = new Date()) => (
   `deleted:${deletedAt.getTime()}:${user.id}:${user.email}`
@@ -330,7 +376,7 @@ const coordinatorCanManageUser = (context, user) => {
  * @returns {Promise<object>} Service result
  */
 const getAllUsers = async (context, result = createServiceResponder()) => {
-    const { role, isActive, search, includeAssignable, semester, graduated } = context.query
+    const { role, isActive, search, includeAssignable, semester, section, graduated } = context.query
   const { page, limit, skip } = getPagination(context.query)
 
   const filters = { deletedAt: null }
@@ -420,11 +466,15 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
   }
 
   if (isActive !== undefined) filters.isActive = isActive === 'true'
-  if (semester !== undefined || graduated !== undefined) {
+  if (semester !== undefined || section || graduated !== undefined) {
     const studentFilters = {}
 
     if (semester !== undefined) {
       studentFilters.semester = Number(semester)
+    }
+
+    if (section) {
+      studentFilters.section = section.trim().toUpperCase()
     }
 
     if (graduated !== undefined) {
@@ -459,6 +509,8 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
     filters.AND = andFilters
   }
 
+  const shouldSortStudentsByName = filters.role === 'STUDENT' || andFilters.some((filter) => filter.role === 'STUDENT')
+
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where: filters,
@@ -481,7 +533,9 @@ const getAllUsers = async (context, result = createServiceResponder()) => {
       admin: true,
       coordinator: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: shouldSortStudentsByName
+        ? [{ name: 'asc' }, { student: { rollNumber: 'asc' } }]
+        : { createdAt: 'desc' }
     }),
     prisma.user.count({ where: filters })
   ])
@@ -532,6 +586,332 @@ const getUserById = async (context, result = createServiceResponder()) => {
 
   result.ok({ user: addUserInstructorDepartments(user) })
 
+}
+
+const exportStudents = async (context, result = createServiceResponder()) => {
+  const { semester, section, graduated } = context.query
+  const filters = studentExportFiltersFromQuery(context)
+
+  const students = await prisma.user.findMany({
+    where: filters,
+    select: {
+      name: true,
+      email: true,
+      phone: true,
+      isActive: true,
+      student: {
+        select: {
+          rollNumber: true,
+          department: true,
+          semester: true,
+          section: true,
+          isGraduated: true,
+          graduationYear: true
+        }
+      }
+    },
+    orderBy: [
+      { name: 'asc' },
+      { student: { rollNumber: 'asc' } }
+    ]
+  })
+
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet('Students')
+  const semesterLabel = semester ? `semester-${semester}${section ? `-section-${section}` : ''}` : graduated === 'true' ? 'graduates' : 'all-semesters'
+  const fileName = `students-${sanitizeFilenamePart(semesterLabel)}.xlsx`
+
+  worksheet.columns = [
+    { header: 'S.N.', key: 'sn', width: 8 },
+    { header: 'Student Name', key: 'name', width: 28 },
+    { header: 'Student ID', key: 'studentId', width: 20 },
+    { header: 'Department', key: 'department', width: 18 },
+    { header: 'Semester', key: 'semester', width: 12 },
+    { header: 'Section', key: 'section', width: 12 },
+    { header: 'Email', key: 'email', width: 32 },
+    { header: 'Phone', key: 'phone', width: 18 },
+    { header: 'Status', key: 'status', width: 14 }
+  ]
+
+  students.forEach((user, index) => {
+    worksheet.addRow({
+      sn: index + 1,
+      name: sanitizeXlsxCell(user.name),
+      studentId: sanitizeXlsxCell(user.student?.rollNumber || ''),
+      department: sanitizeXlsxCell(user.student?.department || ''),
+      semester: user.student?.isGraduated ? 'Graduate' : user.student?.semester,
+      section: sanitizeXlsxCell(user.student?.section || ''),
+      email: sanitizeXlsxCell(user.email),
+      phone: sanitizeXlsxCell(user.phone || ''),
+      status: user.isActive ? 'Active' : 'Disabled'
+    })
+  })
+
+  worksheet.getRow(1).font = { bold: true }
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+  result.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  result.header('Content-Disposition', `attachment; filename="${fileName}"`)
+  await workbook.xlsx.write(result)
+  result.end()
+}
+
+const getStudentsForIdTemplate = async (context) => prisma.user.findMany({
+  where: studentExportFiltersFromQuery(context),
+  select: {
+    name: true,
+    student: {
+      select: {
+        rollNumber: true,
+        department: true,
+        semester: true,
+        section: true
+      }
+    }
+  },
+  orderBy: [
+    { name: 'asc' },
+    { student: { rollNumber: 'asc' } }
+  ]
+})
+
+const exportStudentIdUpdateTemplate = async (context, result = createServiceResponder()) => {
+  const { semester, section, graduated } = context.query
+  const students = await getStudentsForIdTemplate(context)
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet('Student ID Updates')
+  const semesterLabel = semester ? `semester-${semester}${section ? `-section-${section}` : ''}` : graduated === 'true' ? 'graduates' : 'all-semesters'
+  const fileName = `student-id-update-template-${sanitizeFilenamePart(semesterLabel)}.xlsx`
+
+  worksheet.columns = [
+    { header: 'currentStudentId', key: 'currentStudentId', width: 20 },
+    { header: 'newStudentId', key: 'newStudentId', width: 20 },
+    { header: 'studentName', key: 'studentName', width: 28 },
+    { header: 'department', key: 'department', width: 18 },
+    { header: 'semester', key: 'semester', width: 12 },
+    { header: 'section', key: 'section', width: 12 }
+  ]
+
+  students.forEach((user) => {
+    worksheet.addRow({
+      currentStudentId: sanitizeXlsxCell(user.student?.rollNumber || ''),
+      newStudentId: '',
+      studentName: sanitizeXlsxCell(user.name),
+      department: sanitizeXlsxCell(user.student?.department || ''),
+      semester: user.student?.semester,
+      section: sanitizeXlsxCell(user.student?.section || '')
+    })
+  })
+
+  worksheet.getRow(1).font = { bold: true }
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+  result.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  result.header('Content-Disposition', `attachment; filename="${fileName}"`)
+  await workbook.xlsx.write(result)
+  result.end()
+}
+
+const resolveStudentIdUpdateColumns = (headers = []) => {
+  const normalizedHeaders = headers.map((value) => normalizeSpreadsheetHeader(value))
+  const findColumn = (aliases) => {
+    const index = normalizedHeaders.findIndex((header) => aliases.includes(header))
+    return index >= 0 ? index + 1 : null
+  }
+
+  return {
+    currentStudentId: findColumn(['currentstudentid', 'oldstudentid', 'currentid', 'oldid', 'studentid', 'rollnumber', 'rollno']),
+    newStudentId: findColumn(['newstudentid', 'newid', 'updatedstudentid', 'updatedid'])
+  }
+}
+
+const buildStudentIdUpdateRowsFromWorksheet = (worksheet) => {
+  const headerRow = worksheet.getRow(1)
+  const headers = Array.from({ length: headerRow.cellCount }, (_, index) => headerRow.getCell(index + 1).text)
+  const columns = resolveStudentIdUpdateColumns(headers)
+
+  if (!columns.currentStudentId || !columns.newStudentId) {
+    throw new Error('Missing required columns: currentStudentId, newStudentId')
+  }
+
+  const rows = []
+  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber)
+    const currentStudentId = normalizeStudentIdValue(row.getCell(columns.currentStudentId).text)
+    const newStudentId = normalizeStudentIdValue(row.getCell(columns.newStudentId).text)
+
+    if (currentStudentId || newStudentId) {
+      rows.push({ rowNumber, currentStudentId, newStudentId })
+    }
+  }
+
+  return rows
+}
+
+const loadStudentIdUpdateRows = async (filePath, originalName) => {
+  const extension = path.extname(String(originalName || filePath)).toLowerCase()
+  const workbook = new ExcelJS.Workbook()
+
+  if (extension === '.csv') {
+    await workbook.csv.readFile(filePath)
+  } else if (extension === '.xlsx') {
+    try {
+      await workbook.xlsx.readFile(filePath)
+    } catch {
+      const workbookBuffer = await fs.promises.readFile(filePath)
+      await workbook.xlsx.load(workbookBuffer)
+    }
+  } else {
+    throw new Error('Please upload a CSV or XLSX file')
+  }
+
+  const worksheet = workbook.worksheets[0]
+  if (!worksheet) {
+    throw new Error('The uploaded file does not contain any worksheet data')
+  }
+
+  return buildStudentIdUpdateRowsFromWorksheet(worksheet)
+}
+
+const buildStudentIdUpdateError = (rowNumber, message, row = {}) => ({
+  rowNumber,
+  currentStudentId: row.currentStudentId || '',
+  newStudentId: row.newStudentId || '',
+  message
+})
+
+const bulkUpdateStudentIds = async (context, result = createServiceResponder()) => {
+  if (!context.file?.path) {
+    return result.withStatus(400, { message: 'Please upload a CSV or XLSX file' })
+  }
+
+  let rows
+  try {
+    rows = await loadStudentIdUpdateRows(context.file.path, context.file.originalname)
+  } catch (error) {
+    return result.withStatus(400, { message: error.message || 'Unable to read uploaded file' })
+  }
+
+  if (rows.length === 0) {
+    return result.withStatus(400, { message: 'No Student ID updates found in the uploaded file' })
+  }
+
+  const failures = []
+  const seenCurrentIds = new Set()
+  const seenNewIds = new Set()
+  const candidateRows = []
+
+  rows.forEach((row) => {
+    if (!row.currentStudentId) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'Current Student ID is required', row))
+      return
+    }
+
+    if (!row.newStudentId) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'New Student ID is required', row))
+      return
+    }
+
+    if (row.currentStudentId === row.newStudentId) {
+      return
+    }
+
+    if (seenCurrentIds.has(row.currentStudentId)) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'Current Student ID appears more than once in this file', row))
+      return
+    }
+
+    if (seenNewIds.has(row.newStudentId)) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'New Student ID appears more than once in this file', row))
+      return
+    }
+
+    seenCurrentIds.add(row.currentStudentId)
+    seenNewIds.add(row.newStudentId)
+    candidateRows.push(row)
+  })
+
+  if (candidateRows.length === 0 && failures.length === 0) {
+    return result.ok({
+      message: 'No Student ID changes were needed.',
+      summary: { processed: rows.length, updated: 0, failed: 0 },
+      failures: []
+    })
+  }
+
+  const currentIds = candidateRows.map((row) => row.currentStudentId)
+  const newIds = candidateRows.map((row) => row.newStudentId)
+  const [currentStudents, conflictingStudents] = await Promise.all([
+    prisma.student.findMany({
+      where: { rollNumber: { in: currentIds } },
+      select: {
+        id: true,
+        rollNumber: true,
+        department: true,
+        user: {
+          select: {
+            id: true,
+            deletedAt: true
+          }
+        }
+      }
+    }),
+    prisma.student.findMany({
+      where: { rollNumber: { in: newIds } },
+      select: { id: true, rollNumber: true }
+    })
+  ])
+  const currentStudentMap = new Map(currentStudents.map((student) => [student.rollNumber, student]))
+  const conflictingStudentMap = new Map(conflictingStudents.map((student) => [student.rollNumber, student]))
+  const coordinatorDepartments = getCoordinatorDepartments(context)
+
+  candidateRows.forEach((row) => {
+    const student = currentStudentMap.get(row.currentStudentId)
+    if (!student || student.user?.deletedAt) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'Current Student ID was not found', row))
+      return
+    }
+
+    if (coordinatorDepartments.length > 0 && !coordinatorDepartments.includes(student.department)) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'You can only update students in your own department', row))
+      return
+    }
+
+    const conflict = conflictingStudentMap.get(row.newStudentId)
+    if (conflict && conflict.id !== student.id) {
+      failures.push(buildStudentIdUpdateError(row.rowNumber, 'New Student ID already exists', row))
+    }
+  })
+
+  if (failures.length > 0) {
+    return result.withStatus(400, {
+      message: 'Student ID update file has validation errors. No changes were applied.',
+      summary: { processed: rows.length, updated: 0, failed: failures.length },
+      failures
+    })
+  }
+
+  await prisma.$transaction(candidateRows.map((row) => prisma.student.update({
+    where: { rollNumber: row.currentStudentId },
+    data: { rollNumber: row.newStudentId }
+  })))
+
+  await recordAuditLog({
+    actorId: context.user.id,
+    actorRole: context.user.role,
+    action: 'STUDENT_IDS_BULK_UPDATED',
+    entityType: 'Student',
+    entityId: context.user.id,
+    metadata: {
+      updated: candidateRows.length
+    }
+  })
+
+  result.ok({
+    message: `${candidateRows.length} Student ID${candidateRows.length === 1 ? '' : 's'} updated successfully.`,
+    summary: { processed: rows.length, updated: candidateRows.length, failed: 0 },
+    failures: []
+  })
 }
 
 // ================================
@@ -896,8 +1276,9 @@ const createStudent = async (context, result = createServiceResponder()) => {
  */
 const updateUser = async (context, result = createServiceResponder()) => {
     const { id } = context.params
-  const { name, phone, address, department, departments, semester, section } = context.body
+  const { name, phone, address, department, departments, semester, section, studentId } = context.body
   const normalizedDepartment = department?.trim() || null
+  const normalizedStudentId = studentId === undefined ? undefined : studentId.trim().toUpperCase()
   const sanitizedName = name === undefined ? undefined : sanitizePlainText(name)
   const sanitizedPhone = phone === undefined ? undefined : sanitizeOptionalPlainText(phone)
   const sanitizedAddress = address === undefined ? undefined : sanitizeOptionalPlainText(address)
@@ -915,6 +1296,7 @@ const updateUser = async (context, result = createServiceResponder()) => {
       student: {
         select: {
           id: true,
+          rollNumber: true,
           semester: true,
           section: true,
           department: true
@@ -1024,6 +1406,17 @@ const updateUser = async (context, result = createServiceResponder()) => {
       return result.withStatus(400, { message: `Semester must be between 1 and ${MAX_STUDENT_SEMESTER}` })
     }
 
+    if (normalizedStudentId && normalizedStudentId !== user.student?.rollNumber) {
+      const existingStudent = await prisma.student.findUnique({
+        where: { rollNumber: normalizedStudentId },
+        select: { id: true }
+      })
+
+      if (existingStudent && existingStudent.id !== user.student?.id) {
+        return result.withStatus(400, { message: 'Student ID already exists' })
+      }
+    }
+
     const nextDepartment = normalizedDepartment ?? user.student?.department
     const nextSemester = semester ?? user.student?.semester
     const nextSection = normalizedSection === undefined ? user.student?.section : normalizedSection
@@ -1045,6 +1438,7 @@ const updateUser = async (context, result = createServiceResponder()) => {
     const updatedStudent = await prisma.student.update({
       where: { userId: id },
       data: {
+        rollNumber: normalizedStudentId,
         semester,
         section: normalizedSection,
         department: normalizedDepartment ?? undefined,
@@ -1077,7 +1471,8 @@ const updateUser = async (context, result = createServiceResponder()) => {
       role: user.role,
       department: normalizedDepartment,
       semester,
-      section
+      section,
+      studentId: normalizedStudentId
     }
   })
 
@@ -1512,6 +1907,9 @@ const promoteStudentSemester = async (context, result = createServiceResponder()
 module.exports = {
   getAllUsers,
   getUsers: getAllUsers,
+  exportStudents,
+  exportStudentIdUpdateTemplate,
+  bulkUpdateStudentIds,
   getUserById,
   createCoordinator,
   createGatekeeper,

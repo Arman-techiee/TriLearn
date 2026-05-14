@@ -14,6 +14,11 @@ const sanitizeFilenamePart = (value) => String(value || 'report')
   .replace(/^-|-$/g, '')
   .toLowerCase()
 
+const parseAttendanceAverage = (value) => {
+  const parsedValue = Number.parseFloat(value)
+  return Number.isFinite(parsedValue) ? parsedValue : 0
+}
+
 const exportAttendancePdf = ({ result, attendance, summary, subject, dateLabel }) => {
   const fileName = `attendance-${sanitizeFilenamePart(subject.code || subject.name)}-${sanitizeFilenamePart(dateLabel)}.pdf`
   const doc = new PDFDocument({ margin: 40, size: 'A4' })
@@ -149,68 +154,26 @@ const exportCoordinatorDepartmentReportPdf = ({ result, report }) => {
 
 const exportCoordinatorDepartmentReportWorkbook = async ({ result, report }) => {
   const workbook = new ExcelJS.Workbook()
-  const summarySheet = workbook.addWorksheet('Summary')
-  const studentsSheet = workbook.addWorksheet('Student Averages')
-  const recordsSheet = workbook.addWorksheet('Attendance Records')
+  const studentsSheet = workbook.addWorksheet('Attendance Percentages')
   const fileName = `department-attendance-${sanitizeFilenamePart(report.department)}-sem-${report.semester}-${sanitizeFilenamePart(report.monthLabel)}${report.section ? `-section-${sanitizeFilenamePart(report.section)}` : ''}.xlsx`
-
-  summarySheet.columns = [
-    { header: 'Metric', key: 'metric', width: 24 },
-    { header: 'Value', key: 'value', width: 32 }
-  ]
-  summarySheet.addRows([
-    { metric: sanitizeXlsxCell('Department'), value: sanitizeXlsxCell(report.department) },
-    { metric: 'Semester', value: report.semester },
-    { metric: sanitizeXlsxCell('Section'), value: sanitizeXlsxCell(report.section || 'All sections') },
-    { metric: sanitizeXlsxCell('Month'), value: sanitizeXlsxCell(report.monthLabel) },
-    { metric: 'Total Students', value: report.totalStudents },
-    { metric: 'Present Entries', value: report.summary.present },
-    { metric: 'Absent Entries', value: report.summary.absent },
-    { metric: 'Late Entries', value: report.summary.late }
-  ])
 
   studentsSheet.columns = [
     { header: 'S.N.', key: 'sn', width: 8 },
     { header: 'Student Name', key: 'name', width: 28 },
-    { header: 'Roll Number', key: 'rollNumber', width: 20 },
-    { header: 'Section', key: 'section', width: 14 },
-    { header: 'Present', key: 'present', width: 12 },
-    { header: 'Absent', key: 'absent', width: 12 },
-    { header: 'Late', key: 'late', width: 12 },
-    { header: 'Monthly Average %', key: 'monthlyAverage', width: 18 }
+    { header: 'Student ID', key: 'studentId', width: 20 },
+    { header: 'Total Percentage', key: 'totalPercentage', width: 18 }
   ]
   report.students.forEach((student, index) => {
-    studentsSheet.addRow({
+    const studentRow = studentsSheet.addRow({
       sn: index + 1,
       name: sanitizeXlsxCell(student.name),
-      rollNumber: sanitizeXlsxCell(student.rollNumber),
-      section: sanitizeXlsxCell(student.section || '-'),
-      present: student.present,
-      absent: student.absent,
-      late: student.late,
-      monthlyAverage: student.monthlyAverage
+      studentId: sanitizeXlsxCell(student.rollNumber),
+      totalPercentage: student.monthlyAverage
     })
-  })
 
-  recordsSheet.columns = [
-    { header: 'S.N.', key: 'sn', width: 8 },
-    { header: 'Student Name', key: 'studentName', width: 28 },
-    { header: 'Roll Number', key: 'rollNumber', width: 18 },
-    { header: 'Subject', key: 'subjectName', width: 28 },
-    { header: 'Subject Code', key: 'subjectCode', width: 16 },
-    { header: 'Date', key: 'date', width: 16 },
-    { header: 'Status', key: 'status', width: 14 }
-  ]
-  report.records.forEach((record, index) => {
-    recordsSheet.addRow({
-      sn: index + 1,
-      studentName: sanitizeXlsxCell(record.student.name),
-      rollNumber: sanitizeXlsxCell(record.student.rollNumber),
-      subjectName: sanitizeXlsxCell(record.subject.name),
-      subjectCode: sanitizeXlsxCell(record.subject.code),
-      date: sanitizeXlsxCell(formatDisplayDate(record.date)),
-      status: sanitizeXlsxCell(record.status)
-    })
+    if (parseAttendanceAverage(student.monthlyAverage) < 80) {
+      studentRow.getCell(2).font = { color: { argb: 'FFFF0000' }, bold: true }
+    }
   })
 
   result.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

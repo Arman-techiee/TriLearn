@@ -4359,9 +4359,9 @@ test('scanStudentIdAttendance rejects reused student ID QR scans when Redis rese
   assert.equal(upsertCalls, 0)
 })
 
-test('getStudentIdQr includes an expiry timestamp in the signed student QR payload', async () => {
+test('getStudentIdQr creates a stable signed student QR payload with identity details', async () => {
   process.env.QR_SIGNING_SECRET = 'test-qr-secret'
-  let encodedPayload = null
+  const encodedPayloads = []
 
   const { getStudentIdQr } = loadWithMocks(resolveFromTest('src', 'controllers', 'auth.controller.js'), authControllerMocks({
     '../utils/prisma': {
@@ -4384,7 +4384,7 @@ test('getStudentIdQr includes an expiry timestamp in the signed student QR paylo
     },
     qrcode: {
       toDataURL: async (value) => {
-        encodedPayload = value
+        encodedPayloads.push(value)
         return 'data:image/png;base64,qr'
       }
     }
@@ -4395,36 +4395,53 @@ test('getStudentIdQr includes an expiry timestamp in the signed student QR paylo
   }
   const res = createResponse()
 
-  const startedAt = Date.now()
   await getStudentIdQr(req, res)
-  const finishedAt = Date.now()
+  const secondRes = createResponse()
+  await getStudentIdQr(req, secondRes)
 
   assert.equal(res.statusCode, 200)
   assert.equal(res.body.qrCode, 'data:image/png;base64,qr')
+  assert.equal(res.body.name, 'Arman Dev')
+  assert.equal(res.body.rollNumber, 'BCA-001')
+  assert.equal(res.body.semester, 4)
+  assert.equal(res.body.section, 'A')
+  assert.equal(res.body.expiresAt, undefined)
+  assert.equal(res.body.validity, 'Valid until semester or section changes')
+  assert.equal(encodedPayloads[0], encodedPayloads[1])
 
-  const parsed = JSON.parse(encodedPayload)
-  const expiresAt = new Date(parsed.payload.expiresAt)
+  const parsed = JSON.parse(encodedPayloads[0])
   assert.equal(parsed.kid, 'legacy')
-  assert.equal(parsed.payload.type, 'STUDENT_ID_CARD')
-  assert.equal(parsed.payload.studentId, 'student-1')
+  assert.equal(parsed.payload.type, 'Student')
+  assert.equal(parsed.payload.studentId, undefined)
+  assert.equal(parsed.payload.name, 'Arman Dev')
+  assert.equal(parsed.payload.rollNumber, 'BCA-001')
   assert.equal(parsed.payload.semester, 4)
-  assert.ok(!Number.isNaN(expiresAt.getTime()))
-
-  const minExpiry = startedAt + (8 * 60 * 60 * 1000) - 5_000
-  const maxExpiry = finishedAt + (8 * 60 * 60 * 1000) + 5_000
-  assert.ok(expiresAt.getTime() >= minExpiry)
-  assert.ok(expiresAt.getTime() <= maxExpiry)
+  assert.equal(parsed.payload.section, 'A')
+  assert.equal(parsed.payload.email, undefined)
+  assert.equal(parsed.payload.phone, undefined)
+  assert.equal(parsed.payload.issuedAt, undefined)
+  assert.equal(parsed.payload.expiresAt, undefined)
 })
 
-test('getStudentByIdCardQr rejects expired student ID QR payloads', async () => {
+test('getStudentByIdCardQr accepts student ID QR payloads without expiry', async () => {
   process.env.QR_SIGNING_SECRET = 'test-qr-secret'
 
   const { getStudentByIdCardQr } = loadWithMocks(resolveFromTest('src', 'controllers', 'attendance', 'shared.js'), {
     '../../utils/prisma': {
       student: {
-        findUnique: async () => {
-          throw new Error('should not query student for expired QR')
-        }
+        findUnique: async () => ({
+          id: 'student-1',
+          rollNumber: 'BCA-001',
+          semester: 4,
+          section: 'A',
+          user: {
+            id: 'user-1',
+            name: 'Arman Dev',
+            email: 'student@example.com',
+            isActive: true,
+            deletedAt: null
+          }
+        })
       }
     },
     '../../utils/audit': {
@@ -4436,20 +4453,16 @@ test('getStudentByIdCardQr rejects expired student ID QR payloads', async () => 
   })
 
   const qrData = createSignedStudentIdQr({
-    type: 'STUDENT_ID_CARD',
-    studentId: 'student-1',
+    type: 'Student',
     semester: 4,
-    expiresAt: new Date(Date.now() - 60_000).toISOString()
+    rollNumber: 'BCA-001',
+    section: 'A'
   })
 
   const result = await getStudentByIdCardQr(qrData)
 
-  assert.deepEqual(result, {
-    error: {
-      status: 400,
-      message: 'Student ID QR code has expired'
-    }
-  })
+  assert.equal(result.student.id, 'student-1')
+  assert.equal(result.parsedQr.rollNumber, 'BCA-001')
 })
 
 test('getStudentByIdCardQr rejects student ID QR payloads after the semester changes', async () => {
@@ -4465,7 +4478,8 @@ test('getStudentByIdCardQr rejects student ID QR payloads after the semester cha
             id: 'user-1',
             name: 'Arman Dev',
             email: 'student@example.com',
-            isActive: true
+            isActive: true,
+            deletedAt: null
           }
         })
       }
@@ -4479,10 +4493,9 @@ test('getStudentByIdCardQr rejects student ID QR payloads after the semester cha
   })
 
   const qrData = createSignedStudentIdQr({
-    type: 'STUDENT_ID_CARD',
-    studentId: 'student-1',
-    semester: 4,
-    expiresAt: new Date(Date.now() + 60_000).toISOString()
+    type: 'Student',
+    rollNumber: 'BCA-001',
+    semester: 4
   })
 
   const result = await getStudentByIdCardQr(qrData)

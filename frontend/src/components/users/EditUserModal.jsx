@@ -15,7 +15,7 @@ const EditUserModal = ({
   getSectionOptions
 }) => (
   <Modal
-    title={`Update Section · ${studentToManageSection.name}`}
+    title={`Update Student · ${studentToManageSection.name}`}
     onClose={() => {
       if (!updatingStudentSection) {
         setStudentToManageSection(null)
@@ -26,6 +26,19 @@ const EditUserModal = ({
     <Alert type="error" message={studentSectionError} />
 
     <form onSubmit={handleUpdateStudentSection} className="space-y-4">
+      <div>
+        <label htmlFor="edit-student-id" className="ui-form-label">Student ID</label>
+        <input
+          id="edit-student-id"
+          type="text"
+          value={studentSectionForm.studentId}
+          onChange={(event) => setStudentSectionForm((current) => ({ ...current, studentId: event.target.value }))}
+          className="ui-form-input"
+          placeholder="Student ID / Roll Number"
+          required
+        />
+      </div>
+
       <div>
         <label htmlFor="edit-student-section-department" className="ui-form-label">Department</label>
         <select
@@ -119,7 +132,7 @@ const EditUserModal = ({
           className="ui-role-fill flex-1 rounded-lg py-2 text-sm font-medium disabled:opacity-60"
           disabled={updatingStudentSection || getSectionOptions(studentSectionForm.department, studentSectionForm.semester).length === 0}
         >
-          {updatingStudentSection ? 'Updating...' : 'Save Section'}
+          {updatingStudentSection ? 'Updating...' : 'Save Student'}
         </button>
       </div>
     </form>

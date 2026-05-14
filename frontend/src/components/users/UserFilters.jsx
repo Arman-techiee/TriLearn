@@ -19,10 +19,15 @@ const UserFilters = ({
   selectedStudentIds,
   bulkAssigningSection,
   handleBulkAssignStudentSection,
-  openImportModal
+  openImportModal,
+  exportingStudents,
+  handleExportStudents,
+  handleDownloadIdUpdateTemplate,
+  openIdUpdateModal,
+  showStudentTools = true
 }) => (
   <div className="mb-6 space-y-4">
-    {!isCoordinator ? (
+    {!isCoordinator && showStudentTools ? (
       <div className="rounded-2xl border border-dashed border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
@@ -53,23 +58,60 @@ const UserFilters = ({
     </div>
     {(filterRole === '' || filterRole === ROLES.STUDENT) && (
       <div className="rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] p-4 shadow-sm dark:shadow-slate-900/50">
-        <label htmlFor="users-semester-filter" className="mb-2 block text-sm font-medium text-[var(--color-page-text)]">Filter students by semester</label>
-        <select
-          id="users-semester-filter"
-          value={semesterFilter}
-          onChange={(event) => {
-            const nextValue = event.target.value
-            setSemesterFilter(nextValue)
-            if (nextValue && filterRole !== ROLES.STUDENT) {
-              setFilterRole(ROLES.STUDENT)
-            }
-          }}
-          className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          {semesterFilterOptions.map((option) => (
-            <option key={option.value || 'all-semesters'} value={option.value}>{option.label}</option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="flex-1">
+            <label htmlFor="users-semester-filter" className="mb-2 block text-sm font-medium text-[var(--color-page-text)]">Filter students by semester</label>
+            <select
+              id="users-semester-filter"
+              value={semesterFilter}
+              onChange={(event) => {
+                const nextValue = event.target.value
+                setSemesterFilter(nextValue)
+                if (nextValue && filterRole !== ROLES.STUDENT) {
+                  setFilterRole(ROLES.STUDENT)
+                }
+              }}
+              className="w-full rounded-xl border border-[var(--color-card-border)] bg-[var(--color-card-surface)] px-4 py-3 text-sm text-[var(--color-page-text)] focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {semesterFilterOptions.map((option) => (
+                <option key={option.value || 'all-semesters'} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          {showStudentTools ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleExportStudents()
+                }}
+                disabled={exportingStudents}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm font-semibold text-[var(--color-heading)] transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>{exportingStudents ? 'Exporting...' : 'Export Student List'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleDownloadIdUpdateTemplate()
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm font-semibold text-[var(--color-heading)] transition hover:bg-[var(--color-surface-subtle)]"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>ID Template</span>
+              </button>
+              <button
+                type="button"
+                onClick={openIdUpdateModal}
+                className="ui-role-fill inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Upload ID Updates</span>
+              </button>
+            </>
+          ) : null}
+        </div>
       </div>
     )}
     <div className="flex flex-wrap gap-3">

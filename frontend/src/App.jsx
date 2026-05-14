@@ -14,6 +14,7 @@ import HomePage from './pages/shared/HomePage'
 import AdminDashboard from './pages/admin/Dashboard'
 import CoordinatorDashboard from './pages/coordinator/Dashboard'
 import Users from './pages/admin/Users'
+import Students from './pages/admin/Students'
 import StudentApplications from './pages/admin/StudentApplications'
 import Departments from './pages/admin/Departments'
 import Subjects from './pages/admin/Subjects'
@@ -83,6 +84,7 @@ const AppRoutes = () => {
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Users /></ProtectedRoute>} />
+      <Route path="/admin/students" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]}><Students /></ProtectedRoute>} />
       <Route path="/admin/applications" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><StudentApplications /></ProtectedRoute>} />
       <Route path="/admin/departments" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Departments /></ProtectedRoute>} />
       <Route path="/admin/subjects" element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.COORDINATOR]}><Subjects /></ProtectedRoute>} />
@@ -93,6 +95,7 @@ const AppRoutes = () => {
       {/* Coordinator Routes */}
       <Route path="/coordinator" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><CoordinatorDashboard /></ProtectedRoute>} />
       <Route path="/coordinator/users" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Users /></ProtectedRoute>} />
+      <Route path="/coordinator/students" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Students /></ProtectedRoute>} />
       <Route path="/coordinator/applications" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><StudentApplications /></ProtectedRoute>} />
       <Route path="/coordinator/departments" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Departments /></ProtectedRoute>} />
       <Route path="/coordinator/subjects" element={<ProtectedRoute allowedRoles={[ROLES.COORDINATOR]}><Subjects /></ProtectedRoute>} />

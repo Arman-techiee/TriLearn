@@ -12,6 +12,7 @@ import { isRequestCanceled } from '../../utils/http'
 const StudentIdCard = () => {
   const [profile, setProfile] = useState(null)
   const [studentQrCode, setStudentQrCode] = useState('')
+  const [studentQrDetails, setStudentQrDetails] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const avatarUrl = useProtectedObjectUrl(profile?.avatar)
@@ -28,6 +29,7 @@ const StudentIdCard = () => {
         ])
         setProfile(profileRes.data.user)
         setStudentQrCode(qrRes.data.qrCode || '')
+        setStudentQrDetails(qrRes.data)
       } catch (requestError) {
         if (isRequestCanceled(requestError)) return
         setError(getFriendlyErrorMessage(requestError, 'Unable to load the student ID card right now.'))
@@ -141,7 +143,7 @@ const StudentIdCard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-soft)]">Student QR</p>
-                      <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">Scan for details</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--color-text)]">Scan for attendance</p>
                     </div>
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]">
                       <QrCode className="h-5 w-5" />
@@ -159,10 +161,26 @@ const StudentIdCard = () => {
                   <div className="mt-5 rounded-2xl bg-[var(--color-surface-muted)] px-4 py-3">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-soft)]">
                       <CreditCard className="h-4 w-4" />
-                      <span>Identity Snapshot</span>
+                      <span>QR Details</span>
                     </div>
-                    <p className="mt-2 text-sm font-semibold text-[var(--color-text)]">{profile?.email}</p>
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">Keep this card visible when needed for campus verification.</p>
+                    <div className="mt-3 space-y-2 text-xs text-[var(--color-text-muted)]">
+                      <div className="flex justify-between gap-3">
+                        <span>Name</span>
+                        <span className="max-w-[8rem] truncate font-semibold text-[var(--color-text)]">{studentQrDetails?.name || profile?.name || '--'}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>ID No.</span>
+                        <span className="font-semibold text-[var(--color-text)]">{studentQrDetails?.rollNumber || profile?.student?.rollNumber || '--'}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Semester</span>
+                        <span className="font-semibold text-[var(--color-text)]">{studentQrDetails?.semester || profile?.student?.semester || '--'}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Section</span>
+                        <span className="font-semibold text-[var(--color-text)]">{studentQrDetails?.section || profile?.student?.section || '--'}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

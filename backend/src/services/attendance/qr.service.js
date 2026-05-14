@@ -30,16 +30,14 @@ const getStudentIdQrReplayKey = ({ studentId, qrData }) => {
 
 const reserveStudentIdQrScan = async ({ student, qrData, parsedQr }) => {
   const key = getStudentIdQrReplayKey({ studentId: student.id, qrData })
-  if (!key || !parsedQr?.expiresAt) {
+  if (!key || !parsedQr) {
     return { reserved: false }
   }
 
-  const expiresAt = new Date(parsedQr.expiresAt)
-  const ttlSeconds = Math.max(1, Math.ceil((expiresAt.getTime() - Date.now()) / 1000))
-
-  if (Number.isNaN(expiresAt.getTime()) || ttlSeconds <= 0) {
-    return { reserved: false }
-  }
+  const dayRange = getDayRange(new Date())
+  const ttlSeconds = dayRange
+    ? Math.max(1, Math.ceil((dayRange.end.getTime() - Date.now()) / 1000))
+    : 24 * 60 * 60
 
   try {
     const redis = await getReadyRedisClient({ context: 'student ID QR replay guard' })

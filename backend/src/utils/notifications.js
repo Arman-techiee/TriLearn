@@ -130,6 +130,23 @@ const createNotifications = async ({
     notifications
   })
 
+  if (!job) {
+    const createdNotifications = (await Promise.all(
+      notifications.map((notification) => insertNotificationRecord(notification))
+    )).filter(Boolean)
+
+    createdNotifications.forEach((notification) => {
+      emitNotificationCreated(notification.userId, notification)
+    })
+    await dispatchPushNotifications({ userIds: createdNotifications.map((notification) => notification.userId) })
+
+    return {
+      count: createdNotifications.length,
+      queued: false,
+      jobId: null
+    }
+  }
+
   return {
     count: recipients.length,
     queued: Boolean(job),

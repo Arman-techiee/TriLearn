@@ -505,39 +505,37 @@ const hashQrPayload = (qrData) => (typeof qrData === 'string' && qrData.trim() ?
  */
 const getStudentByIdCardQr = async (qrData) => {
   const parsedQr = parseQrPayload(qrData)
-  if (!parsedQr || parsedQr.type !== 'STUDENT_ID_CARD' || !parsedQr.studentId) {
+  const rollNumber = String(parsedQr?.rollNumber || '').trim()
+  const isStudentIdQr = parsedQr?.type === 'Student' || parsedQr?.type === 'STUDENT_ID_CARD'
+  if (!parsedQr || !isStudentIdQr || !rollNumber) {
     return { error: { status: 400, message: 'Invalid student ID QR code' } }
   }
 
-  const qrExpiresAt = new Date(parsedQr.expiresAt)
-  if (
-    typeof parsedQr.expiresAt !== 'string' ||
-    Number.isNaN(qrExpiresAt.getTime()) ||
-    new Date() >= qrExpiresAt
-  ) {
-    return { error: { status: 400, message: 'Student ID QR code has expired' } }
-  }
-
   const student = await prisma.student.findUnique({
-    where: { id: parsedQr.studentId },
+    where: { rollNumber },
     include: {
       user: {
         select: {
           id: true,
           name: true,
           email: true,
-          isActive: true
+          isActive: true,
+          deletedAt: true
         }
       }
     }
   })
 
-  if (!student || !student.user?.isActive) {
+  if (!student || !student.user?.isActive || student.user.deletedAt) {
     return { error: { status: 404, message: 'Student was not found or is inactive' } }
   }
 
   if (parsedQr.semester !== student.semester) {
     return { error: { status: 400, message: 'Student ID QR code is no longer valid for the current semester' } }
+  }
+
+  if ((parsedQr.section || '') !== (student.section || '')) {
+    return { error: { status: 400, message: 'Student ID QR code is no longer valid for the current section' } }
   }
 
   return { student, parsedQr }

@@ -481,6 +481,14 @@ const schemas = {
         isActive: z.enum(['true', 'false']).optional(),
         search: searchQuery,
         semester: z.preprocess(emptyToUndefined, studentSemesterSchema.optional()),
+        section: optionalString(20),
+        graduated: z.enum(['true', 'false']).optional()
+      })
+    },
+    exportStudents: {
+      query: z.object({
+        semester: z.preprocess(emptyToUndefined, studentSemesterSchema.optional()),
+        section: optionalString(20),
         graduated: z.enum(['true', 'false']).optional()
       })
     },
@@ -522,6 +530,7 @@ const schemas = {
       params: uuidParam,
       body: z.object({
         name: z.string().trim().min(2).max(100).optional(),
+        studentId: z.string().trim().min(1).max(50).optional(),
         phone: optionalString(30),
         address: optionalString(255),
         department: optionalString(100),

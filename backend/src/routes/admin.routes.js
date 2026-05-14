@@ -17,6 +17,9 @@ const {
 } = require('../controllers/studentApplications.controller')
 const {
   getAllUsers,
+  exportStudents,
+  exportStudentIdUpdateTemplate,
+  bulkUpdateStudentIds,
   getUserById
 } = require('../controllers/users.controller')
 const {
@@ -39,6 +42,9 @@ router.use(attachActorProfiles)
 
 router.get('/stats', allowRoles('ADMIN', 'COORDINATOR'), getAdminStats)
 router.get('/users', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.getAllUsers), getAllUsers)
+router.get('/users/students/export', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.exportStudents), exportStudents)
+router.get('/users/students/id-template', allowRoles('ADMIN', 'COORDINATOR'), validate(schemas.admin.exportStudents), exportStudentIdUpdateTemplate)
+router.post('/users/students/update-ids', allowRoles('ADMIN', 'COORDINATOR'), staffUploadLimiter, uploadSpreadsheet.single('file'), validateUploadedSpreadsheet, bulkUpdateStudentIds)
 /**
  * @openapi
  * /api/v1/admin/users/{id}:
