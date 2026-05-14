@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext'
 import { useToast } from './Toast'
 import BrandLogo from './BrandLogo'
 import SiteFooter from './SiteFooter'
+import LoadingSkeleton from './LoadingSkeleton'
 import useLiveNotifications from '../hooks/useLiveNotifications'
 import useProtectedObjectUrl from '../hooks/useProtectedObjectUrl'
 
@@ -502,7 +503,7 @@ const AppShell = ({
                         </div>
 
                         {notificationsLoading ? (
-                          <div className="rounded-2xl bg-[var(--color-surface-muted)] px-4 py-6 text-sm text-[var(--color-text-muted)]">Loading notifications...</div>
+                          <LoadingSkeleton rows={3} itemClassName="h-16" />
                         ) : notifications.length === 0 ? (
                           <div className="rounded-2xl bg-[var(--color-surface-muted)] px-4 py-6 text-sm text-[var(--color-text-muted)]">No notifications yet.</div>
                         ) : (

@@ -7,6 +7,7 @@ import Modal from '../../components/Modal'
 import EmptyState from '../../components/EmptyState'
 import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import { useToast } from '../../components/Toast'
 import { useAuth } from '../../context/AuthContext'
 import { ROLES } from '../../constants/roles'
@@ -246,10 +247,7 @@ const StudentQrSettings = () => {
         <Alert type="error" message={error} />
 
         {loading ? (
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="ui-card h-80 rounded-3xl" />
-            <div className="ui-card h-80 rounded-3xl" />
-          </div>
+          <LoadingSkeleton rows={2} className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]" itemClassName="h-80 rounded-3xl" />
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <section className="ui-card rounded-3xl p-6">

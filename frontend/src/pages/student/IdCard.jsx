@@ -150,11 +150,9 @@ const StudentIdCard = () => {
 
                   <div className="mt-5 overflow-hidden rounded-3xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-4">
                     {studentQrCode ? (
-                      <img src={studentQrCode} alt="Student identity QR" className="w-full rounded-2xl bg-[--color-bg-card] dark:bg-slate-800" />
+                      <img src={studentQrCode} alt="Student identity QR" className="w-full rounded-2xl bg-[var(--color-card-surface)]" />
                     ) : (
-                      <div className="flex aspect-square items-center justify-center rounded-2xl bg-[--color-bg-card] dark:bg-slate-800 text-sm text-[var(--color-text-soft)]">
-                        Loading QR...
-                      </div>
+                      <LoadingSkeleton rows={1} itemClassName="aspect-square" />
                     )}
                   </div>
 

@@ -523,7 +523,7 @@ const Subjects = () => {
             </p>
 
             {loadingEnrollments ? (
-              <div className="text-center text-[--color-text-muted] dark:text-slate-300 py-12">Loading students...</div>
+              <LoadingSkeleton rows={5} itemClassName="h-20" />
             ) : (
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {filteredEnrollmentStudents.map((student) => (

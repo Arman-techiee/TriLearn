@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import InstructorLayout from '../../layouts/InstructorLayout'
 import PageHeader from '../../components/PageHeader'
 import EmptyState from '../../components/EmptyState'
+import LoadingSkeleton from '../../components/LoadingSkeleton'
 import api from '../../utils/api'
 import { isRequestCanceled } from '../../utils/http'
 import logger from '../../utils/logger'
@@ -58,7 +59,7 @@ const InstructorSubjects = () => {
         />
 
         {loading ? (
-          <div className="text-center text-[--color-text-muted] dark:text-slate-400 py-8">Loading...</div>
+          <LoadingSkeleton rows={6} className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" itemClassName="h-64" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subjects.map((subject) => (

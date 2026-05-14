@@ -641,8 +641,8 @@ const Assignments = () => {
               </div>
             </div>
             {previewLoading ? (
-              <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--color-text-muted)]">
-                Loading preview...
+              <div className="flex-1 p-8">
+                <LoadingSkeleton rows={4} itemClassName="h-28" />
               </div>
             ) : previewFile.canEmbed ? (
               <iframe

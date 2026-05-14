@@ -6,6 +6,12 @@ const { normalizeDepartmentList } = require('../utils/instructorDepartments')
 const normalizeDepartment = (value) => value ? value.trim() : ''
 const normalizeSection = (value) => String(value || '').trim().toUpperCase()
 const MAX_SECTION_LENGTH = 20
+const activeStudentWhere = {
+  user: {
+    isActive: true,
+    deletedAt: null
+  }
+}
 
 /**
  * Handles ensure department exists business logic.
@@ -112,7 +118,10 @@ const getAllDepartments = async (context, result = createServiceResponder()) => 
     prisma.student.groupBy({
       by: ['department'],
       _count: { _all: true },
-      where: { department: { not: null } }
+      where: {
+        department: { not: null },
+        ...activeStudentWhere
+      }
     }),
     prisma.instructor.findMany({
       select: {
@@ -228,7 +237,12 @@ const deleteDepartment = async (context, result = createServiceResponder()) => {
   }
 
   const [students, instructors, subjects] = await Promise.all([
-    prisma.student.count({ where: { department: existing.name } }),
+    prisma.student.count({
+      where: {
+        department: existing.name,
+        ...activeStudentWhere
+      }
+    }),
     prisma.instructor.count({
       where: {
         OR: [

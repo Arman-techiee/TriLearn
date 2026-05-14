@@ -408,7 +408,7 @@ const ProfilePage = () => {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Timeline</h3>
             {activityLoading ? (
-              <div className="mt-4 rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-5 text-sm text-[var(--color-text-muted)]">Loading account activity...</div>
+              <LoadingSkeleton rows={3} className="mt-4" itemClassName="h-20" />
             ) : activityItems.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-5 text-sm text-[var(--color-text-muted)]">No recent account activity recorded yet.</div>
             ) : (
@@ -438,7 +438,7 @@ const ProfilePage = () => {
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Active sessions</h3>
             {activityLoading ? (
-              <div className="mt-4 rounded-2xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-5 text-sm text-[var(--color-text-muted)]">Loading active sessions...</div>
+              <LoadingSkeleton rows={3} className="mt-4" itemClassName="h-20" />
             ) : sessions.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-4 py-5 text-sm text-[var(--color-text-muted)]">No active sessions found.</div>
             ) : (

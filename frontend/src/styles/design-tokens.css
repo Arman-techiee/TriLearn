@@ -5,6 +5,8 @@
   --color-page-bg: #EEF3F8;
   --gradient-homepage-bg: linear-gradient(180deg, #f4f7fb 0%, #edf3f8 48%, #e7f0f6 100%);
   --color-page-text: #1A1A2E;
+  --color-bg: var(--color-page-bg);
+  --color-text: var(--color-page-text);
   --color-surface-muted: #E4EDF6;
   --color-surface-subtle: #DAE6F3;
   --color-border-muted: #C7D7EA;
@@ -24,6 +26,11 @@
 
   --color-card-surface: #FFFFFF;
   --color-card-border: #D6E1EE;
+  --color-bg-card: var(--color-card-surface);
+  --color-border: var(--color-card-border);
+  --color-skeleton-surface: #DDE8F5;
+  --color-skeleton-base: #BFD0E4;
+  --color-skeleton-highlight: rgba(255, 255, 255, 0.82);
   --shadow-card-sm: 0 1px 2px 0 rgba(15, 36, 71, 0.08), 0 10px 24px -18px rgba(15, 36, 71, 0.22);
   --shadow-card-md: 0 18px 36px -24px rgba(15, 36, 71, 0.28), 0 8px 18px -12px rgba(15, 36, 71, 0.16);
   --shadow-brand-logo-light: 0 14px 36px rgba(26, 60, 110, 0.12);
@@ -83,6 +90,9 @@ html[data-theme="dark"] {
 
   --color-card-surface: #12263A;
   --color-card-border: rgba(148, 163, 184, 0.24);
+  --color-skeleton-surface: #18334C;
+  --color-skeleton-base: #24435E;
+  --color-skeleton-highlight: rgba(125, 164, 202, 0.28);
   --shadow-card-sm: 0 18px 42px -28px rgba(4, 11, 20, 0.92), 0 6px 16px -10px rgba(15, 23, 42, 0.55);
   --shadow-card-md: 0 28px 56px -34px rgba(4, 11, 20, 0.98), 0 10px 24px -12px rgba(15, 23, 42, 0.62);
   --shadow-brand-logo-light: 0 18px 42px rgba(4, 11, 20, 0.26);
@@ -318,6 +328,33 @@ html[data-theme="dark"] [data-role-theme="student"] {
   &:hover {
     box-shadow: var(--shadow-card-md);
   }
+}
+
+@utility ui-skeleton-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-skeleton-base) 58%, var(--color-card-border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-skeleton-surface) 88%, white 12%), var(--color-skeleton-surface));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), var(--shadow-card-sm);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-115%);
+    background: linear-gradient(90deg, transparent, var(--color-skeleton-highlight), transparent);
+    animation: skeleton-shimmer 1.35s ease-in-out infinite;
+  }
+}
+
+@utility ui-skeleton-line {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, var(--color-skeleton-base), var(--color-skeleton-highlight), var(--color-skeleton-base));
+  background-size: 220% 100%;
+  animation: skeleton-line 1.35s ease-in-out infinite;
 }
 
 @utility ui-status-badge {
@@ -637,6 +674,22 @@ html[data-theme="dark"] [data-role-theme="student"] {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(115%);
+  }
+}
+
+@keyframes skeleton-line {
+  0% {
+    background-position: 140% 0;
+  }
+
+  100% {
+    background-position: -80% 0;
   }
 }
 
