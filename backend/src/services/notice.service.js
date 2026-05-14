@@ -7,6 +7,7 @@ const {
 const { getPagination } = require('../utils/pagination')
 const { recordAuditLog } = require('../utils/audit')
 const { sanitizePlainText } = require('../utils/sanitize')
+const { createNoticeNotifications } = require('../utils/noticeNotifications')
 const {
   NOTICE_POSTED_JOB,
   notificationQueue
@@ -156,7 +157,7 @@ const resolveNoticeTargeting = (context, { audience, targetDepartment, targetSem
 }
 
 const notifyUsersAboutNotice = async (notice) => {
-  await notificationQueue.add(NOTICE_POSTED_JOB, {
+  const job = await notificationQueue.add(NOTICE_POSTED_JOB, {
     notice: {
       id: notice.id,
       title: notice.title,
@@ -170,6 +171,10 @@ const notifyUsersAboutNotice = async (notice) => {
   }, {
     jobId: `notice:${notice.id}`
   })
+
+  if (!job) {
+    await createNoticeNotifications({ notice })
+  }
 }
 
 const coordinatorCanManageNotice = (context, notice) => (
@@ -364,6 +369,17 @@ const updateNotice = async (context, result = createServiceResponder()) => {
   })
 
   result.ok({ message: 'Notice updated successfully!', notice: updated })
+
+  await createNoticeNotifications({
+    notice: {
+      ...updated,
+      postedBy: context.user.id
+    },
+    title: `Notice updated: ${updated.title}`,
+    message: updated.content,
+    event: 'NOTICE_UPDATED',
+    excludeUserId: context.user.id
+  })
 
   await recordAuditLog({
     actorId: context.user.id,

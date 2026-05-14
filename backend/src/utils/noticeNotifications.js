@@ -1,0 +1,114 @@
+const prisma = require('./prisma')
+const { createNotifications } = require('./notifications')
+const { inferNoticeLink } = require('./notificationLinks')
+
+const uniqueUserIds = (userIds = []) => [...new Set(userIds.filter(Boolean))]
+
+const getNoticeRecipientWhere = (notice) => {
+  if (notice.audience === 'INSTRUCTORS_ONLY') {
+    return {
+      isActive: true,
+      role: 'INSTRUCTOR',
+      ...(notice.targetDepartment ? {
+        instructor: {
+          is: {
+            OR: [
+              { department: notice.targetDepartment },
+              {
+                departmentMemberships: {
+                  some: {
+                    department: {
+                      is: {
+                        name: notice.targetDepartment
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      } : {})
+    }
+  }
+
+  if (notice.audience === 'STUDENTS') {
+    return {
+      isActive: true,
+      role: 'STUDENT',
+      student: {
+        is: {
+          ...(notice.targetDepartment ? { department: notice.targetDepartment } : {}),
+          ...(notice.targetSemester ? { semester: notice.targetSemester } : {})
+        }
+      }
+    }
+  }
+
+  return {
+    isActive: true
+  }
+}
+
+const createNoticeNotifications = async ({
+  notice,
+  title = notice.title,
+  message = notice.content,
+  event = 'NOTICE_POSTED',
+  excludeUserId = notice.postedBy
+}) => {
+  if (!prisma.user?.findMany) {
+    return { count: 0, results: [] }
+  }
+
+  const users = await prisma.user.findMany({
+    where: {
+      ...getNoticeRecipientWhere(notice),
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {})
+    },
+    select: {
+      id: true,
+      role: true
+    }
+  })
+
+  const usersByLink = users.reduce((acc, user) => {
+    const link = inferNoticeLink(user.role)
+    if (!acc.has(link)) {
+      acc.set(link, [])
+    }
+    acc.get(link).push(user.id)
+    return acc
+  }, new Map())
+
+  const results = await Promise.all([...usersByLink.entries()].map(([link, userIds]) => (
+    createNotifications({
+      userIds: uniqueUserIds(userIds),
+      type: 'NOTICE_POSTED',
+      title,
+      message,
+      link,
+      metadata: {
+        noticeId: notice.id,
+        audience: notice.audience,
+        type: notice.type,
+        event
+      },
+      dedupeKeyFactory: (userId) => (
+        event === 'NOTICE_POSTED'
+          ? `notice:${notice.id}:${userId}`
+          : `notice:${event.toLowerCase()}:${notice.id}:${userId}`
+      )
+    })
+  )))
+
+  return {
+    count: results.reduce((total, item) => total + (item?.count || 0), 0),
+    results
+  }
+}
+
+module.exports = {
+  createNoticeNotifications,
+  getNoticeRecipientWhere
+}

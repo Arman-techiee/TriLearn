@@ -1,6 +1,7 @@
 const { createServiceResponder } = require('../utils/serviceResult')
 const prisma = require('../utils/prisma')
 const { createNotifications } = require('../utils/notifications')
+const { inferRoutineLink } = require('../utils/notificationLinks')
 const ensureCoordinatorDepartmentScope = async (context, result, departmentValue, message = 'You can only manage routines in your own department') => {
   if (context.user.role !== 'COORDINATOR') {
     return null
@@ -147,11 +148,11 @@ const getRoutineNotificationRecipients = async ({ department, semester, section,
       : Promise.resolve([])
   ])
 
-  return [...new Set([
-    ...students.map((student) => student.userId),
-    ...coordinators.map((coordinator) => coordinator.userId),
-    instructor?.userId
-  ].filter(Boolean))]
+  return [
+    ...students.map((student) => ({ userId: student.userId, role: 'STUDENT' })),
+    ...coordinators.map((coordinator) => ({ userId: coordinator.userId, role: 'COORDINATOR' })),
+    instructor?.userId ? { userId: instructor.userId, role: 'INSTRUCTOR' } : null
+  ].filter(Boolean)
 }
 
 const getRoutineAudienceLabel = ({ department, semester, section }) => {
@@ -167,18 +168,38 @@ const notifyRoutineCreated = async (routine) => {
     instructorId: routine.instructorId
   })
 
-  if (!recipients.length) {
-    return
-  }
-
-  await createNotifications({
-    userIds: recipients,
-    type: 'ROUTINE_UPDATED',
+  await notifyRoutineRecipients({
+    recipients,
+    routine,
+    event: 'ROUTINE_CREATED',
     title: 'Subject added to routine',
     message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) was added on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
-    link: '/routine',
+    dedupeKeyFactory: (userId) => `routine-created:${routine.combinedGroupId || routine.id}:${userId}`
+  })
+}
+
+const notifyRoutineRecipients = async ({ recipients, routine, event, title, message, dedupeKeyFactory }) => {
+  if (!recipients.length) {
+    return { count: 0 }
+  }
+
+  const recipientsByLink = recipients.reduce((acc, recipient) => {
+    const link = inferRoutineLink(recipient.role)
+    if (!acc.has(link)) {
+      acc.set(link, [])
+    }
+    acc.get(link).push(recipient.userId)
+    return acc
+  }, new Map())
+
+  const results = await Promise.all([...recipientsByLink.entries()].map(([link, userIds]) => createNotifications({
+    userIds,
+    type: 'ROUTINE_UPDATED',
+    title,
+    message,
+    link,
     metadata: {
-      event: 'ROUTINE_CREATED',
+      event,
       routineId: routine.id,
       subjectId: routine.subjectId,
       department: routine.department || null,
@@ -188,8 +209,13 @@ const notifyRoutineCreated = async (routine) => {
       startTime: routine.startTime,
       endTime: routine.endTime
     },
-    dedupeKeyFactory: (userId) => `routine-created:${routine.combinedGroupId || routine.id}:${userId}`
-  })
+    dedupeKeyFactory
+  })))
+
+  return {
+    count: results.reduce((total, item) => total + (item?.count || 0), 0),
+    results
+  }
 }
 
 const notifyRoutineDeleted = async (routine) => {
@@ -200,28 +226,31 @@ const notifyRoutineDeleted = async (routine) => {
     instructorId: routine.instructorId
   })
 
-  if (!recipients.length) {
-    return
-  }
-
-  await createNotifications({
-    userIds: recipients,
-    type: 'ROUTINE_UPDATED',
+  await notifyRoutineRecipients({
+    recipients,
+    routine,
+    event: 'ROUTINE_DELETED',
     title: 'Subject removed from routine',
     message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) was removed from ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
-    link: '/routine',
-    metadata: {
-      event: 'ROUTINE_DELETED',
-      routineId: routine.id,
-      subjectId: routine.subjectId,
-      department: routine.department || null,
-      semester: routine.semester,
-      section: routine.section || null,
-      dayOfWeek: routine.dayOfWeek,
-      startTime: routine.startTime,
-      endTime: routine.endTime
-    },
     dedupeKeyFactory: (userId) => `routine-deleted:${routine.id}:${userId}`
+  })
+}
+
+const notifyRoutineUpdated = async (routine) => {
+  const recipients = await getRoutineNotificationRecipients({
+    department: routine.department,
+    semester: routine.semester,
+    section: routine.section,
+    instructorId: routine.instructorId
+  })
+
+  await notifyRoutineRecipients({
+    recipients,
+    routine,
+    event: 'ROUTINE_UPDATED',
+    title: 'Routine updated',
+    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) is now scheduled on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
+    dedupeKeyFactory: (userId) => `routine-updated:${routine.id}:${Date.now()}:${userId}`
   })
 }
 
@@ -469,6 +498,8 @@ const updateRoutine = async (context, result = createServiceResponder()) => {
         notifyRoutineDeleted(routine),
         notifyRoutineCreated(updated)
       ])
+    } else {
+      void notifyRoutineUpdated(updated).catch(() => null)
     }
   } catch (error) {
     if (error?.code === 'P2002') {
