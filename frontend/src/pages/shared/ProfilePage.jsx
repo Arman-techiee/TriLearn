@@ -62,6 +62,8 @@ const getRoleLabel = (role) => ({
   [ROLES.ADMIN]: 'Admin'
 }[role] || 'Account')
 
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024
+
 const buildFormState = (currentUser) => ({
   phone: currentUser.phone || '',
   address: currentUser.address || '',
@@ -189,6 +191,12 @@ const ProfilePage = () => {
       return
     }
 
+    if (nextFile.size > MAX_AVATAR_BYTES) {
+      setError('Profile photo must be 3 MB or smaller.')
+      event.target.value = ''
+      return
+    }
+
     setError('')
     setSelectedAvatarFile(nextFile)
   }
@@ -205,11 +213,7 @@ const ProfilePage = () => {
       const payload = new FormData()
       payload.append('avatar', selectedAvatarFile)
 
-      const res = await api.post('/auth/avatar', payload, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      const res = await api.post('/auth/avatar', payload)
 
       setProfile(res.data.user)
       updateUser(res.data.authUser || res.data.user)

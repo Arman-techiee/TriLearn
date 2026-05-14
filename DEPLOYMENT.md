@@ -42,6 +42,31 @@ You can also add connection parameters directly to `DATABASE_URL`, for example:
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/trilearn?connection_limit=10&pool_timeout=20
 ```
 
+### Supabase Postgres on Render
+
+Supabase Postgres requires SSL for production connections. For Render, use the
+Supabase connection string from the project **Connect** panel and make sure the
+URL includes `sslmode=require`.
+
+Recommended Render env values:
+
+```env
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@POOLER_HOST:5432/postgres?sslmode=require
+PGPOOL_MAX=5
+PGPOOL_MIN=0
+PGPOOL_IDLE_TIMEOUT_MS=10000
+PGPOOL_CONNECTION_TIMEOUT_MS=10000
+```
+
+Use Supabase's **Session pooler** URL for a persistent Render web service when
+you need IPv4 compatibility. Use the direct database URL only from environments
+that can reach Supabase over IPv6, or when your Supabase project has the IPv4
+add-on enabled.
+
+If the database password contains reserved URL characters such as `@`, `#`, `?`,
+`&`, `/`, or `%`, percent-encode the password before putting it in
+`DATABASE_URL`.
+
 ## Notification worker
 
 The BullMQ notification worker runs inside the same process as the HTTP server.
