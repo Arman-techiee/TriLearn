@@ -322,7 +322,8 @@ export const isProtectedUploadUrl = (fileUrl) => {
 
 const getRequestPathFromResolvedUrl = (resolvedUrl) => {
   const parsedUrl = new URL(resolvedUrl)
-  return `${parsedUrl.pathname}${parsedUrl.search}`
+  const apiRelativePath = parsedUrl.pathname.replace(/^\/api\/v\d+(?=\/uploads\/)/i, '')
+  return `${apiRelativePath}${parsedUrl.search}`
 }
 
 export const fetchFileBlob = async (fileUrl, { signal } = {}) => {
