@@ -9,14 +9,37 @@ const createAxiosClient = () => ({
   }
 })
 
+const createStorageMock = () => {
+  const values = new Map()
+
+  return {
+    getItem: vi.fn((key) => values.get(key) ?? null),
+    setItem: vi.fn((key, value) => {
+      values.set(key, String(value))
+    }),
+    removeItem: vi.fn((key) => {
+      values.delete(key)
+    }),
+    clear: vi.fn(() => {
+      values.clear()
+    })
+  }
+}
+
 describe('api auth persistence', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.resetModules()
+    Object.defineProperty(window, 'localStorage', {
+      value: createStorageMock(),
+      configurable: true
+    })
     window.sessionStorage.clear()
+    window.localStorage.removeItem('trilearn.auth.user')
+    window.localStorage.removeItem('trilearn.auth.refresh.cooldownUntil')
   })
 
-  it('stores only a minimal auth snapshot in sessionStorage while keeping the full user in memory', async () => {
+  it('stores only a minimal auth snapshot while keeping the full user and token in memory', async () => {
     const apiClient = createAxiosClient()
     const refreshClient = createAxiosClient()
 
@@ -49,6 +72,7 @@ describe('api auth persistence', () => {
       }
     })
 
+    expect(getAuthState().token).toBe('token-1')
     expect(getAuthState().user).toMatchObject({
       id: 'user-1',
       email: 'student@example.com',
@@ -60,7 +84,7 @@ describe('api auth persistence', () => {
       }
     })
 
-    expect(JSON.parse(window.sessionStorage.getItem('trilearn.auth.user'))).toEqual({
+    expect(JSON.parse(window.localStorage.getItem('trilearn.auth.user'))).toEqual({
       name: 'Taylor',
       role: 'STUDENT',
       mustChangePassword: false,
@@ -113,7 +137,7 @@ describe('api auth persistence', () => {
       email: 'admin@example.com',
       coordinator: { department: 'BCA' }
     })
-    expect(JSON.parse(window.sessionStorage.getItem('trilearn.auth.user'))).toEqual({
+    expect(JSON.parse(window.localStorage.getItem('trilearn.auth.user'))).toEqual({
       name: 'Jordan',
       role: 'ADMIN',
       mustChangePassword: false,
@@ -156,7 +180,8 @@ describe('api auth persistence', () => {
 
     await expect(interceptorReject(error)).rejects.toBe(error)
     expect(errorSpy).toHaveBeenCalled()
-    expect(errorSpy).toHaveBeenCalledWith('API Error:', {
+    expect(errorSpy.mock.calls[0][0]).toBe('API Error:')
+    expect(JSON.parse(errorSpy.mock.calls[0][1])).toEqual({
       message: 'Request failed',
       status: 401,
       url: '/auth/login',

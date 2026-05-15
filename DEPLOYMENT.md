@@ -151,6 +151,37 @@ HTTP `426 Upgrade Required` with the minimum version. The mobile app treats
 that response as a forced upgrade signal: it clears the current session and
 prompts the user to install an updated app before continuing.
 
+## Web session persistence
+
+The web app keeps access tokens in memory and uses the httpOnly refresh cookie
+to restore a session after a tab or browser restart. For deployed browsers to
+stay signed in for the 7-day refresh lifetime, deploy the frontend and backend
+under the same site, for example:
+
+```text
+https://trilearn.example.com
+https://api.trilearn.example.com
+```
+
+Avoid relying on separate `*.onrender.com` frontend and backend hostnames for
+browser session persistence. Some browsers treat that API cookie as third-party
+state and may not keep or send it after reopening the app.
+
+Use these production env values:
+
+```env
+ACCESS_TOKEN_EXPIRES_IN=15m
+REFRESH_TOKEN_EXPIRES_DAYS=7
+FRONTEND_URL=https://trilearn.example.com
+TRUST_PROXY=1
+FORCE_HTTPS=true
+```
+
+In Render, add the custom frontend domain to the static site and the custom API
+domain to the backend service, then point DNS records at Render's provided
+targets. Set `VITE_API_URL` on the frontend to the API custom domain, for
+example `https://api.trilearn.example.com/api/v1`.
+
 ## Database backups
 
 Schedule a daily pg_dump using cron or your platform's managed backup feature.

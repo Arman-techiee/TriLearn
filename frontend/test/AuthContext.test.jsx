@@ -68,13 +68,13 @@ describe('AuthContext', () => {
     })
   })
 
-  it('skips refresh and clears stale cached users on public auth routes', async () => {
+  it('skips refresh and clears stale cached users on non-login public auth routes', async () => {
     getAuthStateMock
       .mockReturnValueOnce({ user: { name: 'Cached', role: 'ADMIN' }, token: null })
       .mockReturnValue({ user: { name: 'Cached', role: 'ADMIN' }, token: null })
 
     render(
-      <MemoryRouter initialEntries={['/login']}>
+      <MemoryRouter initialEntries={['/forgot-password']}>
         <AuthProvider>
           <Consumer />
         </AuthProvider>

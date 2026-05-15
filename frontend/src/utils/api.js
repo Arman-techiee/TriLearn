@@ -111,7 +111,8 @@ const writeStoredRefreshCooldownUntil = (value) => {
  * The access token is held in this module-level variable (JS memory) and a minimal
  * user snapshot is cached in localStorage to survive browser/tab restarts.
  * Trade-off: an XSS attack could exfiltrate the access token from memory.
- * Mitigation: the token is short-lived (15m), the refresh token is in an httpOnly
+ * Mitigation: the token is short-lived, logout revokes the current access-token
+ * JTI through Redis, the refresh token is in an httpOnly
  * cookie and never accessible to JS, and the CSP blocks inline scripts and unknown origins.
  * Alternative: move the access token to an httpOnly cookie — requires a CSRF double-submit
  * strategy since the refresh cookie is already httpOnly on /api/v1/auth.
@@ -199,7 +200,7 @@ const clearRefreshCooldown = () => {
   setRefreshCooldown(0)
 }
 
-const decodeJwtPayload = (token) => {
+function decodeJwtPayload(token) {
   try {
     const encodedPayload = String(token || '').split('.')[1]
     if (!encodedPayload) {
@@ -218,7 +219,7 @@ const decodeJwtPayload = (token) => {
   }
 }
 
-const getAccessTokenExpiresAt = (token) => {
+function getAccessTokenExpiresAt(token) {
   const payload = decodeJwtPayload(token)
   const expiresAtSeconds = Number(payload?.exp)
 
