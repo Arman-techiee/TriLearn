@@ -548,7 +548,8 @@ docker compose up
 
 The Compose file starts PostgreSQL, Redis, and the backend service.
 It does not replace the separate frontend and mobile development servers.
-Use it when you want the core backend dependencies and API to start together on a single development machine or server.
+Use it when you want the core backend dependencies and API to start together on a single development machine.
+For production Docker Compose deployments, use `docker compose -f docker-compose.prod.yml up -d --build`.
 
 ## Environment variables
 

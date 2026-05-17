@@ -32,6 +32,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: runner
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,6 +47,7 @@ services:
       UPLOAD_DIR: uploads
     ports:
       - "5000:5000"
+    volumes: !reset []
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5000/ping || exit 1"]
       interval: 15s

@@ -303,7 +303,19 @@ The backend includes [backend/Dockerfile](backend/Dockerfile) for containerized 
 
 Use [docker-compose.prod.yml](docker-compose.prod.yml) for production compose
 deployments. It builds the backend image and runs it without mounting the source
-directory. [docker-compose.yml](docker-compose.yml) is for development only.
+directory. The production compose file explicitly targets the final Dockerfile
+stage and resets backend volumes so the development source bind mount cannot be
+carried into a layered production compose invocation. [docker-compose.yml](docker-compose.yml)
+is for development only.
+
+For production, run the production file directly:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Do not use plain `docker compose up` for production; that uses
+[docker-compose.yml](docker-compose.yml), the development stack.
 
 Example:
 

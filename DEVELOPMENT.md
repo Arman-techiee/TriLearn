@@ -30,7 +30,8 @@ Start everything:
 npm run dev:docker
 ```
 
-The backend service bind-mounts `./backend` into the container and runs `npm run dev`, so source changes reload through `nodemon`.
+The backend service bind-mounts `./backend` into the container and runs `npm start`.
+Restart the backend container after source changes you want reflected in the API.
 
 ## Database
 
