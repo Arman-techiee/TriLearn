@@ -3,6 +3,7 @@ const prisma = require('../utils/prisma')
 const logger = require('../utils/logger')
 const { getInstructorDepartments } = require('../utils/instructorDepartments')
 const { getReadyRedisClient } = require('../utils/redis')
+const { cacheRevokedJti, isRevokedJtiCached } = require('../utils/accessTokenRevocation')
 const { REVOKED_JTI_PREFIX } = require('../constants/auth')
 
 const getUserSelectShape = () => ({
@@ -79,8 +80,14 @@ const protect = async (req, res, next) => {
     }
 
     if (decoded.jti) {
+      // REDIS-SAVE: in-memory negative cache avoids Redis EXISTS on every protected request
+      if (isRevokedJtiCached(decoded.jti)) {
+        return res.status(401).json({ message: 'Token has been revoked' })
+      }
+
       const redis = await getReadyRedisClient({ context: 'access token revocation check' })
       if (redis && await redis.exists(`${REVOKED_JTI_PREFIX}${decoded.jti}`)) {
+        cacheRevokedJti(decoded.jti)
         return res.status(401).json({ message: 'Token has been revoked' })
       }
     }

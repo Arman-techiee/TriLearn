@@ -43,7 +43,8 @@ const semesterFilterOptions = [
   { value: 'graduate', label: 'Graduates' }
 ]
 const academicSemesterOptions = Array.from({ length: 8 }, (_, index) => String(index + 1))
-const STUDENT_IMPORT_POLL_INTERVAL_MS = 1500
+// REDIS-SAVE: reduced polling to cut BullMQ Redis calls
+const STUDENT_IMPORT_POLL_INTERVAL_MS = 4000
 const STUDENT_IMPORT_MAX_POLL_ATTEMPTS = 40
 const STUDENT_IMPORT_TEMPLATE_FILENAME = 'trilearn-student-import-template.csv'
 const STUDENT_IMPORT_TEMPLATE_ROWS = [
@@ -573,7 +574,7 @@ const Users = () => {
             break
           }
 
-          if (job.state === 'failed') {
+          if (job.state === 'failed' || job.state === 'cancelled') {
             const failedImport = job.result || {
               message: job.failedReason || 'Student import failed.'
             }

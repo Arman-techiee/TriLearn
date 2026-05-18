@@ -47,7 +47,7 @@ const getRedisStore = (prefixSuffix = 'global') => {
   })
 }
 
-const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator, prefixSuffix }) => {
+const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator, prefixSuffix, useRedisStore = true }) => {
   if (areRateLimitsDisabled()) {
     if (!rateLimitDisabledWarningShown) {
       rateLimitDisabledWarningShown = true
@@ -64,7 +64,7 @@ const createLimiter = ({ max, message, windowMs = 15 * 60 * 1000, keyGenerator, 
     legacyHeaders: false,
     message: { message },
     keyGenerator,
-    store: getRedisStore(prefixSuffix)
+    store: useRedisStore ? getRedisStore(prefixSuffix) : undefined
   })
 }
 
@@ -110,6 +110,8 @@ const refreshRateLimitKey = (req) => {
 }
 
 const apiLimiter = createLimiter({
+  // REDIS-SAVE: switched to MemoryStore for non-sensitive routes
+  useRedisStore: false,
   prefixSuffix: 'api',
   max: 300,
   message: 'Too many requests, please try again later'

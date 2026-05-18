@@ -6,6 +6,47 @@ const {
   USER_ACCESS_JTI_PREFIX
 } = require('../constants/auth')
 
+const REVOKED_JTI_CACHE_TTL_MS = 60 * 1000
+const REVOKED_JTI_CACHE_CLEANUP_MS = 5 * 60 * 1000
+const revokedJtiCache = new Map()
+
+// REDIS-SAVE: in-memory negative cache avoids Redis EXISTS on every protected request
+const cacheRevokedJti = (jti, ttlMs = REVOKED_JTI_CACHE_TTL_MS) => {
+  if (!jti || ttlMs <= 0) {
+    return
+  }
+
+  revokedJtiCache.set(jti, Date.now() + ttlMs)
+}
+
+const isRevokedJtiCached = (jti) => {
+  const expiresAt = revokedJtiCache.get(jti)
+  if (!expiresAt) {
+    return false
+  }
+
+  if (expiresAt <= Date.now()) {
+    revokedJtiCache.delete(jti)
+    return false
+  }
+
+  return true
+}
+
+// REDIS-SAVE: keep the in-memory revocation cache bounded
+const revokedJtiCacheCleanupTimer = setInterval(() => {
+  const now = Date.now()
+  for (const [jti, expiresAt] of revokedJtiCache.entries()) {
+    if (expiresAt <= now) {
+      revokedJtiCache.delete(jti)
+    }
+  }
+}, REVOKED_JTI_CACHE_CLEANUP_MS)
+
+if (typeof revokedJtiCacheCleanupTimer.unref === 'function') {
+  revokedJtiCacheCleanupTimer.unref()
+}
+
 const getBearerToken = (req) => {
   const [scheme, token] = String(req?.headers?.authorization || '').split(' ')
   return scheme?.toLowerCase() === 'bearer' && token ? token : null
@@ -34,6 +75,7 @@ const revokeAccessTokenPayload = async (payload) => {
     }
 
     await redis.set(`${REVOKED_JTI_PREFIX}${jti}`, '1', { EX: ttlSeconds })
+    cacheRevokedJti(jti, Math.min(ttlSeconds * 1000, REVOKED_JTI_CACHE_TTL_MS))
     return true
   } catch (error) {
     logger.warn('Failed to revoke access token jti in Redis', { message: error.message })
@@ -110,6 +152,7 @@ const revokeAllAccessTokensForUser = async (userId, { throwOnFailure = false } =
         } else {
           await redis.set(`${REVOKED_JTI_PREFIX}${jti}`, '1', { EX: ttlSeconds })
         }
+        cacheRevokedJti(jti, Math.min(ttlSeconds * 1000, REVOKED_JTI_CACHE_TTL_MS))
         revokedCount += 1
       }
     }
@@ -134,6 +177,8 @@ const revokeAllAccessTokensForUser = async (userId, { throwOnFailure = false } =
 
 module.exports = {
   getBearerToken,
+  cacheRevokedJti,
+  isRevokedJtiCached,
   revokeAccessToken,
   revokeAccessTokenFromRequest,
   revokeAccessTokenPayload,

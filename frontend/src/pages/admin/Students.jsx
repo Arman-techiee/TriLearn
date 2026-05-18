@@ -32,7 +32,8 @@ const initialStudentValues = {
   semester: '1',
   section: ''
 }
-const STUDENT_IMPORT_POLL_INTERVAL_MS = 1500
+// REDIS-SAVE: reduced polling to cut BullMQ Redis calls
+const STUDENT_IMPORT_POLL_INTERVAL_MS = 4000
 const STUDENT_IMPORT_MAX_POLL_ATTEMPTS = 40
 
 const wait = (ms) => new Promise((resolve) => {
@@ -293,7 +294,7 @@ const Students = () => {
             data = job.result
             break
           }
-          if (job.state === 'failed') {
+          if (job.state === 'failed' || job.state === 'cancelled') {
             throw new Error(job.result?.message || job.failedReason || 'Student import failed.')
           }
         }

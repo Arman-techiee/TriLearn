@@ -106,14 +106,14 @@ test('GET /health returns only a minimal public status payload', async () => {
   assert.deepEqual(response.body, { status: 'ok' })
 })
 
-test('GET /health returns 404 for external requests without a health check key', async () => {
+test('GET /health remains public for external uptime checks without a health check key', async () => {
   const response = await request(app)
     .get('/health')
     .set('Origin', trustedOrigin)
     .set('X-Forwarded-For', '203.0.113.10')
 
-  assert.equal(response.status, 404)
-  assert.deepEqual(response.body, { message: 'Route not found' })
+  assert.equal(response.status, 200)
+  assert.deepEqual(response.body, { status: 'ok' })
 })
 
 test('enforceHttps blocks insecure production requests', async () => {

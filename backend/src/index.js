@@ -20,7 +20,6 @@ const { requestId } = require('./middleware/requestId.middleware')
 const { uploadPublicPaths } = require('./utils/fileStorage')
 const { csrfProtection, getTrustedOrigins, isTrustedOrigin } = require('./middleware/csrf.middleware')
 const { serveUploadedFile } = require('./controllers/upload.controller')
-const { normalizeIpAddress, isPrivateIpv4, isPrivateIpv6 } = require('./utils/network')
 const prisma = require('./utils/prisma')
 const { scheduleMaintenance } = require('./utils/maintenance')
 const { initRealtime, closeRealtime } = require('./utils/realtime')
@@ -36,6 +35,11 @@ const allowedOrigins = getTrustedOrigins()
 let server = null
 let maintenance = null
 let isShuttingDown = false
+
+// REDIS-SAVE: Uptime Robot pings this — must be Redis-free
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok' })
+})
 
 const ENABLE_API_DOCS = process.env.ENABLE_API_DOCS === 'true'
 if (ENABLE_API_DOCS && process.env.NODE_ENV !== 'production') {
@@ -59,7 +63,6 @@ if (ENABLE_API_DOCS && process.env.NODE_ENV !== 'production') {
 }
 
 const shouldExposeInternalErrors = () => String(process.env.DEBUG_ERRORS || '').trim().toLowerCase() === 'true'
-const INTERNAL_HEALTHCHECK_HEADER = 'x-health-check-key'
 const getTrustProxySetting = () => {
   const configured = String(process.env.TRUST_PROXY || '').trim()
   if (!configured) {
@@ -76,26 +79,6 @@ const getTrustProxySetting = () => {
 const getErrorMessage = (error, fallbackMessage = 'Something went wrong') => {
   const errorMessage = error instanceof Error ? error.message : String(error)
   return shouldExposeInternalErrors() ? (errorMessage || fallbackMessage) : fallbackMessage
-}
-
-const isInternalRequest = (req) => {
-  const normalizedIp = normalizeIpAddress(req.ip || req.socket?.remoteAddress || '')
-  return normalizedIp === 'localhost' || isPrivateIpv4(normalizedIp) || isPrivateIpv6(normalizedIp)
-}
-
-const requireInternalHealthcheck = (req, res, next) => {
-  const configuredHealthcheckKey = String(process.env.HEALTHCHECK_KEY || '').trim()
-  const providedHealthcheckKey = String(req.get(INTERNAL_HEALTHCHECK_HEADER) || '').trim()
-
-  if (isInternalRequest(req)) {
-    return next()
-  }
-
-  if (configuredHealthcheckKey && providedHealthcheckKey === configuredHealthcheckKey) {
-    return next()
-  }
-
-  return res.status(404).json({ message: 'Route not found' })
 }
 
 app.set('trust proxy', getTrustProxySetting())
@@ -191,11 +174,8 @@ apiV1.use('/notifications', notificationRoutes)
 
 app.use('/api/v1', apiV1)
 
-app.get('/health', requireInternalHealthcheck, (_req, res) => {
-  res.json({ status: 'ok' })
-})
-
-app.get('/ping', requireInternalHealthcheck, (_req, res) => {
+// REDIS-SAVE: this lightweight ping route stays outside Redis-backed middleware
+app.get('/ping', (_req, res) => {
   res.json({ status: 'ok' })
 })
 

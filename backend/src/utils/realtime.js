@@ -8,6 +8,7 @@ const { isRedisConfigured, getReadyRedisClient } = require('./redis')
 let io = null
 let redisAdapterSubClient = null
 let memoryAdapterWarningShown = false
+const socketEventCounts = new Map()
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(String(value ?? ''), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
@@ -83,12 +84,8 @@ const verifySocketTokenUser = async (token) => {
   return user
 }
 
-/*
- * This rate limiter is per-connection and in-process. It does not share
- * state across cluster instances. For multi-instance deployments, replace
- * with a Redis-backed sliding window counter keyed on socket.data.user.id.
- */
-const createSocketEventRateLimiter = ({ maxEvents, windowMs, now = () => Date.now(), redisClient = null, socket = null }) => {
+// REDIS-SAVE: in-memory socket limiter, clients mostly listen
+const createSocketEventRateLimiter = ({ maxEvents, windowMs, now = () => Date.now(), socket = null }) => {
   let tokens = maxEvents
   let lastRefillAt = now()
 
@@ -106,17 +103,15 @@ const createSocketEventRateLimiter = ({ maxEvents, windowMs, now = () => Date.no
 
   return {
     consume: (cost = 1) => {
-      const userId = socket?.data?.user?.id
-      if (redisClient && userId) {
-        const windowKey = Math.floor(now() / windowMs)
-        const key = `socket-rate:${userId}:${windowKey}`
-        return redisClient.incr(key).then(async (count) => {
-          if (count === 1) {
-            await redisClient.expire(key, Math.ceil(windowMs / 1000))
-          }
+      if (socket?.id) {
+        const currentTime = now()
+        const current = socketEventCounts.get(socket.id)
+        const next = !current || currentTime - current.windowStart >= windowMs
+          ? { count: cost, windowStart: currentTime }
+          : { ...current, count: current.count + cost }
 
-          return count <= maxEvents
-        })
+        socketEventCounts.set(socket.id, next)
+        return next.count <= maxEvents
       }
 
       refillTokens()
@@ -177,7 +172,6 @@ const initRealtime = async ({ server, allowedOrigins = [] }) => {
   })
 
   await attachRedisAdapter(io)
-  const redisRateLimiterClient = await getReadyRedisClient({ context: 'Socket event rate limiter' })
 
   io.use(async (socket, next) => {
     try {
@@ -203,7 +197,6 @@ const initRealtime = async ({ server, allowedOrigins = [] }) => {
     const eventRateLimiter = createSocketEventRateLimiter({
       maxEvents: SOCKET_EVENT_RATE_LIMIT_MAX,
       windowMs: SOCKET_EVENT_RATE_LIMIT_WINDOW_MS,
-      redisClient: redisRateLimiterClient,
       socket
     })
 
@@ -221,6 +214,11 @@ const initRealtime = async ({ server, allowedOrigins = [] }) => {
     })
 
     socket.join(getRoomName(userId))
+
+    // REDIS-SAVE: in-memory socket limiter, clients mostly listen
+    socket.on('disconnect', () => {
+      socketEventCounts.delete(socket.id)
+    })
 
     socket.on('auth:refresh', async (payload, ack) => {
       try {
