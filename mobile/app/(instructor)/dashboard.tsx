@@ -32,6 +32,11 @@ type AssignmentDetailResponse = {
 };
 
 const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const;
+const classTypeLabel = (value?: string) => {
+  if (value === 'WORKSHOP') return 'Workshop';
+  if (value === 'TUTORIAL') return 'Tutorial';
+  return 'Lecture';
+};
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 const getTodayDayName = () => dayNames[new Date().getDay()];
@@ -185,6 +190,10 @@ export default function InstructorDashboardScreen() {
                 <View className="flex-1">
                   <Text className="text-base font-bold text-slate-900">{routine.subject?.name ?? 'Subject'}</Text>
                   <Text className="mt-1 text-sm font-semibold text-primary">{routine.subject?.code ?? 'N/A'}</Text>
+                  <Text className="mt-2 self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase text-primary">
+                    {classTypeLabel(routine.classType)}
+                  </Text>
+                  {routine.note ? <Text className="mt-2 text-xs font-semibold text-amber-700">{routine.note}</Text> : null}
                 </View>
                 <View className="rounded-full bg-slate-100 px-3 py-1">
                   <Text className="text-xs font-bold text-slate-600">{routine.startTime}-{routine.endTime}</Text>

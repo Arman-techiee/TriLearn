@@ -5378,6 +5378,54 @@ test('createRoutine allows combined classes sharing the same room and combinedGr
   assert.equal(createCalls[0].data.combinedGroupId, '123e4567-e89b-12d3-a456-426614174000')
 })
 
+test('createRoutine stores workshop class type with laptop note', async () => {
+  const createCalls = []
+  const { createRoutine } = loadWithMocks(resolveFromTest('src', 'controllers', 'routine.controller.js'), {
+    '../utils/prisma': {
+      subject: {
+        findUnique: async () => ({ id: 'subject-1', semester: 3, department: 'BCA' })
+      },
+      instructor: {
+        findUnique: async () => ({ id: 'instructor-1', department: 'BCA' })
+      },
+      routine: {
+        findFirst: async () => null,
+        create: async (payload) => {
+          createCalls.push(payload)
+          return {
+            id: 'routine-1',
+            ...payload.data,
+            subject: { id: 'subject-1', name: 'DSA', code: 'CSC201', semester: 3, department: 'BCA' },
+            instructor: { id: 'instructor-1', user: { name: 'Instructor One' } }
+          }
+        }
+      }
+    }
+  })
+
+  const req = {
+    body: {
+      subjectId: 'subject-1',
+      instructorId: 'instructor-1',
+      department: 'BCA',
+      semester: 3,
+      section: 'A',
+      dayOfWeek: 'SUNDAY',
+      startTime: '10:00',
+      endTime: '11:00',
+      classType: 'WORKSHOP',
+      room: 'Lab 1'
+    }
+  }
+  const res = createResponse()
+
+  await createRoutine(req, res)
+
+  assert.equal(res.statusCode, 201)
+  assert.equal(createCalls[0].data.classType, 'WORKSHOP')
+  assert.equal(createCalls[0].data.note, 'Laptop is compulsory for workshop.')
+})
+
 test('createRoutine returns a friendly error when the database uniqueness guard catches an instructor race', async () => {
   const { createRoutine } = loadWithMocks(resolveFromTest('src', 'controllers', 'routine.controller.js'), {
     '../utils/prisma': {

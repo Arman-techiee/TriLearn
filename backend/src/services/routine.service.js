@@ -34,6 +34,21 @@ const applyDepartmentScope = (studentDepartment) => (
     : [{ department: null }, { department: '' }]
 )
 
+const WORKSHOP_NOTE = 'Laptop is compulsory for workshop.'
+
+const normalizeRoutineClassType = (classType) => (
+  ['LECTURE', 'TUTORIAL', 'WORKSHOP'].includes(classType) ? classType : 'LECTURE'
+)
+
+const buildRoutineNote = ({ classType, note }) => {
+  const normalizedNote = String(note || '').trim()
+  if (normalizedNote) {
+    return normalizedNote
+  }
+
+  return normalizeRoutineClassType(classType) === 'WORKSHOP' ? WORKSHOP_NOTE : null
+}
+
 const buildRoutineFilters = async (context) => {
   const { dayOfWeek, semester, department, section } = context.query
   const filters = {}
@@ -173,7 +188,7 @@ const notifyRoutineCreated = async (routine) => {
     routine,
     event: 'ROUTINE_CREATED',
     title: 'Subject added to routine',
-    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) was added on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
+    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) ${routine.classType === 'WORKSHOP' ? 'workshop' : 'class'} was added on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.${routine.note ? ` ${routine.note}` : ''}`,
     dedupeKeyFactory: (userId) => `routine-created:${routine.combinedGroupId || routine.id}:${userId}`
   })
 }
@@ -207,7 +222,9 @@ const notifyRoutineRecipients = async ({ recipients, routine, event, title, mess
       section: routine.section || null,
       dayOfWeek: routine.dayOfWeek,
       startTime: routine.startTime,
-      endTime: routine.endTime
+      endTime: routine.endTime,
+      classType: routine.classType || 'LECTURE',
+      note: routine.note || null
     },
     dedupeKeyFactory
   })))
@@ -249,7 +266,7 @@ const notifyRoutineUpdated = async (routine) => {
     routine,
     event: 'ROUTINE_UPDATED',
     title: 'Routine updated',
-    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) is now scheduled on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
+    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) is now scheduled as ${String(routine.classType || 'LECTURE').toLowerCase()} on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.${routine.note ? ` ${routine.note}` : ''}`,
     dedupeKeyFactory: (userId) => `routine-updated:${routine.id}:${Date.now()}:${userId}`
   })
 }
@@ -356,7 +373,8 @@ const respondToRoutineConflict = ({ result, conflict, room, instructorId }) => {
  */
 const createRoutine = async (context, result = createServiceResponder()) => {
   try {
-    const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId } = context.body
+    const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId, classType, note } = context.body
+    const normalizedClassType = normalizeRoutineClassType(classType)
 
     const scope = await validateRoutineAcademicScope({ context, subjectId, instructorId, department, semester })
     if (scope.error) {
@@ -381,6 +399,8 @@ const createRoutine = async (context, result = createServiceResponder()) => {
         dayOfWeek,
         startTime,
         endTime,
+        classType: normalizedClassType,
+        note: buildRoutineNote({ classType: normalizedClassType, note }),
         room: room || null,
         combinedGroupId: combinedGroupId || null
       },
@@ -448,7 +468,8 @@ const getRoutineById = async (context, result = createServiceResponder()) => {
 const updateRoutine = async (context, result = createServiceResponder()) => {
   try {
     const { id } = context.params
-    const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId } = context.body
+    const { subjectId, instructorId, department, semester, section, dayOfWeek, startTime, endTime, room, combinedGroupId, classType, note } = context.body
+    const normalizedClassType = normalizeRoutineClassType(classType)
 
     const routine = await prisma.routine.findUnique({
       where: { id },
@@ -485,6 +506,8 @@ const updateRoutine = async (context, result = createServiceResponder()) => {
         dayOfWeek,
         startTime,
         endTime,
+        classType: normalizedClassType,
+        note: buildRoutineNote({ classType: normalizedClassType, note }),
         room: room || null,
         combinedGroupId: combinedGroupId || null
       },

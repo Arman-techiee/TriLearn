@@ -14,6 +14,13 @@ import logger from '../../utils/logger'
 import { isRequestCanceled } from '../../utils/http'
 const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const DAY_SHORT = { SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat' }
+const CLASS_TYPES = [
+  { value: 'LECTURE', label: 'Lecture' },
+  { value: 'TUTORIAL', label: 'Tutorial' },
+  { value: 'WORKSHOP', label: 'Workshop' }
+]
+const WORKSHOP_NOTE = 'Laptop is compulsory for workshop.'
+const formatClassType = (value) => CLASS_TYPES.find((type) => type.value === value)?.label || 'Lecture'
 const getInstructorDepartments = (instructor) => (
   Array.isArray(instructor?.instructor?.departments) && instructor.instructor.departments.length > 0
     ? instructor.instructor.departments
@@ -71,6 +78,8 @@ const defaultForm = {
   dayOfWeek: 'SUNDAY',
   startTime: '08:00',
   endTime: '09:00',
+  classType: 'LECTURE',
+  note: '',
   room: ''
 }
 
@@ -198,6 +207,7 @@ const AdminRoutine = () => {
           sectionTargets.map((section) => api.post('/routines', {
             ...basePayload,
             section,
+            note: form.classType === 'WORKSHOP' && !form.note.trim() ? WORKSHOP_NOTE : form.note.trim(),
             combinedGroupId: combinedGroupId || undefined
           }))
         )
@@ -336,6 +346,8 @@ const AdminRoutine = () => {
       dayOfWeek: routine.dayOfWeek || 'SUNDAY',
       startTime: routine.startTime || '08:00',
       endTime: routine.endTime || '09:00',
+      classType: routine.classType || 'LECTURE',
+      note: routine.note || '',
       room: routine.room || ''
     })
     setCreateSectionScope(routine.section ? 'ONE' : 'ALL')
@@ -733,6 +745,35 @@ const AdminRoutine = () => {
                       <input type="text" value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} className="ui-form-input" placeholder="Room 201" />
                     </div>
                   </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[0.8fr_1.2fr]">
+                    <div>
+                      <label className="ui-form-label">Class Type</label>
+                      <select
+                        value={form.classType}
+                        onChange={(e) => setForm((current) => ({
+                          ...current,
+                          classType: e.target.value,
+                          note: e.target.value === 'WORKSHOP' && !current.note.trim() ? WORKSHOP_NOTE : current.note
+                        }))}
+                        className="ui-form-input"
+                      >
+                        {CLASS_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="ui-form-label">Student Note</label>
+                      <input
+                        type="text"
+                        value={form.note}
+                        onChange={(e) => setForm({ ...form, note: e.target.value })}
+                        className="ui-form-input"
+                        placeholder={form.classType === 'WORKSHOP' ? WORKSHOP_NOTE : 'Optional note for students'}
+                      />
+                    </div>
+                  </div>
                 </section>
 
                 <aside className="p-4 md:p-5">
@@ -752,6 +793,13 @@ const AdminRoutine = () => {
                     <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3">
                       <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]"><DoorOpen className="h-4 w-4" /> Room</div>
                       <p className="mt-2 text-sm text-[var(--color-text-muted)]">{form.room || 'Not assigned'}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] p-3 sm:col-span-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-heading)]"><Layers className="h-4 w-4" /> Type</div>
+                      <p className="mt-2 text-sm text-[var(--color-text-muted)]">{formatClassType(form.classType)}</p>
+                      {(form.note || form.classType === 'WORKSHOP') ? (
+                        <p className="mt-1 text-xs text-[var(--color-text-soft)]">{form.note || WORKSHOP_NOTE}</p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -826,6 +874,7 @@ const AdminRoutine = () => {
                       <th className="px-5 py-3">Class</th>
                       <th className="px-5 py-3">Instructor</th>
                       <th className="px-5 py-3">Scope</th>
+                      <th className="px-5 py-3">Type</th>
                       <th className="px-5 py-3">Room</th>
                       <th className="px-5 py-3 text-right">Action</th>
                     </tr>
@@ -845,6 +894,10 @@ const AdminRoutine = () => {
                           <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">
                             <p>{routine.department || 'General'} / Semester {routine.semester}</p>
                             <p className="text-xs text-[var(--color-text-soft)]">{formatSectionLabel(routine.section)}</p>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">
+                            <p className="font-semibold text-[var(--color-heading)]">{formatClassType(routine.classType)}</p>
+                            {routine.note ? <p className="mt-1 max-w-[220px] text-xs text-[var(--color-text-soft)]">{routine.note}</p> : null}
                           </td>
                           <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">{routine.room || '-'}</td>
                           <td className="px-5 py-3 text-right">
@@ -866,7 +919,7 @@ const AdminRoutine = () => {
                     })}
                     {routines.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-5 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine entries have been created yet.</td>
+                        <td colSpan={8} className="px-5 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine entries have been created yet.</td>
                       </tr>
                     ) : null}
                   </tbody>

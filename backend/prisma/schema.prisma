@@ -482,6 +482,8 @@ model Routine {
   dayOfWeek    DayOfWeek
   startTime    String
   endTime      String
+  classType    RoutineClassType @default(LECTURE)
+  note         String?
   room         String?
   createdAt    DateTime @default(now())
 
@@ -500,6 +502,12 @@ enum DayOfWeek {
   THURSDAY
   FRIDAY
   SATURDAY
+}
+
+enum RoutineClassType {
+  LECTURE
+  TUTORIAL
+  WORKSHOP
 }
 
 model Department {

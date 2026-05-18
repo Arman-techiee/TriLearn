@@ -1,4 +1,5 @@
 export type DayOfWeek = 'SUNDAY' | 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY';
+export type RoutineClassType = 'LECTURE' | 'TUTORIAL' | 'WORKSHOP';
 
 export interface RoutineSubject {
   id: string;
@@ -25,6 +26,8 @@ export interface Routine {
   dayOfWeek: DayOfWeek;
   startTime: string;
   endTime: string;
+  classType?: RoutineClassType;
+  note?: string | null;
   room?: string | null;
   createdAt: string;
   subject?: RoutineSubject | null;

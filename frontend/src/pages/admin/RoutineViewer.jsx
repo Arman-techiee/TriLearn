@@ -14,6 +14,8 @@ import { isRequestCanceled } from '../../utils/http'
 
 const DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const DAY_SHORT = { SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat' }
+const CLASS_TYPE_LABELS = { LECTURE: 'Lecture', TUTORIAL: 'Tutorial', WORKSHOP: 'Workshop' }
+const formatClassType = (value) => CLASS_TYPE_LABELS[value] || 'Lecture'
 const SEMESTER_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1))
 const ROUTINE_TONES = [
   'routine-tone-1',
@@ -267,9 +269,11 @@ const RoutineViewer = () => {
                             <div key={routine.id} className={`rounded-xl border p-3 ${subjectColorMap[routine.subjectId]}`}>
                               <p className="truncate text-sm font-black">{routine.subject?.code}</p>
                               <p className="mt-1 truncate text-xs font-semibold">{routine.subject?.name}</p>
+                              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] opacity-75">{formatClassType(routine.classType)}</p>
                               <p className="mt-2 text-xs">{routine.startTime}-{routine.endTime}</p>
                               <p className="mt-1 text-xs opacity-80">{routine.instructor?.user?.name || 'Instructor not assigned'}</p>
                               {routine.room ? <p className="mt-1 text-xs opacity-80">Room {routine.room}</p> : null}
+                              {routine.note ? <p className="mt-2 text-[11px] font-semibold opacity-80">{routine.note}</p> : null}
                               {!routine.section ? <p className="mt-2 text-[11px] font-semibold opacity-70">All sections</p> : null}
                             </div>
                           ))}
@@ -293,6 +297,7 @@ const RoutineViewer = () => {
                           <th className="px-6 py-3">Day</th>
                           <th className="px-6 py-3">Time</th>
                           <th className="px-6 py-3">Subject</th>
+                          <th className="px-6 py-3">Type</th>
                           <th className="px-6 py-3">Instructor</th>
                           <th className="px-6 py-3">Room</th>
                         </tr>
@@ -306,13 +311,17 @@ const RoutineViewer = () => {
                               <p className="text-sm font-semibold text-[var(--color-heading)]">{routine.subject?.name}</p>
                               <p className="text-xs text-[var(--color-text-soft)]">{routine.subject?.code}</p>
                             </td>
+                            <td className="px-6 py-3 text-sm text-[var(--color-text-muted)]">
+                              <p className="font-semibold text-[var(--color-heading)]">{formatClassType(routine.classType)}</p>
+                              {routine.note ? <p className="mt-1 max-w-[220px] text-xs text-[var(--color-text-soft)]">{routine.note}</p> : null}
+                            </td>
                             <td className="px-6 py-3 text-sm text-[var(--color-text-muted)]">{routine.instructor?.user?.name || '-'}</td>
                             <td className="px-6 py-3 text-sm text-[var(--color-text-muted)]">{routine.room || '-'}</td>
                           </tr>
                         ))}
                         {visibleRoutines.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine has been created for this class yet.</td>
+                            <td colSpan={6} className="px-6 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine has been created for this class yet.</td>
                           </tr>
                         ) : null}
                       </tbody>

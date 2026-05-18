@@ -23,6 +23,8 @@ const todayName = () => {
 }
 
 const timeRange = (start, end) => `${start} - ${end}`
+const CLASS_TYPE_LABELS = { LECTURE: 'Lecture', TUTORIAL: 'Tutorial', WORKSHOP: 'Workshop' }
+const formatClassType = (value) => CLASS_TYPE_LABELS[value] || 'Lecture'
 
 const RoutineView = ({
   Layout,
@@ -119,11 +121,15 @@ const RoutineView = ({
                           </span>
                           <h3 className="font-semibold text-[var(--color-text)]">{routine.subject?.name}</h3>
                           <p className="mt-1 text-sm text-[var(--color-text-muted)]">{routine.subject?.code}</p>
+                          <p className="mt-2 inline-flex rounded-full bg-[--color-bg-card] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                            {formatClassType(routine.classType)}
+                          </p>
                           <p className="mt-2 text-xs text-[var(--color-text-muted)]">
                             {routine.department || routine.subject?.department || 'General'} • Semester {routine.semester}{routine.section ? ` • Section ${routine.section}` : ''}
                           </p>
                           <p className="mt-2 text-xs text-[var(--color-text-muted)]">Instructor: {routine.instructor?.user?.name}</p>
                           {routine.room ? <p className="mt-1 text-xs text-[var(--color-text-muted)]">Room: {routine.room}</p> : null}
+                          {routine.note ? <p className="mt-2 rounded-xl bg-[--color-bg-card] px-3 py-2 text-xs font-medium text-[var(--color-text-muted)]">{routine.note}</p> : null}
                         </div>
                       ))
                     )}

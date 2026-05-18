@@ -145,6 +145,7 @@ const roleEnum = z.enum(['ADMIN', 'COORDINATOR', 'GATEKEEPER', 'INSTRUCTOR', 'ST
 const noticeTypeEnum = z.enum(['GENERAL', 'EXAM', 'HOLIDAY', 'EVENT', 'URGENT'])
 const noticeAudienceEnum = z.enum(['ALL', 'STUDENTS', 'INSTRUCTORS_ONLY'])
 const dayOfWeekEnum = z.enum(['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'])
+const routineClassTypeEnum = z.enum(['LECTURE', 'TUTORIAL', 'WORKSHOP'])
 const attendanceStatusEnum = z.enum(['PRESENT', 'ABSENT', 'LATE'])
 const examTypeEnum = z.enum(['INTERNAL', 'MIDTERM', 'FINAL', 'PREBOARD', 'PRACTICAL'])
 const exportFormatEnum = z.enum(['pdf', 'xlsx'])
@@ -275,6 +276,8 @@ const routineBody = z.object({
   dayOfWeek: dayOfWeekEnum,
   startTime: timeSchema,
   endTime: timeSchema,
+  classType: routineClassTypeEnum.default('LECTURE'),
+  note: optionalString(500),
   room: optionalString(100)
 })
 

@@ -192,9 +192,13 @@ const StudentDashboard = () => {
                         <div>
                           <p className="text-sm font-semibold text-[var(--color-text)]">{routine.subject?.name}</p>
                           <p className="mt-1 text-xs text-[var(--color-text-muted)]">{routine.subject?.code}</p>
+                          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-soft)]">
+                            {routine.classType === 'WORKSHOP' ? 'Workshop' : routine.classType === 'TUTORIAL' ? 'Tutorial' : 'Lecture'}
+                          </p>
                           <p className="mt-2 text-xs text-[var(--color-text-muted)]">
                             {routine.department || routine.subject?.department || 'General'} • Semester {routine.semester}{routine.section ? ` • Section ${routine.section}` : ''}
                           </p>
+                          {routine.note ? <p className="mt-2 text-xs font-medium text-[var(--color-text-muted)]">{routine.note}</p> : null}
                         </div>
                         <div className="text-sm text-[var(--color-text-muted)]">
                           <p className="font-medium">{routine.startTime} - {routine.endTime}</p>

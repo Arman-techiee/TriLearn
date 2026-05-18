@@ -18,6 +18,11 @@ const days: { label: string; value: DayOfWeek }[] = [
 ];
 
 const getToday = () => days[new Date().getDay()]?.value ?? 'SUNDAY';
+const classTypeLabel = (value?: Routine['classType']) => {
+  if (value === 'WORKSHOP') return 'Workshop';
+  if (value === 'TUTORIAL') return 'Tutorial';
+  return 'Lecture';
+};
 
 const RoutineSkeleton = () => (
   <View className="rounded-2xl bg-white p-5">
@@ -64,6 +69,9 @@ export default function StudentRoutineScreen() {
     <View className="rounded-2xl bg-white p-5" key={routine.id}>
       <Text className="text-lg font-bold text-slate-900">{routine.subject?.name ?? 'Subject'}</Text>
       <Text className="mt-1 text-sm font-medium text-slate-500">{routine.subject?.code ?? 'N/A'}</Text>
+      <Text className="mt-3 self-start rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase text-primary">
+        {classTypeLabel(routine.classType)}
+      </Text>
       <View className="mt-5 flex-row gap-3">
         <View className="flex-1 rounded-xl bg-slate-100 p-3">
           <Text className="text-xs font-medium text-slate-500">Time</Text>
@@ -77,6 +85,7 @@ export default function StudentRoutineScreen() {
         </View>
       </View>
       <Text className="mt-4 text-sm text-slate-600">Instructor: {routine.instructor?.user?.name ?? '-'}</Text>
+      {routine.note ? <Text className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">{routine.note}</Text> : null}
     </View>
   );
 
