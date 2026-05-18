@@ -36,6 +36,10 @@ const buildContainsSearch = (search) => ({
 })
 const getGraduationYear = (date = new Date()) => date.getFullYear()
 
+const omitUndefined = (data) => Object.fromEntries(
+  Object.entries(data).filter(([, value]) => value !== undefined)
+)
+
 const sanitizeFilenamePart = (value) => String(value || 'students')
   .replace(/[^a-z0-9-_]+/gi, '-')
   .replace(/-+/g, '-')
@@ -286,7 +290,9 @@ const syncInstructorDepartmentMemberships = async (tx, instructorId, departments
   await Promise.all(departments.map((departmentName) => (
     tx.instructorDepartmentMembership.create({
       data: {
-        instructorId,
+        instructor: {
+          connect: { id: instructorId }
+        },
         department: {
           connect: { name: departmentName }
         }
@@ -1339,10 +1345,17 @@ const updateUser = async (context, result = createServiceResponder()) => {
     }
   }
 
-  const updatedUser = await prisma.user.update({
-    where: { id },
-    data: { name: sanitizedName, phone: sanitizedPhone, address: sanitizedAddress }
+  const userUpdateData = omitUndefined({
+    name: sanitizedName,
+    phone: sanitizedPhone,
+    address: sanitizedAddress
   })
+  const updatedUser = Object.keys(userUpdateData).length > 0
+    ? await prisma.user.update({
+        where: { id },
+        data: userUpdateData
+      })
+    : user
 
   if (user.role === 'INSTRUCTOR' && hasInstructorDepartmentUpdate) {
     const instructorDepartments = await resolveInstructorDepartmentsInput({ department, departments })
@@ -1439,7 +1452,7 @@ const updateUser = async (context, result = createServiceResponder()) => {
 
     const updatedStudent = await prisma.student.update({
       where: { userId: id },
-      data: {
+      data: omitUndefined({
         rollNumber: normalizedStudentId,
         semester,
         section: normalizedSection,
@@ -1451,7 +1464,7 @@ const updateUser = async (context, result = createServiceResponder()) => {
               graduatedAt: null
             }
           : {})
-      }
+      })
     })
 
     await syncStudentEnrollmentForSemester({

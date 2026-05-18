@@ -2121,6 +2121,182 @@ test('updateUser does not wipe student department when no department is provided
   assert.equal(studentUpdates[0].data.section, 'B')
 })
 
+test('updateUser skips base user update when only student details are provided', async () => {
+  const studentUpdates = []
+  let userUpdateCalls = 0
+  const { updateUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({
+          id: 'user-1',
+          role: 'STUDENT',
+          student: {
+            id: 'student-1',
+            rollNumber: 'OLD-001',
+            semester: 3,
+            section: 'A',
+            department: 'BCA'
+          },
+          instructor: null,
+          coordinator: null
+        }),
+        update: async () => {
+          userUpdateCalls += 1
+          throw new Error('base user update should not run')
+        }
+      },
+      student: {
+        findUnique: async () => null,
+        update: async (payload) => {
+          studentUpdates.push(payload)
+          return {
+            id: 'student-1',
+            semester: payload.data.semester,
+            section: payload.data.section,
+            department: payload.data.department
+          }
+        }
+      }
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../services/department.service': {
+      ensureDepartmentExists: async () => true
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    params: { id: 'user-1' },
+    body: {
+      studentId: 'NEW-001',
+      department: 'BCA',
+      semester: 4,
+      section: 'B'
+    },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await updateUser(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(userUpdateCalls, 0)
+  assert.equal(studentUpdates.length, 1)
+  assert.deepEqual(studentUpdates[0].data, {
+    rollNumber: 'NEW-001',
+    semester: 4,
+    section: 'B',
+    department: 'BCA',
+    isGraduated: false,
+    graduationYear: null,
+    graduatedAt: null
+  })
+})
+
+test('updateUser assigns an existing instructor to multiple departments', async () => {
+  const membershipCreates = []
+  const { updateUser } = loadWithMocks(resolveFromTest('src', 'controllers', 'admin.controller.js'), {
+    '../utils/prisma': {
+      user: {
+        findFirst: async () => ({
+          id: 'user-1',
+          role: 'INSTRUCTOR',
+          instructor: {
+            id: 'instructor-1',
+            department: 'BCA',
+            departmentMemberships: [
+              { department: { name: 'BCA' } }
+            ]
+          },
+          student: null,
+          coordinator: null
+        })
+      },
+      $transaction: async (callback) => callback({
+        instructor: {
+          update: async (payload) => {
+            assert.deepEqual(payload.where, { userId: 'user-1' })
+            assert.equal(payload.data.department, 'BCA')
+            return { id: 'instructor-1' }
+          }
+        },
+        instructorDepartmentMembership: {
+          deleteMany: async (payload) => {
+            assert.deepEqual(payload.where, { instructorId: 'instructor-1' })
+          },
+          create: async (payload) => {
+            membershipCreates.push(payload)
+            return {}
+          }
+        }
+      })
+    },
+    'bcryptjs': {
+      hash: async () => 'hashed'
+    },
+    '../utils/enrollment': {
+      enrollStudentInMatchingSubjects: async () => {},
+      syncStudentEnrollmentForSemester: async () => {}
+    },
+    '../utils/logger': {
+      error: () => {}
+    },
+    '../services/department.service': {
+      ensureDepartmentExists: async (department) => ({ name: department })
+    },
+    '../utils/audit': {
+      recordAuditLog: async () => {}
+    },
+    '../utils/mailer': {
+      sendMail: async () => {}
+    },
+    '../utils/emailTemplates': {
+      welcomeTemplate: () => ({ subject: 'Welcome', html: '<p>Welcome</p>', text: 'Welcome' })
+    }
+  })
+
+  const req = {
+    params: { id: 'user-1' },
+    body: {
+      departments: ['BCA', 'BIT']
+    },
+    user: { id: 'admin-1', role: 'ADMIN' }
+  }
+  const res = createResponse()
+
+  await updateUser(req, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.equal(membershipCreates.length, 2)
+  assert.deepEqual(membershipCreates.map((payload) => payload.data), [
+    {
+      instructor: { connect: { id: 'instructor-1' } },
+      department: { connect: { name: 'BCA' } }
+    },
+    {
+      instructor: { connect: { id: 'instructor-1' } },
+      department: { connect: { name: 'BIT' } }
+    }
+  ])
+})
+
 test('promoteStudentSemester increments the student semester and syncs enrollments', async () => {
   const enrollmentSyncCalls = []
   const auditCalls = []
