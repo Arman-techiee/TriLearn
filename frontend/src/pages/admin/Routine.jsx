@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, DoorOpen, Layers, Plus, Save, UserCheck } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, DoorOpen, Layers, Pencil, Plus, Save, UserCheck, X } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
@@ -91,6 +91,14 @@ const AdminRoutine = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
+
+  const resetBuilder = useCallback(() => {
+    setEditRoutine(null)
+    setForm(defaultForm)
+    setCreateSectionScope('ONE')
+    setCreateSectionsInput('')
+    setError('')
+  }, [])
 
   const fetchRoutines = async (signal) => {
     try {
@@ -210,10 +218,7 @@ const AdminRoutine = () => {
         }
       }
       setShowModal(false)
-      setEditRoutine(null)
-      setForm(defaultForm)
-      setCreateSectionScope('ONE')
-      setCreateSectionsInput('')
+      resetBuilder()
       fetchRoutines()
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
@@ -236,6 +241,8 @@ const AdminRoutine = () => {
       ? normalizeValue(matchedDepartment.name)
       : normalizedValue
   }, [departments, normalizeValue])
+
+  const isCreateMode = !editRoutine
 
   const filteredSubjects = subjects.filter((subject) => {
     if (!form.semester) {
@@ -285,9 +292,10 @@ const AdminRoutine = () => {
           && routine.section
         ))
         .map((routine) => routine.section.trim().toUpperCase())
-        .filter(Boolean)
+      .filter(Boolean)
     ])].sort((left, right) => left.localeCompare(right))
   ), [configuredSectionOptions, form.department, form.semester, normalizeDepartmentKey, routines])
+  const sectionOptionsForActiveForm = isCreateMode ? configuredSectionOptions : sectionOptionsForCreate
 
   const filteredInstructors = instructors.filter((instructor) => {
     if (isCoordinator) {
@@ -317,7 +325,29 @@ const AdminRoutine = () => {
     })
   }
 
-  const isCreateMode = !editRoutine
+  const handleEditRoutine = (routine) => {
+    setEditRoutine(routine)
+    setForm({
+      subjectId: routine.subjectId || '',
+      instructorId: routine.instructorId || '',
+      department: routine.department || '',
+      semester: routine.semester ? String(routine.semester) : '',
+      section: routine.section || '',
+      dayOfWeek: routine.dayOfWeek || 'SUNDAY',
+      startTime: routine.startTime || '08:00',
+      endTime: routine.endTime || '09:00',
+      room: routine.room || ''
+    })
+    setCreateSectionScope(routine.section ? 'ONE' : 'ALL')
+    setCreateSectionsInput('')
+    setError('')
+    setSuccess('')
+    setShowModal(false)
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   const parsedCreateSections = useMemo(() => ([...new Set(
     createSectionsInput
       .split(',')
@@ -466,19 +496,13 @@ const AdminRoutine = () => {
 
         <PageHeader
           title="Class Routine"
-          subtitle={isCoordinator ? 'Build department schedules by semester and section with live room and instructor checks.' : 'Build schedules by department, semester, section, instructor, and room.'}
+          subtitle={isCoordinator ? 'Build and edit department schedules by semester and section with live room and instructor checks.' : 'Build and edit schedules by department, semester, section, instructor, and room.'}
           breadcrumbs={[isCoordinator ? 'Coordinator' : 'Admin', 'Routine']}
           actions={[{
             label: 'Reset Builder',
             icon: Layers,
             variant: 'secondary',
-            onClick: () => {
-              setEditRoutine(null)
-              setForm(defaultForm)
-              setCreateSectionScope('ONE')
-              setCreateSectionsInput('')
-              setError('')
-            }
+            onClick: resetBuilder
           }]}
         />
 
@@ -494,12 +518,24 @@ const AdminRoutine = () => {
                 <section className="border-b border-[var(--color-card-border)] p-4 md:p-5 xl:border-b-0 xl:border-r">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase text-[var(--color-text-soft)]">Routine Builder</p>
-                      <h2 className="mt-1 text-lg font-black text-[var(--color-heading)]">Select scope first</h2>
-                      <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-muted)]">Department, semester, and section drive the available subjects, instructors, and conflict checks.</p>
+                      <p className="text-xs font-semibold uppercase text-[var(--color-text-soft)]">{editRoutine ? 'Routine Editor' : 'Routine Builder'}</p>
+                      <h2 className="mt-1 text-lg font-black text-[var(--color-heading)]">{editRoutine ? 'Change selected class' : 'Select scope first'}</h2>
+                      <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-muted)]">{editRoutine ? 'Update the subject, instructor, time, room, or section for this routine entry.' : 'Department, semester, and section drive the available subjects, instructors, and conflict checks.'}</p>
                     </div>
-                    <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--color-heading)]">
-                      {selectedScopeLabel}
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-xs font-semibold text-[var(--color-heading)]">
+                        {selectedScopeLabel}
+                      </div>
+                      {editRoutine ? (
+                        <button
+                          type="button"
+                          onClick={resetBuilder}
+                          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[var(--color-card-border)] px-3 text-xs font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Cancel edit
+                        </button>
+                      ) : null}
                     </div>
                   </div>
 
@@ -552,7 +588,7 @@ const AdminRoutine = () => {
                         className="ui-form-input"
                       >
                         <option value="ONE">One section</option>
-                        <option value="MULTIPLE">Combined sections</option>
+                        {isCreateMode ? <option value="MULTIPLE">Combined sections</option> : null}
                         <option value="ALL">All sections entry</option>
                       </select>
                     </div>
@@ -561,9 +597,9 @@ const AdminRoutine = () => {
                   <div className="mt-4">
                     <label className="ui-form-label">Section</label>
                     {createSectionScope === 'ONE' ? (
-                      configuredSectionOptions.length > 0 ? (
+                      sectionOptionsForActiveForm.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {configuredSectionOptions.map((section) => {
+                          {sectionOptionsForActiveForm.map((section) => {
                             const selected = form.section === section
                             return (
                               <button
@@ -582,9 +618,19 @@ const AdminRoutine = () => {
                           })}
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
-                          {form.department && form.semester ? 'No sections configured for this department and semester.' : 'Select department and semester to load sections.'}
-                        </div>
+                        editRoutine ? (
+                          <input
+                            type="text"
+                            value={form.section}
+                            onChange={(e) => setForm({ ...form, section: e.target.value.trim().toUpperCase() })}
+                            className="ui-form-input"
+                            placeholder="Section"
+                          />
+                        ) : (
+                          <div className="rounded-xl border border-[var(--color-card-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
+                            {form.department && form.semester ? 'No sections configured for this department and semester.' : 'Select department and semester to load sections.'}
+                          </div>
+                        )
                       )
                     ) : null}
 
@@ -747,25 +793,86 @@ const AdminRoutine = () => {
                         disabled={!createScopeReady || !form.subjectId || !form.instructorId || hasBlockingConflict}
                         className="ui-role-fill inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <Plus className="h-4 w-4" />
-                        <span>{createSectionScope === 'MULTIPLE' ? `Create ${parsedCreateSections.length || 0} Entries` : 'Create Entry'}</span>
+                        {editRoutine ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        <span>{editRoutine ? 'Update Entry' : createSectionScope === 'MULTIPLE' ? `Create ${parsedCreateSections.length || 0} Entries` : 'Create Entry'}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setForm(defaultForm)
-                          setCreateSectionScope('ONE')
-                          setCreateSectionsInput('')
-                        }}
+                        onClick={resetBuilder}
                         className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--color-card-border)] px-4 text-sm font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
                       >
-                        Clear
+                        {editRoutine ? 'Cancel' : 'Clear'}
                       </button>
                     </div>
                   </div>
                 </aside>
               </div>
             </form>
+
+            <section className="overflow-hidden rounded-[1.5rem] border border-[var(--color-card-border)] bg-[var(--color-card-surface)]">
+              <div className="flex flex-col gap-2 border-b border-[var(--color-card-border)] p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="font-semibold text-[var(--color-heading)]">Routine Entries</h2>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">Edit an existing class without recreating the routine.</p>
+                </div>
+                <p className="text-sm font-semibold text-[var(--color-text-soft)]">{routines.length} scheduled {routines.length === 1 ? 'entry' : 'entries'}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead className="bg-[var(--color-surface-muted)]">
+                    <tr className="text-left text-sm text-[var(--color-text-muted)]">
+                      <th className="px-5 py-3">Day</th>
+                      <th className="px-5 py-3">Time</th>
+                      <th className="px-5 py-3">Class</th>
+                      <th className="px-5 py-3">Instructor</th>
+                      <th className="px-5 py-3">Scope</th>
+                      <th className="px-5 py-3">Room</th>
+                      <th className="px-5 py-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {routines.map((routine) => {
+                      const isEditing = editRoutine?.id === routine.id
+                      return (
+                        <tr key={routine.id} className={`border-t border-[var(--color-card-border)] ${isEditing ? 'bg-[var(--color-surface-muted)]' : ''}`}>
+                          <td className="px-5 py-3 text-sm font-semibold text-[var(--color-heading)]">{DAY_SHORT[routine.dayOfWeek] || routine.dayOfWeek}</td>
+                          <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">{routine.startTime} - {routine.endTime}</td>
+                          <td className="px-5 py-3">
+                            <p className="text-sm font-semibold text-[var(--color-heading)]">{routine.subject?.name || 'Subject removed'}</p>
+                            <p className="text-xs text-[var(--color-text-soft)]">{routine.subject?.code || '-'}</p>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">{routine.instructor?.user?.name || '-'}</td>
+                          <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">
+                            <p>{routine.department || 'General'} / Semester {routine.semester}</p>
+                            <p className="text-xs text-[var(--color-text-soft)]">{formatSectionLabel(routine.section)}</p>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-[var(--color-text-muted)]">{routine.room || '-'}</td>
+                          <td className="px-5 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleEditRoutine(routine)}
+                              className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold ${
+                                isEditing
+                                  ? 'ui-role-fill text-white'
+                                  : 'border border-[var(--color-card-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
+                              }`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              {isEditing ? 'Editing' : 'Edit'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {routines.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-5 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine entries have been created yet.</td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
           </>
         )}
