@@ -24,8 +24,13 @@ export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
 export const API_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '')
 const AUTH_USER_STORAGE_KEY = 'trilearn.auth.user'
 const REFRESH_COOLDOWN_STORAGE_KEY = 'trilearn.auth.refresh.cooldownUntil'
+const REFRESH_LOCK_STORAGE_KEY = 'trilearn.auth.refresh.lock'
 const AUTH_USER_PERSISTED_FIELDS = ['name', 'role', 'mustChangePassword', 'profileCompleted']
 const ACCESS_TOKEN_REFRESH_SKEW_MS = 30_000
+const REFRESH_LOCK_TIMEOUT_MS = 10_000
+const REFRESH_LOCK_POLL_MS = 100
+const REFRESH_LOCK_MAX_WAIT_MS = 12_000
+const REFRESH_LOCK_OWNER = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 const buildStoredUserSnapshot = (user) => {
   if (!user || typeof user !== 'object') {
@@ -100,6 +105,48 @@ const writeStoredRefreshCooldownUntil = (value) => {
       window.localStorage.setItem(REFRESH_COOLDOWN_STORAGE_KEY, String(value))
     } else {
       window.localStorage.removeItem(REFRESH_COOLDOWN_STORAGE_KEY)
+    }
+  } catch {
+    // Ignore storage failures so auth remains functional in restricted environments.
+  }
+}
+
+const readRefreshLock = () => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(REFRESH_LOCK_STORAGE_KEY)
+    return rawValue ? JSON.parse(rawValue) : null
+  } catch {
+    return null
+  }
+}
+
+const writeRefreshLock = (lock) => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    window.localStorage.setItem(REFRESH_LOCK_STORAGE_KEY, JSON.stringify(lock))
+    const storedLock = readRefreshLock()
+    return storedLock?.owner === lock.owner
+  } catch {
+    return false
+  }
+}
+
+const clearRefreshLock = (owner) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    const storedLock = readRefreshLock()
+    if (!storedLock || storedLock.owner === owner) {
+      window.localStorage.removeItem(REFRESH_LOCK_STORAGE_KEY)
     }
   } catch {
     // Ignore storage failures so auth remains functional in restricted environments.
@@ -401,6 +448,40 @@ const wait = (ms) => new Promise((resolve) => {
   window.setTimeout(resolve, ms)
 })
 
+const acquireRefreshLock = async () => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < REFRESH_LOCK_MAX_WAIT_MS) {
+    const now = Date.now()
+    const currentLock = readRefreshLock()
+
+    if (!currentLock || currentLock.expiresAt <= now || currentLock.owner === REFRESH_LOCK_OWNER) {
+      const nextLock = {
+        owner: REFRESH_LOCK_OWNER,
+        expiresAt: now + REFRESH_LOCK_TIMEOUT_MS
+      }
+
+      if (writeRefreshLock(nextLock)) {
+        return nextLock.owner
+      }
+    }
+
+    await wait(REFRESH_LOCK_POLL_MS)
+  }
+
+  return null
+}
+
+const releaseRefreshLock = (owner) => {
+  if (owner) {
+    clearRefreshLock(owner)
+  }
+}
+
 const shouldRetryRequest = (error) => {
   const method = error.config?.method?.toLowerCase()
   if (!RETRYABLE_METHODS.has(method)) {
@@ -496,23 +577,26 @@ export const refreshSession = async () => {
   }
 
   if (!refreshPromise) {
-    refreshPromise = refreshClient.post('/auth/refresh')
-      .then((response) => {
+    refreshPromise = (async () => {
+      const refreshLockOwner = await acquireRefreshLock()
+
+      try {
+        const response = await refreshClient.post('/auth/refresh')
         const { token, user } = response.data
         clearRefreshCooldown()
         setAuthState({ token, user })
         return response.data
-      })
-      .catch((error) => {
+      } catch (error) {
         if (error?.response?.status === 429) {
           setRefreshCooldown(Date.now() + getRetryAfterMs(error))
         }
         clearAuthState()
         throw error
-      })
-      .finally(() => {
+      } finally {
+        releaseRefreshLock(refreshLockOwner)
         refreshPromise = null
-      })
+      }
+    })()
   }
 
   return refreshPromise
