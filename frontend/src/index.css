@@ -37,6 +37,14 @@
     min-width: 320px;
   }
 
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   #root {
     min-height: 100vh;
   }
