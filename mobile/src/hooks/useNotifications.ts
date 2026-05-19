@@ -83,7 +83,7 @@ export const useNotifications = () => {
   };
 
   const markAllAsRead = async () => {
-    await api.post('/notifications/read-all');
+    await api.patch('/notifications/read-all');
     reset();
     await query.refetch();
   };
