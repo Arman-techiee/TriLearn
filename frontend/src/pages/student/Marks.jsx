@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FileText } from 'lucide-react'
+import { BookOpenCheck, Download, FileText, GraduationCap, Percent } from 'lucide-react'
 import StudentLayout from '../../layouts/StudentLayout'
 import api from '../../utils/api'
 import PageHeader from '../../components/PageHeader'
-import Pagination from '../../components/Pagination'
 import EmptyState from '../../components/EmptyState'
-import SimpleBarChart from '../../components/SimpleBarChart'
 import Alert from '../../components/Alert'
 import LoadingSkeleton from '../../components/LoadingSkeleton'
 import logger from '../../utils/logger'
@@ -33,32 +31,33 @@ const emptyResultSheet = {
   overallGpa: 0
 }
 
-const emptySummary = {
-  analytics: {
-    chartData: [],
-    strongestSubject: null,
-    weakestSubject: null
+const resultMetrics = ({ resultSheet, selectedExamType }) => [
+  {
+    label: 'Exam',
+    value: examTypeLabels[selectedExamType] || selectedExamType || '-',
+    icon: FileText
   },
-  ranking: {
-    rank: null,
-    cohortSize: 0,
-    percentile: 0,
-    scope: {
-      semester: null,
-      department: null
-    }
+  {
+    label: 'Overall grade',
+    value: resultSheet.overallGrade,
+    icon: GraduationCap
+  },
+  {
+    label: 'Overall score',
+    value: `${resultSheet.overallPercentage}%`,
+    icon: Percent
+  },
+  {
+    label: 'Subjects',
+    value: resultSheet.subjects.length,
+    icon: BookOpenCheck
   }
-}
+]
 
 const StudentMarks = () => {
-  const [marks, setMarks] = useState([])
   const [resultSheet, setResultSheet] = useState(emptyResultSheet)
-  const [summary, setSummary] = useState(emptySummary)
   const [availableExamTypes, setAvailableExamTypes] = useState([])
   const [selectedExamType, setSelectedExamType] = useState('')
-  const [page, setPage] = useState(1)
-  const [limit] = useState(10)
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [downloadingMarksheet, setDownloadingMarksheet] = useState(false)
   const [error, setError] = useState('')
@@ -70,33 +69,11 @@ const StudentMarks = () => {
       const res = await api.get('/marks/my', {
         signal,
         params: {
-          page,
-          limit,
           ...(selectedExamType ? { examType: selectedExamType } : {})
         }
       })
-      const effectiveExamType = res.data.examType || selectedExamType || ''
-
-      setMarks(res.data.marks || [])
       setResultSheet(res.data.resultSheet || emptyResultSheet)
       setAvailableExamTypes(res.data.availableExamTypes || [])
-      setTotal(res.data.total || 0)
-
-      if (effectiveExamType) {
-        const summaryRes = await api.get('/marks/my/summary', {
-          signal,
-          params: {
-            examType: effectiveExamType
-          }
-        })
-
-        setSummary({
-          analytics: summaryRes.data.analytics || emptySummary.analytics,
-          ranking: summaryRes.data.ranking || emptySummary.ranking
-        })
-      } else {
-        setSummary(emptySummary)
-      }
 
       if (!selectedExamType && res.data.examType) {
         setSelectedExamType(res.data.examType)
@@ -104,14 +81,13 @@ const StudentMarks = () => {
     } catch (error) {
       if (isRequestCanceled(error)) return
       logger.error(error)
-      setSummary(emptySummary)
       setError(error.response?.data?.message || 'Unable to load marks right now')
     } finally {
       if (!signal?.aborted) {
         setLoading(false)
       }
     }
-  }, [limit, page, selectedExamType])
+  }, [selectedExamType])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -159,7 +135,8 @@ const StudentMarks = () => {
             {
               label: downloadingMarksheet ? 'Preparing PDF...' : 'Download Marksheet PDF',
               onClick: downloadMarksheet,
-              disabled: downloadingMarksheet
+              disabled: downloadingMarksheet,
+              icon: Download
             }
           ] : []}
         />
@@ -170,200 +147,206 @@ const StudentMarks = () => {
           <LoadingSkeleton rows={5} itemClassName="h-36" />
         ) : (
           <>
-            <div className="ui-card mb-6 rounded-3xl p-5 md:p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-heading)]">Result Session</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">Choose a published exam result to view your GPA, class standing, and subject trends.</p>
-                </div>
-                <div className="w-full md:max-w-xs">
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Select Exam</label>
-                  <select
-                    value={selectedExamType}
-                    onChange={(event) => {
-                      setSelectedExamType(event.target.value)
-                      setPage(1)
-                    }}
-                    className="ui-form-input"
-                  >
-                    {availableExamTypes.length === 0 ? (
-                      <option value="">No published exams available</option>
-                    ) : (
-                      availableExamTypes.map((examType) => (
-                        <option key={examType} value={examType}>
-                          {examTypeLabels[examType] || examType}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-            </div>
-
             {resultSheet.subjects.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title="No published result found"
-                description="Once the coordinator publishes your selected exam result, it will appear here with subject-wise marks and overall GPA."
-              />
+              <section className="rounded-[2rem] border border-dashed border-slate-300 bg-white px-6 py-12">
+                <div className="mb-6 flex flex-wrap gap-2">
+                  {availableExamTypes.map((examType) => (
+                    <button
+                      key={examType}
+                      type="button"
+                      onClick={() => setSelectedExamType(examType)}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selectedExamType === examType ? 'bg-[var(--color-heading)] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      {examTypeLabels[examType] || examType}
+                    </button>
+                  ))}
+                </div>
+                <EmptyState
+                  icon={FileText}
+                  title="No published result found"
+                  description="Once the coordinator publishes your selected exam result, it will appear here with subject-wise marks and overall GPA."
+                />
+              </section>
             ) : (
               <>
+                <section className="mb-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+                  <div className="grid lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="bg-[var(--color-heading)] p-6 text-white md:p-8">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {availableExamTypes.map((examType) => (
+                          <button
+                            key={examType}
+                            type="button"
+                            onClick={() => setSelectedExamType(examType)}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selectedExamType === examType ? 'bg-white text-[var(--color-heading)]' : 'bg-white/10 text-white/70 hover:bg-white/15 hover:text-white'}`}
+                          >
+                            {examTypeLabels[examType] || examType}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-white/60">Overall GPA</p>
+                          <p className="mt-3 text-6xl font-black leading-none md:text-7xl">{resultSheet.overallGpa.toFixed(2)}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-5 md:min-w-[340px]">
+                          <div>
+                            <p className="text-xs font-semibold uppercase text-white/50">Grade</p>
+                            <p className="mt-2 text-3xl font-black">{resultSheet.overallGrade}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase text-white/50">Score</p>
+                            <p className="mt-2 text-3xl font-black">{resultSheet.overallPercentage}%</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 md:p-8">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[var(--color-heading)]">
+                          <GraduationCap className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--color-heading)]">Result transcript</p>
+                          <p className="text-xs text-[var(--color-text-muted)]">{examTypeLabels[selectedExamType] || selectedExamType}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-[var(--color-text-muted)]">Combined marks</p>
+                          <p className="mt-2 text-4xl font-black text-[var(--color-heading)]">
+                            {resultSheet.totals.obtainedMarks}
+                            <span className="text-xl text-[var(--color-text-muted)]">/{resultSheet.totals.totalMarks}</span>
+                          </p>
+                        </div>
+                        <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-[var(--color-heading)]"
+                            style={{ width: `${Math.max(0, Math.min(100, resultSheet.overallPercentage))}%` }}
+                          />
+                        </div>
+                        <p className="text-sm leading-6 text-[var(--color-text-muted)]">
+                          Published across {resultSheet.subjects.length} enrolled {resultSheet.subjects.length === 1 ? 'subject' : 'subjects'} for this exam.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
                 <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="ui-card rounded-3xl p-5 md:p-6">
-                    <p className="text-sm text-[var(--color-text-muted)]">Exam</p>
-                    <p className="mt-2 text-xl font-black text-[var(--color-heading)]">
-                      {examTypeLabels[selectedExamType] || selectedExamType}
-                    </p>
-                  </div>
-                  <div className="ui-card rounded-3xl p-5 md:p-6">
-                    <p className="text-sm text-[var(--color-text-muted)]">Overall GPA</p>
-                    <p className="mt-2 text-3xl font-black text-[var(--color-heading)]">{resultSheet.overallGpa.toFixed(2)}</p>
-                  </div>
-                  <div className="ui-card rounded-3xl p-5 md:p-6">
-                    <p className="text-sm text-[var(--color-text-muted)]">Overall Grade</p>
-                    <p className="mt-2 text-3xl font-black text-[var(--color-heading)]">{resultSheet.overallGrade}</p>
-                  </div>
-                  <div className="ui-card rounded-3xl p-5 md:p-6">
-                    <p className="text-sm text-[var(--color-text-muted)]">Combined Score</p>
-                    <p className="mt-2 text-xl font-black text-[var(--color-heading)]">
-                      {resultSheet.totals.obtainedMarks}/{resultSheet.totals.totalMarks}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">{resultSheet.overallPercentage}% overall</p>
-                  </div>
+                  {resultMetrics({ resultSheet, selectedExamType }).map((metric) => {
+                    const Icon = metric.icon
+                    return (
+                      <div key={metric.label} className="rounded-3xl border border-slate-200 bg-white p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-[var(--color-text-muted)]">{metric.label}</p>
+                          <Icon className="h-4 w-4 text-[var(--color-text-muted)]" />
+                        </div>
+                        <p className="mt-3 text-2xl font-black text-[var(--color-heading)]">{metric.value}</p>
+                      </div>
+                    )
+                  })}
                 </div>
 
-                <div className="mb-6 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-                  <div className="ui-card rounded-3xl p-5 md:p-6">
-                    <div className="flex items-center justify-between gap-3">
+                <div className="mb-6">
+                  <section className="rounded-[2rem] border border-slate-200 bg-white p-5 md:p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-[var(--color-heading)]">
+                        <BookOpenCheck className="h-5 w-5" />
+                      </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-[var(--color-heading)]">Performance Chart</h2>
-                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Subject-by-subject percentage breakdown for this published exam.</p>
-                      </div>
-                      <span className="ui-status-badge ui-status-neutral px-3 py-1 text-xs font-semibold">
-                        {summary.analytics.chartData.length} subjects
-                      </span>
-                    </div>
-
-                    <SimpleBarChart data={summary.analytics.chartData} />
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="ui-card rounded-3xl p-5 md:p-6">
-                      <p className="text-sm text-[var(--color-text-muted)]">Semester Ranking</p>
-                      <p className="mt-2 text-3xl font-black text-[var(--color-heading)]">
-                        {summary.ranking.rank ? `#${summary.ranking.rank}` : '--'}
-                      </p>
-                      <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                        {summary.ranking.cohortSize > 0
-                          ? `Out of ${summary.ranking.cohortSize} students in Semester ${summary.ranking.scope.semester || '--'}${summary.ranking.scope.department ? ` • ${summary.ranking.scope.department}` : ''}`
-                          : 'Ranking will appear once comparable published results are available.'}
-                      </p>
-                      <div className="mt-4 rounded-2xl bg-[var(--color-surface-muted)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Percentile</p>
-                        <p className="mt-2 text-xl font-bold text-[var(--color-heading)]">{summary.ranking.percentile.toFixed(2)}%</p>
+                        <h2 className="text-lg font-semibold text-[var(--color-heading)]">Subject Summary</h2>
+                        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Grades and grade points by subject.</p>
                       </div>
                     </div>
-
-                    <div className="ui-card rounded-3xl p-5 md:p-6">
-                      <h2 className="text-lg font-semibold text-[var(--color-heading)]">Insight Snapshot</h2>
-                      <div className="mt-4 space-y-3">
-                        <div className="status-present rounded-2xl px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em]">Strongest Subject</p>
-                          <p className="mt-2 text-sm font-semibold text-[var(--color-heading)]">
-                            {summary.analytics.strongestSubject?.subjectName || 'Not available'}
-                          </p>
-                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                            {summary.analytics.strongestSubject
-                              ? `${summary.analytics.strongestSubject.subjectCode} • ${summary.analytics.strongestSubject.percentage}% • ${summary.analytics.strongestSubject.grade}`
-                              : 'No published subject result yet.'}
-                          </p>
-                        </div>
-                        <div className="status-late rounded-2xl px-4 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em]">Needs More Attention</p>
-                          <p className="mt-2 text-sm font-semibold text-[var(--color-heading)]">
-                            {summary.analytics.weakestSubject?.subjectName || 'Not available'}
-                          </p>
-                          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                            {summary.analytics.weakestSubject
-                              ? `${summary.analytics.weakestSubject.subjectCode} • ${summary.analytics.weakestSubject.percentage}% • ${summary.analytics.weakestSubject.grade}`
-                              : 'No published subject result yet.'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-                <div className="ui-card overflow-hidden rounded-3xl">
-                  <div className="border-b p-6">
-                    <h2 className="text-lg font-semibold text-[var(--color-heading)]">Subject-wise Result List</h2>
-                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                      Published marks for all subjects in the selected exam that belong to your enrolled semester modules.
-                    </p>
-                  </div>
-
-                  <div className="divide-y divide-slate-100">
-                    {resultSheet.subjects.map((subject) => (
-                        <div key={subject.id} className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+                    <div className="mt-5 divide-y divide-slate-100">
+                      {resultSheet.subjects.map((subject) => (
+                        <div key={subject.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
                           <div className="min-w-0">
-                            <p className="font-semibold text-[var(--color-heading)]">{subject.subjectName}</p>
+                            <p className="truncate text-sm font-semibold text-[var(--color-heading)]">{subject.subjectName}</p>
                             <p className="mt-1 text-xs text-[var(--color-text-muted)]">{subject.subjectCode}</p>
                           </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="ui-status-badge ui-status-neutral px-3 py-1 text-xs font-semibold">
-                            Marks: {subject.obtainedMarks}/{subject.totalMarks}
-                          </span>
-                          <span className="ui-status-badge ui-status-neutral px-3 py-1 text-xs font-semibold">
-                            {subject.percentage}%
-                          </span>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${gradeTone(subject.grade)}`}>
-                            Grade: {subject.grade}
-                          </span>
-                          <span className="grade-merit rounded-full px-3 py-1 text-xs font-semibold">
-                            GPA: {subject.gradePoint.toFixed(1)}
-                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${gradeTone(subject.grade)}`}>
+                              {subject.grade}
+                            </span>
+                            <span className="text-sm font-bold text-[var(--color-heading)]">{subject.gradePoint.toFixed(1)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+
+                <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+                  <div className="border-b border-slate-100 p-6">
+                    <h2 className="text-lg font-semibold text-[var(--color-heading)]">Detailed Result</h2>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                      Published marks for each subject in the selected exam.
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 md:hidden">
+                    {resultSheet.subjects.map((subject) => (
+                      <div key={subject.id} className="p-5">
+                        <p className="font-semibold text-[var(--color-heading)]">{subject.subjectName}</p>
+                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">{subject.subjectCode}</p>
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs text-[var(--color-text-muted)]">Marks</p>
+                            <p className="font-bold text-[var(--color-heading)]">{subject.obtainedMarks}/{subject.totalMarks}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-[var(--color-text-muted)]">Percentage</p>
+                            <p className="font-bold text-[var(--color-heading)]">{subject.percentage}%</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-[var(--color-text-muted)]">Grade</p>
+                            <p className="font-bold text-[var(--color-heading)]">{subject.grade}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-[var(--color-text-muted)]">GPA</p>
+                            <p className="font-bold text-[var(--color-heading)]">{subject.gradePoint.toFixed(1)}</p>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
 
-                {marks.length > 0 && (
-                  <div className="ui-card mt-6 overflow-hidden rounded-3xl">
-                    <div className="border-b p-6">
-                      <h2 className="text-lg font-semibold text-[var(--color-heading)]">Published Mark Ledger</h2>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[860px]">
-                        <thead className="bg-[var(--color-surface-muted)]">
-                          <tr className="text-left text-sm text-[var(--color-text-muted)]">
-                            <th scope="col" className="px-6 py-4">Subject</th>
-                            <th scope="col" className="px-6 py-4">Marks</th>
-                            <th scope="col" className="px-6 py-4">Percentage</th>
-                            <th scope="col" className="px-6 py-4">Grade</th>
-                            <th scope="col" className="px-6 py-4">Remarks</th>
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[760px]">
+                      <thead className="bg-slate-50">
+                        <tr className="text-left text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+                          <th scope="col" className="px-6 py-4">Subject</th>
+                          <th scope="col" className="px-6 py-4">Marks</th>
+                          <th scope="col" className="px-6 py-4">Percentage</th>
+                          <th scope="col" className="px-6 py-4">Grade</th>
+                          <th scope="col" className="px-6 py-4">GPA</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {resultSheet.subjects.map((subject) => (
+                          <tr key={subject.id} className="border-t border-slate-100">
+                            <td className="px-6 py-4">
+                              <p className="font-medium text-[var(--color-heading)]">{subject.subjectName}</p>
+                              <p className="text-xs text-[var(--color-text-muted)]">{subject.subjectCode}</p>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-[var(--color-text-muted)]">{subject.obtainedMarks}/{subject.totalMarks}</td>
+                            <td className="px-6 py-4 text-sm text-[var(--color-text-muted)]">{subject.percentage}%</td>
+                            <td className="px-6 py-4">
+                              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${gradeTone(subject.grade)}`}>
+                                {subject.grade}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-bold text-[var(--color-heading)]">{subject.gradePoint.toFixed(1)}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {marks.map((mark) => (
-                            <tr key={mark.id} className="border-t">
-                              <td className="px-6 py-4">
-                                <p className="font-medium text-[var(--color-heading)]">{mark.subject?.name}</p>
-                                <p className="text-xs text-[var(--color-text-muted)]">{mark.subject?.code}</p>
-                              </td>
-                              <td className="px-6 py-4 text-[var(--color-text-muted)]">{mark.obtainedMarks}/{mark.totalMarks}</td>
-                              <td className="px-6 py-4 text-[var(--color-text-muted)]">{mark.percentage.toFixed(1)}%</td>
-                              <td className="px-6 py-4 text-[var(--color-text-muted)]">{mark.grade}</td>
-                              <td className="px-6 py-4 text-sm text-[var(--color-text-muted)]">{mark.remarks || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <Pagination page={page} total={total} limit={limit} onPageChange={setPage} />
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
+                </section>
               </>
             )}
           </>

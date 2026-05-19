@@ -97,6 +97,9 @@ const getRankingSummary = async ({ student, examType }) => {
   const departmentCondition = student.department
     ? Prisma.sql`AND s."department" = ${student.department}`
     : Prisma.empty
+  const sectionCondition = student.section
+    ? Prisma.sql`AND s."section" = ${student.section}`
+    : Prisma.empty
 
   const rankedRows = await prisma.$queryRaw`
     WITH ranked AS (
@@ -119,6 +122,7 @@ const getRankingSummary = async ({ student, examType }) => {
        AND m."examType" = ${examType}
       WHERE s.semester = ${student.semester}
       ${departmentCondition}
+      ${sectionCondition}
       GROUP BY s.id, u.name
     )
     SELECT "studentId", rank, "cohortSize"
@@ -222,7 +226,8 @@ const getMyMarksSummary = async (context, result = createServiceResponder()) => 
       ...ranking,
       scope: {
         semester: student.semester,
-        department: student.department || null
+        department: student.department || null,
+        section: student.section || null
       }
     }
   })
@@ -250,10 +255,6 @@ const getStudentMarksheetPayload = async ({ student, examType }) => {
 
   const strongestSubject = [...resultSheet.subjects].sort((left, right) => right.percentage - left.percentage)[0] || null
   const weakestSubject = [...resultSheet.subjects].sort((left, right) => left.percentage - right.percentage)[0] || null
-  const ranking = await getRankingSummary({
-    student,
-    examType: selectedExamType
-  })
 
   const studentProfile = await prisma.student.findUnique({
     where: { id: student.id },
@@ -278,8 +279,7 @@ const getStudentMarksheetPayload = async ({ student, examType }) => {
     availableExamTypes,
     resultSheet,
     strongestSubject,
-    weakestSubject,
-    ranking
+    weakestSubject
   }
 }
 
@@ -327,10 +327,6 @@ const exportMyMarksheetPdf = async (context, result = createServiceResponder()) 
   doc.text(`Overall Grade: ${payload.resultSheet.overallGrade}`)
   doc.text(`Overall Percentage: ${payload.resultSheet.overallPercentage.toFixed(2)}%`)
   doc.text(`Combined Score: ${payload.resultSheet.totals.obtainedMarks}/${payload.resultSheet.totals.totalMarks}`)
-  if (payload.ranking.rank) {
-    doc.text(`Semester Rank: #${payload.ranking.rank} out of ${payload.ranking.cohortSize}`)
-    doc.text(`Percentile: ${payload.ranking.percentile.toFixed(2)}%`)
-  }
   doc.moveDown(0.8)
 
   doc.fontSize(13).text('Subject-wise Marks')

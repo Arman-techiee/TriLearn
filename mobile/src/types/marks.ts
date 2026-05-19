@@ -62,13 +62,4 @@ export interface MarksSummaryResponse {
   examType: ExamType | null;
   availableExamTypes: ExamType[];
   resultSheet: MarksResultSheet;
-  ranking: {
-    rank: number | null;
-    cohortSize: number;
-    percentile: number;
-    scope?: {
-      semester: number;
-      department: string | null;
-    };
-  };
 }

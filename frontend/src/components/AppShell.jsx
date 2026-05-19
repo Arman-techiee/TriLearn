@@ -133,17 +133,11 @@ const AppShell = ({
   }, [notificationsOpen])
 
   const computedTopItems = useMemo(() => (
-    topItems.map((item) => {
-      if (item.path?.includes('/notices')) {
-        return {
-          ...item,
-          badge: unreadCount > 0 ? unreadCount : null
-        }
-      }
-
-      return item
-    })
-  ), [topItems, unreadCount])
+    topItems.map((item) => ({
+      ...item,
+      badge: item.badge && Number(item.badge) > 0 ? item.badge : null
+    }))
+  ), [topItems])
 
   const enabledSidebarItems = useMemo(
     () => sidebarItems.filter((item) => !item.disabled),

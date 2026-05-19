@@ -4867,7 +4867,7 @@ test('exportMyMarksheetPdf streams a semester marksheet for published student re
 
   const req = {
     query: { examType: 'FINAL' },
-    student: { id: 'student-1', semester: 3, department: 'BCA' }
+    student: { id: 'student-1', semester: 3, department: 'BCA', section: 'A' }
   }
   const res = createResponse()
 
@@ -4875,8 +4875,9 @@ test('exportMyMarksheetPdf streams a semester marksheet for published student re
 
   assert.equal(res.headers['Content-Type'], 'application/pdf')
   assert.match(res.headers['Content-Disposition'], /marksheet-stu-001-sem-3-final\.pdf/i)
-  assert.equal(rankingQueryCalled, true)
+  assert.equal(rankingQueryCalled, false)
   assert.ok(docOperations.some((operation) => operation[0] === 'text' && /Semester Marksheet/i.test(operation[1])))
+  assert.equal(docOperations.some((operation) => operation[0] === 'text' && /Semester Rank/i.test(operation[1])), false)
   assert.ok(docOperations.some((operation) => operation[0] === 'text' && /Database Systems/i.test(operation[1])))
   assert.ok(docOperations.some((operation) => operation[0] === 'end'))
 })
@@ -4928,7 +4929,7 @@ test('getMyMarksSummary returns student rank metrics without peer leaderboard da
 
   const req = {
     query: { examType: 'FINAL' },
-    student: { id: 'student-1', semester: 3, department: 'BCA' }
+    student: { id: 'student-1', semester: 3, department: 'BCA', section: 'A' }
   }
   const res = createResponse()
 
@@ -4939,6 +4940,11 @@ test('getMyMarksSummary returns student rank metrics without peer leaderboard da
   assert.equal(res.body.ranking.rank, 1)
   assert.equal(res.body.ranking.cohortSize, 2)
   assert.equal(res.body.ranking.percentile, 100)
+  assert.deepEqual(res.body.ranking.scope, {
+    semester: 3,
+    department: 'BCA',
+    section: 'A'
+  })
   assert.equal('topStudents' in res.body.ranking, false)
 })
 

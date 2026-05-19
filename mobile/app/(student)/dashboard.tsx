@@ -47,11 +47,6 @@ interface MarksSummaryResponse {
     overallGrade: string;
     overallGpa: number;
   };
-  ranking: {
-    rank: number | null;
-    cohortSize: number;
-    percentile: number;
-  };
 }
 
 const parseAttendancePercentage = (percentage: string) => {
@@ -283,12 +278,6 @@ export default function StudentDashboardScreen() {
               <View className="flex-1 rounded-xl bg-slate-100 p-3">
                 <Text className="text-xs font-medium text-slate-500">GPA</Text>
                 <Text className="mt-1 text-base font-bold text-slate-900">{marks?.resultSheet.overallGpa ?? 0}</Text>
-              </View>
-              <View className="flex-1 rounded-xl bg-slate-100 p-3">
-                <Text className="text-xs font-medium text-slate-500">Rank</Text>
-                <Text className="mt-1 text-base font-bold text-slate-900">
-                  {marks?.ranking.rank ? `#${marks.ranking.rank}` : '-'}
-                </Text>
               </View>
               <View className="flex-1 rounded-xl bg-slate-100 p-3">
                 <Text className="text-xs font-medium text-slate-500">Subjects</Text>
