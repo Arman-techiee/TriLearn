@@ -1,4 +1,5 @@
 const logger = require('./logger')
+const { captureException } = require('./monitoring')
 const { startTokenCleanupJob } = require('../jobs/cleanupTokens')
 const { createNotifications } = require('./notifications')
 const { syncClosedRoutineAbsences } = require('../controllers/attendance/shared')
@@ -112,29 +113,40 @@ const scheduleMaintenance = (prisma) => {
         await task(prisma)
       } catch (error) {
         logger.error(`Maintenance task failed: ${taskName}`, { message: error.message, stack: error.stack })
+        captureException(error, { tags: { taskName } })
       } finally {
         running = false
       }
     }
   }
 
+  const runScheduledTask = (taskName, task) => {
+    task().catch((error) => {
+      logger.error(`Maintenance scheduler failed to start task: ${taskName}`, {
+        message: error.message,
+        stack: error.stack
+      })
+      captureException(error, { tags: { taskName, scheduler: 'maintenance' } })
+    })
+  }
+
   const auditLogTask = createScheduledTask('audit-log-cleanup', runAuditLogCleanup)
   const assignmentDueNotificationTask = createScheduledTask('assignment-due-notifications', runAssignmentDueNotifications)
   const closedRoutineAbsenceSyncTask = createScheduledTask('closed-routine-absence-sync', runClosedRoutineAbsenceSync)
-  void auditLogTask()
-  void assignmentDueNotificationTask()
-  void closedRoutineAbsenceSyncTask()
+  runScheduledTask('audit-log-cleanup', auditLogTask)
+  runScheduledTask('assignment-due-notifications', assignmentDueNotificationTask)
+  runScheduledTask('closed-routine-absence-sync', closedRoutineAbsenceSyncTask)
 
   const tokenCleanupJob = startTokenCleanupJob(prisma)
 
   const auditLogTimer = setInterval(() => {
-    void auditLogTask()
-    void assignmentDueNotificationTask()
+    runScheduledTask('audit-log-cleanup', auditLogTask)
+    runScheduledTask('assignment-due-notifications', assignmentDueNotificationTask)
   }, auditLogCleanupInterval)
   auditLogTimer.unref?.()
 
   const attendanceSyncTimer = setInterval(() => {
-    void closedRoutineAbsenceSyncTask()
+    runScheduledTask('closed-routine-absence-sync', closedRoutineAbsenceSyncTask)
   }, attendanceSyncInterval)
   attendanceSyncTimer.unref?.()
 

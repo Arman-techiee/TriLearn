@@ -1,7 +1,10 @@
 const { createServiceResponder } = require('../utils/serviceResult')
 const prisma = require('../utils/prisma')
-const { createNotifications } = require('../utils/notifications')
-const { inferRoutineLink } = require('../utils/notificationLinks')
+const {
+  WORKSHOP_NOTE,
+  enqueueRoutineNotification,
+  getRoutineInclude
+} = require('../utils/routineNotifications')
 const ensureCoordinatorDepartmentScope = async (context, result, departmentValue, message = 'You can only manage routines in your own department') => {
   if (context.user.role !== 'COORDINATOR') {
     return null
@@ -33,8 +36,6 @@ const applyDepartmentScope = (studentDepartment) => (
     ? [{ department: null }, { department: '' }, { department: studentDepartment }]
     : [{ department: null }, { department: '' }]
 )
-
-const WORKSHOP_NOTE = 'Laptop is compulsory for workshop.'
 
 const normalizeRoutineClassType = (classType) => (
   ['LECTURE', 'TUTORIAL', 'WORKSHOP'].includes(classType) ? classType : 'LECTURE'
@@ -110,165 +111,6 @@ const buildRoutineFilters = async (context) => {
   }
 
   return filters
-}
-
-const getRoutineInclude = () => ({
-  subject: {
-    select: {
-      id: true,
-      name: true,
-      code: true,
-      semester: true,
-      department: true
-    }
-  },
-  instructor: {
-    include: {
-      user: {
-        select: { name: true }
-      }
-    }
-  }
-})
-
-const getRoutineNotificationRecipients = async ({ department, semester, section, instructorId }) => {
-  const [students, instructor, coordinators] = await Promise.all([
-    prisma.student.findMany({
-      where: {
-        semester,
-        ...(department ? { department } : {}),
-        ...(section ? { section } : {}),
-        user: {
-          isActive: true
-        }
-      },
-      select: {
-        userId: true
-      }
-    }),
-    prisma.instructor.findUnique({
-      where: { id: instructorId },
-      select: { userId: true }
-    }),
-    department
-      ? prisma.coordinator.findMany({
-          where: {
-            department,
-            user: {
-              isActive: true
-            }
-          },
-          select: { userId: true }
-        })
-      : Promise.resolve([])
-  ])
-
-  return [
-    ...students.map((student) => ({ userId: student.userId, role: 'STUDENT' })),
-    ...coordinators.map((coordinator) => ({ userId: coordinator.userId, role: 'COORDINATOR' })),
-    instructor?.userId ? { userId: instructor.userId, role: 'INSTRUCTOR' } : null
-  ].filter(Boolean)
-}
-
-const getRoutineAudienceLabel = ({ department, semester, section }) => {
-  const scope = section ? `Section ${section}` : 'All Sections'
-  return `${department || 'General'} • Semester ${semester} • ${scope}`
-}
-
-const notifyRoutineCreated = async (routine) => {
-  const recipients = await getRoutineNotificationRecipients({
-    department: routine.department,
-    semester: routine.semester,
-    section: routine.section,
-    instructorId: routine.instructorId
-  })
-
-  await notifyRoutineRecipients({
-    recipients,
-    routine,
-    event: 'ROUTINE_CREATED',
-    title: 'Subject added to routine',
-    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) ${routine.classType === 'WORKSHOP' ? 'workshop' : 'class'} was added on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.${routine.note ? ` ${routine.note}` : ''}`,
-    dedupeKeyFactory: (userId) => `routine-created:${routine.combinedGroupId || routine.id}:${userId}`
-  })
-}
-
-const notifyRoutineRecipients = async ({ recipients, routine, event, title, message, dedupeKeyFactory }) => {
-  if (!recipients.length) {
-    return { count: 0 }
-  }
-
-  const recipientsByLink = recipients.reduce((acc, recipient) => {
-    const link = inferRoutineLink(recipient.role)
-    if (!acc.has(link)) {
-      acc.set(link, [])
-    }
-    acc.get(link).push(recipient.userId)
-    return acc
-  }, new Map())
-
-  const results = await Promise.all([...recipientsByLink.entries()].map(([link, userIds]) => createNotifications({
-    userIds,
-    type: 'ROUTINE_UPDATED',
-    title,
-    message,
-    link,
-    metadata: {
-      event,
-      routineId: routine.id,
-      subjectId: routine.subjectId,
-      department: routine.department || null,
-      semester: routine.semester,
-      section: routine.section || null,
-      dayOfWeek: routine.dayOfWeek,
-      startTime: routine.startTime,
-      endTime: routine.endTime,
-      classType: routine.classType || 'LECTURE',
-      note: routine.note || null
-    },
-    dedupeKeyFactory
-  })))
-
-  return {
-    count: results.reduce((total, item) => total + (item?.count || 0), 0),
-    results
-  }
-}
-
-const notifyRoutineDeleted = async (routine) => {
-  const recipients = await getRoutineNotificationRecipients({
-    department: routine.department,
-    semester: routine.semester,
-    section: routine.section,
-    instructorId: routine.instructorId
-  })
-
-  await notifyRoutineRecipients({
-    recipients,
-    routine,
-    event: 'ROUTINE_DELETED',
-    title: 'Subject removed from routine',
-    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) was removed from ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.`,
-    dedupeKeyFactory: (userId) => `routine-deleted:${routine.id}:${userId}`
-  })
-}
-
-const notifyRoutineUpdated = async (routine) => {
-  const recipients = await getRoutineNotificationRecipients({
-    department: routine.department,
-    semester: routine.semester,
-    section: routine.section,
-    instructorId: routine.instructorId
-  })
-
-  await notifyRoutineRecipients({
-    recipients,
-    routine,
-    event: 'ROUTINE_UPDATED',
-    title: 'Routine updated',
-    message: `${routine.subject?.name || 'A subject'} (${routine.subject?.code || 'N/A'}) is now scheduled as ${String(routine.classType || 'LECTURE').toLowerCase()} on ${routine.dayOfWeek} ${routine.startTime}-${routine.endTime} for ${getRoutineAudienceLabel(routine)}.${routine.note ? ` ${routine.note}` : ''}`,
-    dedupeKeyFactory: (userId) => `routine-updated:${routine.id}:${Date.now()}:${userId}`
-  })
 }
 
 const validateRoutineAcademicScope = async ({ subjectId, instructorId, department, semester, context }) => {
@@ -407,9 +249,13 @@ const createRoutine = async (context, result = createServiceResponder()) => {
       include: getRoutineInclude()
     })
 
-    result.withStatus(201, { message: 'Routine created successfully!', routine })
+    await enqueueRoutineNotification({
+      event: 'created',
+      routineId: routine.id,
+      routine
+    })
 
-    void notifyRoutineCreated(routine).catch(() => null)
+    result.withStatus(201, { message: 'Routine created successfully!', routine })
   } catch (error) {
     if (error?.code === 'P2002') {
       return result.withStatus(400, { message: 'This instructor already has a class at this time.' })
@@ -514,16 +360,28 @@ const updateRoutine = async (context, result = createServiceResponder()) => {
       include: getRoutineInclude()
     })
 
-    result.ok({ message: 'Routine updated successfully!', routine: updated })
-
     if (routine.subjectId !== updated.subjectId) {
-      void Promise.allSettled([
-        notifyRoutineDeleted(routine),
-        notifyRoutineCreated(updated)
+      await Promise.all([
+        enqueueRoutineNotification({
+          event: 'deleted',
+          routineId: routine.id,
+          routine
+        }),
+        enqueueRoutineNotification({
+          event: 'created',
+          routineId: updated.id,
+          routine: updated
+        })
       ])
     } else {
-      void notifyRoutineUpdated(updated).catch(() => null)
+      await enqueueRoutineNotification({
+        event: 'updated',
+        routineId: updated.id,
+        routine: updated
+      })
     }
+
+    result.ok({ message: 'Routine updated successfully!', routine: updated })
   } catch (error) {
     if (error?.code === 'P2002') {
       return result.withStatus(400, { message: 'This instructor already has a class at this time.' })
@@ -552,9 +410,14 @@ const deleteRoutine = async (context, result = createServiceResponder()) => {
   }
 
   await prisma.routine.delete({ where: { id } })
-  result.ok({ message: 'Routine deleted successfully!' })
 
-  void notifyRoutineDeleted(routine).catch(() => null)
+  await enqueueRoutineNotification({
+    event: 'deleted',
+    routineId: routine.id,
+    routine
+  })
+
+  result.ok({ message: 'Routine deleted successfully!' })
 }
 
 module.exports = { createRoutine, getAllRoutines, getRoutineById, updateRoutine, deleteRoutine }

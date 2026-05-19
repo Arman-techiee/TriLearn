@@ -1114,5 +1114,10 @@ module.exports = {
   getMyMarksSummary,
   exportMyMarksheetPdf,
   deleteMarks,
-  publishMarks
+  publishMarks,
+  __testing: {
+    getGradeSnapshot,
+    getPercentage,
+    buildStudentResultSheet
+  }
 }

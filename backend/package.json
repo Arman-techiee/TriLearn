@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "lint:staged": "eslint --fix",
     "test": "node --test test/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.js",
     "test:db": "node --test test/db.real.js",
     "typecheck": "tsc --noEmit",
     "start": "node src/index.js",

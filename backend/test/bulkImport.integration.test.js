@@ -386,7 +386,7 @@ test('duplicate rollNumber in import returns partial success with row errors', a
     {
       name: 'Bimal Thapa',
       email: 'bimal@example.edu',
-      rollNumber: 'cs-001',
+      rollNumber: 'CS-001',
       department: 'CS',
       semester: '1',
       section: 'A'

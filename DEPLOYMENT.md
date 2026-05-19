@@ -131,6 +131,19 @@ SENTRY_TRACES_SAMPLE_RATE=0
 Leave `SENTRY_TRACES_SAMPLE_RATE=0` unless tracing has been deliberately enabled
 for the project. Error events are still sent when tracing is off.
 
+## Reverse proxy headers
+
+Production TLS termination must preserve secure-request detection for refresh
+cookies. Configure the reverse proxy or load balancer to forward:
+
+```text
+X-Forwarded-Proto: https
+```
+
+The backend uses that header when deciding whether refresh cookies can use
+`Secure` and `SameSite=None` for cross-origin browser refresh. See
+[ADR 0001](docs/adr/0001-auth-token-transport.md).
+
 ## Mobile client version enforcement
 
 Mobile requests include `X-Client-Version` and `X-App-Version` headers on

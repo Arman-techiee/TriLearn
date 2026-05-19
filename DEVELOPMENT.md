@@ -70,3 +70,7 @@ HMAC-SHA256(MOBILE_CLIENT_SHARED_SECRET, `${X-Client-Type}:${X-Client-Version}:$
 ```
 
 where `flooredTimestamp = Math.floor(Date.now() / 30000)`. The backend accepts the current 30-second window and the previous one for minor clock skew. If `MOBILE_CLIENT_SHARED_SECRET` is not configured, the mobile CSRF exemption is disabled.
+
+This is a shared app-build secret, not a per-device secret. Rotation requires
+a coordinated backend and mobile app rollout; see
+[ADR 0003](docs/adr/0003-mobile-client-shared-secret.md).

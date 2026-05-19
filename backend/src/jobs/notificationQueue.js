@@ -6,6 +6,7 @@ const CREATE_NOTIFICATIONS_JOB = 'create-notifications'
 const NOTICE_POSTED_JOB = 'notice-posted'
 const PASSWORD_RESET_EMAIL_JOB = 'password-reset-email'
 const BULK_STUDENT_IMPORT_JOB = 'bulk-student-import'
+const ROUTINE_NOTIFICATION_JOB = 'routine-notification'
 
 let queue = null
 let redisWarningShown = false
@@ -95,6 +96,7 @@ module.exports = {
   NOTICE_POSTED_JOB,
   PASSWORD_RESET_EMAIL_JOB,
   BULK_STUDENT_IMPORT_JOB,
+  ROUTINE_NOTIFICATION_JOB,
   getNotificationQueueConnection,
   normalizeQueueOptions,
   notificationQueue

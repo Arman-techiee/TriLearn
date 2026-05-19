@@ -12,6 +12,7 @@ const {
   NOTICE_POSTED_JOB,
   PASSWORD_RESET_EMAIL_JOB,
   BULK_STUDENT_IMPORT_JOB,
+  ROUTINE_NOTIFICATION_JOB,
   getNotificationQueueConnection
 } = require('./notificationQueue')
 
@@ -188,6 +189,11 @@ const processNotificationJob = async (job) => {
 
   if (job.name === CREATE_NOTIFICATIONS_JOB) {
     return createNotificationRecords(job.data.notifications)
+  }
+
+  if (job.name === ROUTINE_NOTIFICATION_JOB) {
+    const { processRoutineNotificationJob } = require('../utils/routineNotifications')
+    return processRoutineNotificationJob(job.data)
   }
 
   if (job.name === PASSWORD_RESET_EMAIL_JOB) {
