@@ -12,6 +12,17 @@ let redisWarningShown = false
 
 const getRedisUrl = () => String(process.env.REDIS_URL || '').trim()
 
+const normalizeQueueOptions = (options = {}) => {
+  if (typeof options.jobId !== 'string' || !options.jobId.includes(':')) {
+    return options
+  }
+
+  return {
+    ...options,
+    jobId: options.jobId.replaceAll(':', '-')
+  }
+}
+
 const getNotificationQueueConnection = () => {
   if (!isRedisConfigured()) {
     if (!redisWarningShown) {
@@ -58,7 +69,7 @@ const notificationQueue = {
       return null
     }
 
-    return activeQueue.add(jobName, payload, options)
+    return activeQueue.add(jobName, payload, normalizeQueueOptions(options))
   },
   getJob: async (jobId) => {
     const activeQueue = getNotificationQueue()
@@ -85,5 +96,6 @@ module.exports = {
   PASSWORD_RESET_EMAIL_JOB,
   BULK_STUDENT_IMPORT_JOB,
   getNotificationQueueConnection,
+  normalizeQueueOptions,
   notificationQueue
 }
