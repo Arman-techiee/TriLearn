@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, DoorOpen, Layers, Pencil, Plus, Save, UserCheck, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, DoorOpen, Filter, Layers, Pencil, Plus, Save, UserCheck, X } from 'lucide-react'
 import AdminLayout from '../../layouts/AdminLayout'
 import CoordinatorLayout from '../../layouts/CoordinatorLayout'
 import api from '../../utils/api'
@@ -97,6 +97,11 @@ const AdminRoutine = () => {
   const [form, setForm] = useState(defaultForm)
   const [createSectionScope, setCreateSectionScope] = useState('ONE')
   const [createSectionsInput, setCreateSectionsInput] = useState('')
+  const [entriesFilter, setEntriesFilter] = useState({
+    department: '',
+    semester: '',
+    section: ''
+  })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const pageClassName = `${isCoordinator ? 'coordinator-page' : 'admin-page'} p-4 md:p-8`
@@ -306,6 +311,63 @@ const AdminRoutine = () => {
     ])].sort((left, right) => left.localeCompare(right))
   ), [configuredSectionOptions, form.department, form.semester, normalizeDepartmentKey, routines])
   const sectionOptionsForActiveForm = isCreateMode ? configuredSectionOptions : sectionOptionsForCreate
+
+  const selectedEntriesDepartment = departments.find((department) => department.name === entriesFilter.department)
+  const entriesSectionOptions = useMemo(() => {
+    if (!selectedEntriesDepartment || !entriesFilter.semester) {
+      return []
+    }
+
+    const configured = (selectedEntriesDepartment.semesterSections || [])
+      .find((entry) => String(entry.semester) === String(entriesFilter.semester))
+
+    const configuredSections = Array.isArray(configured?.sections)
+      ? configured.sections
+      : []
+
+    const routineSections = routines
+      .filter((routine) => (
+        normalizeDepartmentKey(routine.department) === normalizeDepartmentKey(entriesFilter.department)
+        && String(routine.semester) === String(entriesFilter.semester)
+        && routine.section
+      ))
+      .map((routine) => routine.section)
+
+    return [...new Set([...configuredSections, ...routineSections]
+      .map((section) => String(section || '').trim().toUpperCase())
+      .filter(Boolean))]
+      .sort((left, right) => left.localeCompare(right))
+  }, [entriesFilter.department, entriesFilter.semester, normalizeDepartmentKey, routines, selectedEntriesDepartment])
+
+  useEffect(() => {
+    if (!entriesFilter.section || entriesSectionOptions.includes(entriesFilter.section)) {
+      return
+    }
+
+    setEntriesFilter((current) => ({ ...current, section: '' }))
+  }, [entriesFilter.section, entriesSectionOptions])
+
+  const entriesFilterReady = Boolean(entriesFilter.department && entriesFilter.semester && entriesFilter.section)
+
+  const visibleRoutineEntries = useMemo(() => {
+    if (!entriesFilterReady) {
+      return []
+    }
+
+    return routines
+      .filter((routine) => {
+        const departmentMatches = normalizeDepartmentKey(routine.department) === normalizeDepartmentKey(entriesFilter.department)
+        const semesterMatches = String(routine.semester) === String(entriesFilter.semester)
+        const routineSection = String(routine.section || '').trim().toUpperCase()
+        const sectionMatches = routineSection === entriesFilter.section || routineSection === ''
+
+        return departmentMatches && semesterMatches && sectionMatches
+      })
+      .sort((left, right) => {
+        const dayDiff = DAYS.indexOf(left.dayOfWeek) - DAYS.indexOf(right.dayOfWeek)
+        return dayDiff !== 0 ? dayDiff : left.startTime.localeCompare(right.startTime)
+      })
+  }, [entriesFilter.department, entriesFilter.section, entriesFilter.semester, entriesFilterReady, normalizeDepartmentKey, routines])
 
   const filteredInstructors = instructors.filter((instructor) => {
     if (isCoordinator) {
@@ -861,9 +923,75 @@ const AdminRoutine = () => {
               <div className="flex flex-col gap-2 border-b border-[var(--color-card-border)] p-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="font-semibold text-[var(--color-heading)]">Routine Entries</h2>
-                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">Edit an existing class without recreating the routine.</p>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">Select department, semester, and section to show editable routine entries.</p>
                 </div>
-                <p className="text-sm font-semibold text-[var(--color-text-soft)]">{routines.length} scheduled {routines.length === 1 ? 'entry' : 'entries'}</p>
+                <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                  entriesFilterReady
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200'
+                    : 'border-[var(--color-card-border)] bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]'
+                }`}>
+                  {entriesFilterReady ? <CheckCircle2 className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+                  <span>{entriesFilterReady ? `${visibleRoutineEntries.length} visible` : 'Selection required'}</span>
+                </div>
+              </div>
+
+              <div className="border-b border-[var(--color-card-border)] p-4">
+                <div className="grid gap-3 md:grid-cols-[1fr_0.8fr_0.8fr_auto] md:items-end">
+                  <div>
+                    <label className="ui-form-label">Department</label>
+                    <select
+                      value={entriesFilter.department}
+                      onChange={(event) => setEntriesFilter({ department: event.target.value, semester: '', section: '' })}
+                      className="ui-form-input"
+                    >
+                      <option value="">Select department</option>
+                      {departments.map((department) => (
+                        <option key={department.id} value={department.name}>
+                          {department.name}{department.code ? ` (${department.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="ui-form-label">Semester</label>
+                    <select
+                      value={entriesFilter.semester}
+                      onChange={(event) => setEntriesFilter((current) => ({ ...current, semester: event.target.value, section: '' }))}
+                      className="ui-form-input"
+                      disabled={!entriesFilter.department}
+                    >
+                      <option value="">Select semester</option>
+                      {SEMESTER_OPTIONS.map((semester) => (
+                        <option key={semester} value={semester}>Semester {semester}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="ui-form-label">Section</label>
+                    <select
+                      value={entriesFilter.section}
+                      onChange={(event) => setEntriesFilter((current) => ({ ...current, section: event.target.value }))}
+                      className="ui-form-input"
+                      disabled={!entriesFilter.department || !entriesFilter.semester || entriesSectionOptions.length === 0}
+                    >
+                      <option value="">Select section</option>
+                      {entriesSectionOptions.map((section) => (
+                        <option key={section} value={section}>Section {section}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEntriesFilter({ department: '', semester: '', section: '' })}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-card-border)] px-4 text-sm font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </button>
+                </div>
+                {entriesFilter.department && entriesFilter.semester && entriesSectionOptions.length === 0 ? (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No sections are configured or scheduled for this class scope.</p>
+                ) : null}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[900px]">
@@ -880,7 +1008,7 @@ const AdminRoutine = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {routines.map((routine) => {
+                    {visibleRoutineEntries.map((routine) => {
                       const isEditing = editRoutine?.id === routine.id
                       return (
                         <tr key={routine.id} className={`border-t border-[var(--color-card-border)] ${isEditing ? 'bg-[var(--color-surface-muted)]' : ''}`}>
@@ -917,9 +1045,14 @@ const AdminRoutine = () => {
                         </tr>
                       )
                     })}
-                    {routines.length === 0 ? (
+                    {!entriesFilterReady ? (
                       <tr>
-                        <td colSpan={8} className="px-5 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine entries have been created yet.</td>
+                        <td colSpan={8} className="px-5 py-8 text-center text-sm text-[var(--color-text-soft)]">Select department, semester, and section to view routine entries.</td>
+                      </tr>
+                    ) : null}
+                    {entriesFilterReady && visibleRoutineEntries.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-5 py-8 text-center text-sm text-[var(--color-text-soft)]">No routine entries have been created for this class scope.</td>
                       </tr>
                     ) : null}
                   </tbody>
