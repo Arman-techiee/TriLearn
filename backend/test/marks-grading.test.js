@@ -2,12 +2,10 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 
 const {
-  __testing: {
-    getGradeSnapshot,
-    getPercentage,
-    buildStudentResultSheet
-  }
-} = require('../src/services/marks.service')
+  getGradeSnapshot,
+  getPercentage,
+  buildStudentResultSheet
+} = require('../src/utils/marksGrading')
 
 test('grade snapshots use inclusive lower boundaries', () => {
   const cases = [

@@ -1,85 +1,30 @@
 import axios from 'axios'
+import { API_BASE_URL, API_ORIGIN } from './apiConfig'
+import {
+  clearAuthState,
+  getAuthState,
+  hasSessionHint,
+  setAuthState,
+  subscribeToAuthState
+} from './apiAuthState'
 import { isRequestCanceled } from './http'
 
-const normalizeApiBaseUrl = (rawValue) => {
-  const fallbackUrl = 'http://localhost:5000/api/v1'
-  const trimmedValue = String(rawValue || '').trim()
-
-  if (!trimmedValue) {
-    return fallbackUrl
-  }
-
-  if (/\/api\/v\d+\/?$/i.test(trimmedValue)) {
-    return trimmedValue.replace(/\/+$/, '')
-  }
-
-  if (/\/api\/?$/i.test(trimmedValue)) {
-    return `${trimmedValue.replace(/\/+$/, '')}/v1`
-  }
-
-  return `${trimmedValue.replace(/\/+$/, '')}/api/v1`
+export {
+  API_BASE_URL,
+  API_ORIGIN,
+  getAuthState,
+  hasSessionHint,
+  setAuthState,
+  subscribeToAuthState
 }
 
-export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
-export const API_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, '')
-const AUTH_USER_STORAGE_KEY = 'trilearn.auth.user'
 const REFRESH_COOLDOWN_STORAGE_KEY = 'trilearn.auth.refresh.cooldownUntil'
 const REFRESH_LOCK_STORAGE_KEY = 'trilearn.auth.refresh.lock'
-const AUTH_USER_PERSISTED_FIELDS = ['name', 'role', 'mustChangePassword', 'profileCompleted']
 const ACCESS_TOKEN_REFRESH_SKEW_MS = 30_000
 const REFRESH_LOCK_TIMEOUT_MS = 10_000
 const REFRESH_LOCK_POLL_MS = 100
 const REFRESH_LOCK_MAX_WAIT_MS = 12_000
 const REFRESH_LOCK_OWNER = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-
-const buildStoredUserSnapshot = (user) => {
-  if (!user || typeof user !== 'object') {
-    return null
-  }
-
-  return AUTH_USER_PERSISTED_FIELDS.reduce((snapshot, field) => {
-    if (Object.prototype.hasOwnProperty.call(user, field) && user[field] != null) {
-      snapshot[field] = user[field]
-    }
-
-    return snapshot
-  }, {})
-}
-
-const readStoredUser = () => {
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  try {
-    const serializedUser = window.localStorage.getItem(AUTH_USER_STORAGE_KEY)
-    return serializedUser ? buildStoredUserSnapshot(JSON.parse(serializedUser)) : null
-  } catch {
-    return null
-  }
-}
-
-const writeStoredUser = (user) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  try {
-    if (user) {
-      const storedUserSnapshot = buildStoredUserSnapshot(user)
-
-      if (storedUserSnapshot && Object.keys(storedUserSnapshot).length > 0) {
-        window.localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(storedUserSnapshot))
-      } else {
-        window.localStorage.removeItem(AUTH_USER_STORAGE_KEY)
-      }
-    } else {
-      window.localStorage.removeItem(AUTH_USER_STORAGE_KEY)
-    }
-  } catch {
-    // Ignore storage failures so auth remains functional in restricted environments.
-  }
-}
 
 const readStoredRefreshCooldownUntil = () => {
   if (typeof window === 'undefined') {
@@ -164,28 +109,8 @@ const clearRefreshLock = (owner) => {
  * Alternative: move the access token to an httpOnly cookie — requires a CSRF double-submit
  * strategy since the refresh cookie is already httpOnly on /api/v1/auth.
  */
-let authState = {
-  token: null,
-  user: readStoredUser()
-}
 let unauthorizedHandler = null
 let refreshCooldownUntil = readStoredRefreshCooldownUntil()
-
-const authSubscribers = new Set()
-
-const notifyAuthSubscribers = () => {
-  const snapshot = { ...authState }
-  authSubscribers.forEach((listener) => listener(snapshot))
-}
-
-export const getAuthState = () => ({ ...authState })
-
-export const subscribeToAuthState = (listener) => {
-  authSubscribers.add(listener)
-  return () => {
-    authSubscribers.delete(listener)
-  }
-}
 
 export const registerUnauthorizedHandler = (handler) => {
   unauthorizedHandler = handler
@@ -195,20 +120,6 @@ export const registerUnauthorizedHandler = (handler) => {
       unauthorizedHandler = null
     }
   }
-}
-
-export const hasSessionHint = () => {
-  return Boolean(authState.token || authState.user)
-}
-
-export const setAuthState = ({ token = null, user = null } = {}) => {
-  authState = { token, user }
-  writeStoredUser(user)
-  notifyAuthSubscribers()
-}
-
-const clearAuthState = () => {
-  setAuthState({ token: null, user: null })
 }
 
 const getRetryAfterMs = (error, fallbackMs = 60_000) => {
@@ -549,7 +460,9 @@ const isAuthRouteRequest = (requestConfig) => {
 
 // Automatically add token to every request
 api.interceptors.request.use(async (config) => {
-  if (!authState.token && authState.user && !isAuthRouteRequest(config)) {
+  const currentAuthState = getAuthState()
+
+  if (!currentAuthState.token && currentAuthState.user && !isAuthRouteRequest(config)) {
     try {
       await refreshSession()
     } catch (refreshError) {
@@ -557,7 +470,9 @@ api.interceptors.request.use(async (config) => {
     }
   }
 
-  if (authState.token && authState.user && isAccessTokenExpiring(authState.token) && !isAuthRouteRequest(config)) {
+  const refreshedAuthState = getAuthState()
+
+  if (refreshedAuthState.token && refreshedAuthState.user && isAccessTokenExpiring(refreshedAuthState.token) && !isAuthRouteRequest(config)) {
     try {
       await refreshSession()
     } catch (refreshError) {
@@ -565,8 +480,10 @@ api.interceptors.request.use(async (config) => {
     }
   }
 
-  if (authState.token) {
-    config.headers.Authorization = `Bearer ${authState.token}`
+  const nextAuthState = getAuthState()
+
+  if (nextAuthState.token) {
+    config.headers.Authorization = `Bearer ${nextAuthState.token}`
   }
   return config
 })
