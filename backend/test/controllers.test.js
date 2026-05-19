@@ -4458,6 +4458,7 @@ test('scanStudentIdAttendance allows gatekeeper scans without subjectId', async 
   assert.equal(upsertCalls, 1)
   assert.equal(ownedSubjectCalls, 0)
   assert.equal(eligibilityStudent.department, 'BCA')
+  assert.deepEqual(res.body.markedSubjects, [{ subjectId: 'subject-1', status: 'PRESENT' }])
   assert.equal(redisSetCalls.length, 1)
   assert.match(redisSetCalls[0][0], /^qr-used:student-1:/)
   assert.equal(redisSetCalls[0][2].NX, true)

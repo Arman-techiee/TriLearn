@@ -411,7 +411,7 @@ const scanStudentIdAttendance = async (context, result = createServiceResponder(
         semester: student.semester,
         section: student.section
       },
-      markedSubjects: result.markedSubjects,
+      markedSubjects: attendanceResult.markedSubjects,
       date: eligibility.gateDay.dayRange.start
     })
   }

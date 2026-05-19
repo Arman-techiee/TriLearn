@@ -669,18 +669,11 @@ const getEligibleGateAttendanceForStudent = async (student, referenceDate = new 
     dayOfWeek: gateDay.dayOfWeek
   })
 
-  const routines = filterRoutinesForSemesterWindows({
-    routines: studentDayRoutines,
-    baseDate: gateDay.dayRange.start,
-    semester: student.semester,
-    windows: eligibleWindows
-  })
-
-  if (!routines.length) {
-    return { error: { status: 400, message: 'This student has no scheduled subject in the active Student QR time slot.' } }
+  if (!studentDayRoutines.length) {
+    return { error: { status: 400, message: 'This student has no scheduled subject today.' } }
   }
 
-  return { gateDay, eligibleWindows, routines }
+  return { gateDay, eligibleWindows, routines: studentDayRoutines }
 }
 
 /**
@@ -759,17 +752,12 @@ const syncClosedRoutineAbsences = async (referenceDate = new Date()) => {
       return
     }
 
-    const semesterRoutines = filterRoutinesForSemesterWindows({
-      routines: routines.filter((routine) => (
+    const semesterRoutines = routines.filter((routine) => (
         routine.subject.enrollments.some((enrollment) => enrollment.studentId === student.id) &&
         routine.semester === student.semester &&
         (!routine.department || routine.department === student.department) &&
         (!routine.section || routine.section === student.section)
-      )),
-      baseDate: gateDay.dayRange.start,
-      semester: student.semester,
-      windows: closedWindowsForSemester
-    })
+    ))
 
     semesterRoutines.forEach((routine) => {
       const key = `${student.id}:${routine.subjectId}`
